@@ -154,7 +154,7 @@ def main():
 
 		# Remove sample directory if it was created during the process
 		if removeCreatedSamplesDirectories:
-			utils.removeDirectory(sample_outdir)
+			utils.removeDirectory(os.path.join(inputDirectory, sample, ''))
 
 		print 'END ' + sample + ' analysis'
 		time_taken = utils.runTime(sample_start_time)
