@@ -36,7 +36,7 @@ def parseArguments(version):
 	trimmomatic_options.add_argument('--trimCrop', nargs=1, type=int, metavar='N', help='Cut the specified number of bases to the end of the maximum reads length', required=False)
 	trimmomatic_options.add_argument('--trimHeadCrop', nargs=1, type=int, metavar='N', help='Trimmomatic: cut the specified number of bases from the start of the reads', required=False)
 	trimmomatic_options.add_argument('--trimSlidingWindow', nargs=1, type=str, metavar='window:meanQuality', help='Trimmomatic: perform a sliding window trimming, cutting once the average quality within the window falls below a threshold', required=False, default=['5:20'])
-	trimmomatic_options.add_argument('--trimMinLength', nargs=1, type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=[51])
+	trimmomatic_options.add_argument('--trimMinLength', nargs=1, type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=[55])
 	trimmomatic_options.add_argument('--trimLeading', nargs=1, type=int, metavar='N', help='Trimmomatic: cut bases off the start of a read, if below a threshold quality', required=False, default=[3])
 	trimmomatic_options.add_argument('--trimTrailing', nargs=1, type=int, metavar='N', help='Trimmomatic: cut bases off the end of a read, if below a threshold quality', required=False, default=[3])
 
