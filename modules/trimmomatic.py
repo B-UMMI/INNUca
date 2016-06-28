@@ -44,9 +44,6 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
 
-	if not doNotSearchAdapters and adaptersFasta == None:
-		os.remove(adaptersFasta)
-
 	return run_successfully
 
 # Concatenate fasta files

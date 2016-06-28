@@ -1,4 +1,5 @@
 import utils
+import os
 
 # Count sequenced bases
 def countSequencedBases(fastq_file):
@@ -46,7 +47,7 @@ def compressionType(file):
 	return None
 
 # Get extimated coverage
-def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb):
+def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir):
 	run_successfully = False
 	pass_qc = False
 	failing = {}
@@ -65,12 +66,25 @@ def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb):
 	if run_successfully:
 		estimatedCoverage = numberBases/float(estimatedGenomeSizeMb * 1000000)
 		estimatedCoverage = round(estimatedCoverage, 1)
+
+		report_file = os.path.join(outdir, 'coverage_report.txt')
+		report = str(estimatedCoverage) + 'x'
+		if not os.path.isfile(report_file):
+			writer = open(report_file, 'wt')
+		else:
+			writer = open(report_file, 'at')
+		writer.write(report + '\n')
+		writer.flush()
+		writer.close()
+
+		report = 'Estimated depth coverage: ' + str(estimatedCoverage) + 'x'
 		if estimatedCoverage >= 30:
 			pass_qc = True
-			print 'Estimated depth coverage: ' + str(estimatedCoverage) + 'x'
+			print report
 		else:
-			failing['sample'] = 'Estimated depth coverage (' + str(estimatedCoverage) + 'x) lower than 30x'
+			failing['sample'] = report + ' (lower than 30x)'
 			print failing['sample']
+
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']

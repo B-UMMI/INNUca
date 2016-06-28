@@ -119,12 +119,12 @@ Usage
                             Trimmomatic: perform a sliding window trimming,
                             cutting once the average quality within the window
                             falls below a threshold (default: ['5:20'])
-      --trimMinLength N     Trimmomatic: drop the read if it is below a specified
-                            length (default: [55])
       --trimLeading N       Trimmomatic: cut bases off the start of a read, if
                             below a threshold quality (default: [3])
       --trimTrailing N      Trimmomatic: cut bases off the end of a read, if below
                             a threshold quality (default: [3])
+      --trimMinLength N     Trimmomatic: drop the read if it is below a specified
+                            length (default: [55])
 
     SPAdes options:
       --spadesNotUseCareful

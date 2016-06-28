@@ -8,7 +8,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: June 24, 2016
+Last modified: June 28, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import os
 import sys
 
 def main():
-	version = '1.2'
+	version = '1.3'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -192,7 +192,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		program_start_time = time.time()
 		print 'RUNNING First Estimated Coverage analysis'
 		program = []
-		run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize)
+		run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
 		print 'END First Estimated Coverage analysis'
 		time_taken = utils.runTime(program_start_time)
 		program.append(run_successfully)
@@ -247,7 +247,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 				program_start_time = time.time()
 				print 'RUNNING Second Estimated Coverage analysis'
 				program = []
-				run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize)
+				run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
 				print 'END Second Estimated Coverage analysis'
 				time_taken = utils.runTime(program_start_time)
 				program.append(run_successfully)

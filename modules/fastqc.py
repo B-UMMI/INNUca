@@ -16,9 +16,10 @@ def adapters2fastQC(outdir, adaptersFastaFile):
 					writer.write(adapterHeader + '\t' + adapterSequence + '\n')
 				adapterHeader = ''
 				adapterSequence = ''
-				adapterHeader = line[1:].striplines()[0]
+				adapterHeader = line[1:].splitlines()[0]
 			else:
-				adapterSequence = adapterSequence + line.striplines()[0]
+				adapterSequence = adapterSequence + line.splitlines()[0]
+		writer.write(adapterHeader + '\t' + adapterSequence + '\n')
 	writer.close()
 	return adaptersFile
 
@@ -32,7 +33,7 @@ def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 	command = command + fastq_files
 	if adaptersFasta != None:
 		adaptersTEMP = adapters2fastQC(fastqc_folder, adaptersFasta)
-		print 'Scanning for adapters contamination using ' + adaptersFile
+		print 'Scanning for adapters contamination using ' + adaptersFasta
 		command[9] = '--adapters ' + adaptersTEMP
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
 
@@ -206,7 +207,9 @@ def nts2clip(dict_fastqs_ntsBiased_status):
 							nts2clip_based_ntsContent[fastq][1] = len(nt_content)-i
 							break
 
-	nts2clip_based_ntsContent = [min(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][0], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][0]), max(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][1], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][1])]
+	print nts2clip_based_ntsContent
+
+	nts2clip_based_ntsContent = [max(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][0], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][0]), min(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][1], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][1])]
 
 	return nts2clip_based_ntsContent
 
