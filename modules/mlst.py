@@ -21,7 +21,7 @@ def runMlst(contigs, species, outdir):
 		report = 'MLST found ST ' + str(st) + ' from species ' + species_mlst
 		print report
 		with open(os.path.join(outdir, 'mlst_report.txt'), 'wt') as writer:
-			writer.write(report)
+			writer.write('#species' + '\n' + species_mlst + '\n' + '#ST' + '\n' + st + '\n')
 			writer.flush()
 
 		if species_mlst == species:
