@@ -4,7 +4,7 @@ import shutil
 
 # Run Trimmomatic
 def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent):
-	fastq = fastq_files[0]
+	fastq = sorted(fastq_files)[0]
 
 	# Run Trimmomatic
 	command = ['trimmomatic-0.36.jar', 'PE', '-threads', str(threads), '-basein', fastq, '-baseout', os.path.join(trimmomatic_folder, str(sampleName + '.fastq.gz')), '', '', '', str('SLIDINGWINDOW:' + slidingWindow), str('LEADING:' + str(leading)), str('TRAILING:' + str(trailing)), str('MINLEN:' + str(minLength)), 'TOPHRED33']
@@ -33,8 +33,8 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 
 	if not doNotSearchAdapters:
 		if adaptersFasta is not None:
-			print 'Removing adapters contamination using ' + adaptersFasta
-			command[10] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
+			print 'Removing adapters contamination using ' + adaptersFasta.name
+			command[10] = 'ILLUMINACLIP:' + adaptersFasta.name + ':3:30:10:6:true'
 		else:
 			trimmomatic_adapters_folder = os.path.join(os.path.dirname(script_path), 'src', 'Trimmomatic-0.36', 'adapters')
 			adapters_files = [os.path.join(trimmomatic_adapters_folder, 'NexteraPE-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq2-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq3-PE-2.fa')]

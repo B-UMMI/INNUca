@@ -7,7 +7,7 @@ import shutil
 import shlex
 
 def parseArguments(version):
-	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 	required_options = parser.add_argument_group('Required options')
 	required_options.add_argument('-i', '--inputDirectory', nargs=1, type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together', required=True)
@@ -28,7 +28,7 @@ def parseArguments(version):
 	general_options.add_argument('--skipMLST', action='store_true', help='Tells the programme to not run MLST analysis')
 
 	adapters_options = parser.add_mutually_exclusive_group()
-	adapters_options.add_argument('--adapters', nargs=1, type=str, metavar='adaptersFile.fasta', help='Fasta file containing adapters sequences to be used in FastQC and Trimmomatic', required=False, default=[None])
+	adapters_options.add_argument('--adapters', nargs=1, type=argparse.FileType('r'), metavar='adaptersFile.fasta', help='Fasta file containing adapters sequences to be used in FastQC and Trimmomatic', required=False, default=[None])
 	adapters_options.add_argument('--doNotSearchAdapters', action='store_true', help='Tells INNUca.py to not search for adapters and clip them during Trimmomatic step')
 
 	trimmomatic_options = parser.add_argument_group('Trimmomatic options')
@@ -42,9 +42,10 @@ def parseArguments(version):
 
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
-	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
-	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=int, metavar='N', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure)', required=False, default=[10])
 	spades_options.add_argument('--spadesMinContigsLength', nargs=1, type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=[200])
+	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55,77,99,113,127])
+	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
+	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
 
 	args = parser.parse_args()
 
@@ -52,6 +53,34 @@ def parseArguments(version):
 		parser.error('Cannot use --doNotTrimCrops option with --trimCrop or --trimHeadCrop')
 
 	return args
+
+def spades_kmers(arguments):
+	arguments = map(int, arguments.split(','))
+	arguments = sorted(arguments)
+	for number in arguments:
+		if number % 2 != 0:
+			if number < 128:
+				continue
+			else:
+				argparse.ArgumentParser.error()
+		else:
+			argparse.ArgumentParser.error()
+	return arguments
+
+def spades_cov_cutoff(argument):
+	string_options = ['auto', 'off']
+	for option in string_options:
+		if str(argument) == option:
+			return str(argument)
+
+	try:
+		argument = int(argument)
+		if argument > 0:
+			return argument
+		else:
+			argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
+	except:
+		argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
 
 def runCommandPopenCommunicate(command):
 	run_successfully = False

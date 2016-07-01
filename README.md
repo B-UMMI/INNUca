@@ -1,8 +1,9 @@
 INNUca.py
 =========
+*INNUca - Reads Control and Assembly*
 *INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search*
 
-<https://github.com/miguelpmachado/INNUca/>
+<https://github.com/B-UMMI/INNUca>
 
 Requirements
 ------------
@@ -31,7 +32,7 @@ Dependencies
 
 Installation
 ------------
-    git clone https://github.com/miguelpmachado/INNUca.git
+    git clone https://github.com/B-UMMI/INNUca.git
 
 Usage
 -----
@@ -45,15 +46,14 @@ Usage
                      [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
                      [--skipSPAdes] [--skipMLST]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
-                     [--trimCrop N] [--trimHeadCrop N]
-                     [--doNotSearchAdapters | [[--trimCrop N] [--trimHeadCrop N]]]
+                     [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
-                     [--trimLeading N] [--trimTrailing N] [--spadesNotUseCareful]
-                     [--spadesMaxMemory N] [--spadesMinCoverage N]
-                     [--spadesMinContigsLength N]
+                     [--trimLeading N] [--trimTrailing N]
+                     [--spadesNotUseCareful] [--spadesMinContigsLength N]
+                     [--spadesKmers 55,77] [--spadesMaxMemory N]
+                     [--spadesMinCoverage 10]
 
-    INNUENDO quality control of reads, de novo assembly and contigs quality
-    assessment, and possible contamination search.
+    INNUca - Reads Control and Assembly
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -130,15 +130,18 @@ Usage
       --spadesNotUseCareful
                             Tells SPAdes to only perform the assembly without the
                             --careful option (default: False)
-      --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
-                            (default: [25])
-      --spadesMinCoverage N
-                            The minimum number of reads to consider an edge in the
-                            de Bruijn graph (or path I am not sure) (default:
-                            [10])
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: [200])
+      --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
+                            be odd, less than 128) (default: [55, 77, 99, 113,
+                            127])
+      --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
+                            (default: [25])
+      --spadesMinCoverage 10
+                            The minimum number of reads to consider an edge in the  
+                            de Bruijn graph (or path I am not sure). Can also be
+                            auto or off (default: ['off'])
 
 Contact
 -------

@@ -9,7 +9,7 @@ def adapters2fastQC(outdir, adaptersFastaFile):
 	writer = open(adaptersFile, 'wt')
 	adapterHeader = ''
 	adapterSequence = ''
-	with open(adaptersFastaFile, 'rtU') as adapters:
+	with adaptersFastaFile as adapters:
 		for line in adapters:
 			if line.startswith('>'):
 				if adapterHeader != '':
@@ -33,7 +33,7 @@ def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 	command = command + fastq_files
 	if adaptersFasta != None:
 		adaptersTEMP = adapters2fastQC(fastqc_folder, adaptersFasta)
-		print 'Scanning for adapters contamination using ' + adaptersFasta
+		print 'Scanning for adapters contamination using ' + adaptersFasta.name
 		command[9] = '--adapters ' + adaptersTEMP
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
 
@@ -206,8 +206,6 @@ def nts2clip(dict_fastqs_ntsBiased_status):
 						else:
 							nts2clip_based_ntsContent[fastq][1] = len(nt_content)-i
 							break
-
-	print nts2clip_based_ntsContent
 
 	nts2clip_based_ntsContent = [max(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][0], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][0]), min(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][1], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][1])]
 

@@ -3,12 +3,13 @@
 # -*- coding: utf-8 -*-
 
 """
+INNUca - Reads Control and Assembly
 INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search
-<https://github.com/miguelpmachado/INNUca/>
+<https://github.com/B-UMMI/INNUca>
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: June 28, 2016
+Last modified: July 01, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,7 +36,7 @@ import os
 import sys
 
 def main():
-	version = '1.3'
+	version = '1.4'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -89,16 +90,20 @@ def main():
 
 	steps = ['first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
 
-	# Prepare report file
+	# Prepare run report file
 	samples_report = open(os.path.join(outdir, str('samples_report.' + time_str + '.tab')), 'wt')
 	# runningTime in seconds
 	# fileSize in bytes
 	samples_report.write('#samples' + '\t' + 'samples_runSuccessfully' + '\t' + 'samples_passQC' + '\t' + 'samples_runningTime' + '\t' + 'samples_fileSize' + '\t')
 	for step in steps:
-		if step != steps[len(steps) - 1]:
-			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_passQC') + '\t' + str(step + '_runningTime') + '\t')
+		if step == 'Trimmomatic':
+			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_runningTime') + '\t')
 		else:
-			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_passQC') + '\t' + str(step + '_runningTime') + '\n')
+			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_passQC') + '\t' + str(step + '_runningTime'))
+			if step != steps[len(steps) - 1]:
+				samples_report.write('\t')
+			else:
+				samples_report.write('\n')
 	samples_report.flush()
 
 	number_samples_successfully = 0
@@ -128,18 +133,26 @@ def main():
 		# Run INNUca.py analysis
 		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path)
 
-		# Save sample failing report
-		with open(os.path.join(sample_outdir, 'failing_report.txt'), 'wt') as writer_failingReport:
+		# Save sample fail report
+		with open(os.path.join(sample_outdir, 'fail_report.txt'), 'wt') as writer_failReport:
 			for step in steps:
-				writer_failingReport.write('#' + step + '\n')
-				for key, failing_reasons in run_report[step][3].items():
-					writer_failingReport.write('>' + str(key) + '\n')
-					if isinstance(failing_reasons, (list, tuple)):
-						for reasons in failing_reasons:
-							writer_failingReport.write(str(reasons) + '\n')
-							writer_failingReport.flush()
-					else:
-						writer_failingReport.write(str(failing_reasons) + '\n')
+				fail_reasons = list(run_report[step][3].values())
+				if fail_reasons.count(False) == len(fail_reasons):
+					continue
+				else:
+					writer_failReport.write('#' + step + '\n')
+					for key, fail_reasons in run_report[step][3].items():
+						if isinstance(fail_reasons, bool) and not fail_reasons:
+							continue
+						else:
+							writer_failReport.write('>' + str(key) + '\n')
+							if isinstance(fail_reasons, (list, tuple)):
+								for reasons in fail_reasons:
+									writer_failReport.write(str(reasons) + '\n')
+									writer_failReport.flush()
+							else:
+								writer_failReport.write(str(fail_reasons) + '\n')
+								writer_failReport.flush()
 
 		# Save runs statistics
 		if run_successfully:
@@ -159,12 +172,17 @@ def main():
 		print 'END ' + sample + ' analysis'
 		time_taken = utils.runTime(sample_start_time)
 
-		samples_report.write(sample + '\t' + str(run_successfully) + '\t' + str(pass_qc) + '\t' + str(time_taken) + '\t' + str(fileSize) + '\t')
+		# Save run report
+		samples_report.write(sample + '\t' + str(run_successfully) + '\t' + ('PASS' if pass_qc else 'FAIL') + '\t' + str(time_taken) + '\t' + str(fileSize) + '\t')
 		for step in steps:
-			if step != steps[len(steps) - 1]:
-				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][1]) + '\t' + str(run_report[step][2]) + '\t')
+			if step == 'Trimmomatic':
+				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
 			else:
-				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][1]) + '\t' + str(run_report[step][2]) + '\n')
+				samples_report.write(str(run_report[step][0]) + '\t' + ('PASS' if run_report[step][1] else 'FAIL') + '\t' + str(run_report[step][2]))
+				if step != steps[len(steps) - 1]:
+					samples_report.write('\t')
+				else:
+					samples_report.write('\n')
 		samples_report.flush()
 
 	samples_report.close()
@@ -184,6 +202,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 	threads = args.threads[0]
 	adaptersFasta = args.adapters[0]
 	genomeSize = args.genomeSizeExpectedMb[0]
+	maximumReadsLength = None
 
 	runs = {}
 
@@ -291,7 +310,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		program_start_time = time.time()
 		print 'RUNNING SPAdes'
 		program = []
-		run_successfully, pass_qc, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory[0], args.spadesMinCoverage[0], args.spadesMinContigsLength[0], genomeSize)
+		run_successfully, pass_qc, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory[0], args.spadesMinCoverage[0], args.spadesMinContigsLength[0], genomeSize, args.spadesKmers, maximumReadsLength)
 		print 'END SPAdes'
 		time_taken = utils.runTime(program_start_time)
 		program.append(run_successfully)
