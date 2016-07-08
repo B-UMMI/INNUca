@@ -134,12 +134,12 @@ Usage
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: [200])
-      --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
+      --spadesKmers N,N     Manually sets SPAdes k-mers lengths (all values must
                             be odd, less than 128) (default: [55, 77, 99, 113,
                             127])
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
                             (default: [25])
-      --spadesMinCoverage 10
+      --spadesMinCoverage N
                             The minimum number of reads to consider an edge in the  
                             de Bruijn graph (or path I am not sure). Can also be
                             auto or off (default: ['off'])
