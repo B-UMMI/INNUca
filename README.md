@@ -4,7 +4,7 @@ INNUca.py
 
 *INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search*
 
-<https://github.com/B-UMMI/INNUca>
+<https://github.com/INNUENDOCON/INNUca>
 
 Requirements
 ------------
