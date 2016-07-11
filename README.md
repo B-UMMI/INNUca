@@ -33,7 +33,7 @@ Dependencies
 
 Installation
 ------------
-    git clone https://github.com/B-UMMI/INNUca.git
+    git clone https://github.com/INNUENDOCON/INNUca.git
 
 Usage
 -----
