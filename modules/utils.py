@@ -43,9 +43,9 @@ def parseArguments(version):
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', nargs=1, type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=[200])
-	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55,77,99,113,127])
+	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='N,N', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55,77,99,113,127])
 	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
-	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
+	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='N', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
 
 	args = parser.parse_args()
 
