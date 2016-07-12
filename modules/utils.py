@@ -241,7 +241,7 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 
 	pairEnd_filesSeparation = [['_R1_001.f', '_R2_001.f'], ['_1.f', '_2.f']]
 	if pairEnd_filesSeparation_list != None:
-		filesExtensions = pairEnd_filesSeparation_list
+		pairEnd_filesSeparation = pairEnd_filesSeparation_list
 
 	# Store samples files information
 	samples = {}
