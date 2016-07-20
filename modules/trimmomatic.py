@@ -1,6 +1,6 @@
 import os
 import utils
-import shutil
+
 
 # Run Trimmomatic
 def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent):
@@ -12,10 +12,10 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 	if not doNotTrimCrops:
 		if maxReadsLength is not None:
 			if crop is not None:
-				crop = maxReadsLength - crop
+				crop = maxReadsLength - crop[0]
 				command[8] = str('CROP:' + str(crop))
 			else:
-				if nts2clip_based_ntsContent != None:
+				if nts2clip_based_ntsContent is not None:
 					crop = nts2clip_based_ntsContent[1]
 					print str(crop) + ' nucleotides will be clipped at the end of reads'
 					crop = maxReadsLength - crop
@@ -24,9 +24,9 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 			print 'Because FastQC did not run successfully, --trimCrop option will not be considered'
 
 		if headCrop is not None:
-			command[9] = str('HEADCROP:' + str(headCrop))
+			command[9] = str('HEADCROP:' + str(headCrop[0]))
 		else:
-			if nts2clip_based_ntsContent != None:
+			if nts2clip_based_ntsContent is not None:
 				headCrop = nts2clip_based_ntsContent[0]
 				print str(headCrop) + ' nucleotides will be clipped at the beginning of reads'
 				command[9] = str('HEADCROP:' + str(headCrop))
@@ -46,6 +46,7 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 
 	return run_successfully
 
+
 # Concatenate fasta files
 def concatenateFastaFiles(list_fasta_files, outdir, outFileName):
 	concatenated_file = os.path.join(outdir, outFileName)
@@ -58,8 +59,9 @@ def concatenateFastaFiles(list_fasta_files, outdir, outFileName):
 
 	return concatenated_file
 
+
 # Scans the trimmed files for paired and unpaired reads
-def getTrimmomaticPairedReads (trimmomatic_folder):
+def getTrimmomaticPairedReads(trimmomatic_folder):
 	paired_reads = []
 
 	files = [f for f in os.listdir(trimmomatic_folder) if not f.startswith('.') and os.path.isfile(os.path.join(trimmomatic_folder, f))]
@@ -69,6 +71,7 @@ def getTrimmomaticPairedReads (trimmomatic_folder):
 			paired_reads.append(os.path.join(trimmomatic_folder, fastq))
 
 	return paired_reads
+
 
 # Run Trimmomatic procedure
 def runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent):

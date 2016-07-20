@@ -6,6 +6,7 @@ import os
 import shutil
 import shlex
 
+
 def parseArguments(version):
 	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -43,9 +44,9 @@ def parseArguments(version):
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', nargs=1, type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=[200])
-	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='N,N', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55,77,99,113,127])
+	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
-	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='N', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
+	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
 
 	args = parser.parse_args()
 
@@ -54,6 +55,8 @@ def parseArguments(version):
 
 	return args
 
+
+# For parseArguments
 def spades_kmers(arguments):
 	arguments = map(int, arguments.split(','))
 	arguments = sorted(arguments)
@@ -67,6 +70,8 @@ def spades_kmers(arguments):
 			argparse.ArgumentParser.error()
 	return arguments
 
+
+# For parseArguments
 def spades_cov_cutoff(argument):
 	string_options = ['auto', 'off']
 	for option in string_options:
@@ -81,6 +86,7 @@ def spades_cov_cutoff(argument):
 			argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
 	except:
 		argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
+
 
 def runCommandPopenCommunicate(command):
 	run_successfully = False
@@ -100,6 +106,7 @@ def runCommandPopenCommunicate(command):
 		print stderr.decode("utf-8")
 	return run_successfully, stdout, stderr
 
+
 def runCommandPopenCommunicateShell(command):
 	run_successfully = False
 	if not isinstance(command, basestring):
@@ -116,27 +123,33 @@ def runCommandPopenCommunicateShell(command):
 		print stderr.decode("utf-8")
 	return run_successfully, stdout, stderr
 
+
 def runTime(start_time):
 	end_time = time.time()
 	time_taken = end_time - start_time
-	hours, rest = divmod(time_taken,3600)
+	hours, rest = divmod(time_taken, 3600)
 	minutes, seconds = divmod(rest, 60)
 	print 'Runtime :' + str(hours) + 'h:' + str(minutes) + 'm:' + str(round(seconds, 2)) + 's'
 	return time_taken
+
 
 class Logger(object):
 	def __init__(self, out_directory, time_str):
 		self.logfile = os.path.join(out_directory, str('run.' + time_str + '.log'))
 		self.terminal = sys.stdout
 		self.log = open(self.logfile, "w")
+
 	def write(self, message):
 		self.terminal.write(message)
 		self.log.write(message)
 		self.log.flush()
+
 	def flush(self):
 		pass
+
 	def getLogFile(self):
 		return self.logfile
+
 
 # Check programs versions
 def checkPrograms(programs_version_dictionary):
@@ -150,7 +163,7 @@ def checkPrograms(programs_version_dictionary):
 		if not run_successfully:
 			listMissings.append(program + ' not found in PATH.')
 		else:
-			if programs[program][0] == None:
+			if programs[program][0] is None:
 				print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
 			else:
 				check_version = [stdout.splitlines()[0], programs[program][0]]
@@ -158,12 +171,12 @@ def checkPrograms(programs_version_dictionary):
 				if stdout == '':
 					stdout = stderr
 				if program == 'bunzip2':
-					version_line=stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
+					version_line = stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
 				else:
-					version_line=stdout.splitlines()[0].split(' ')[-1]
+					version_line = stdout.splitlines()[0].split(' ')[-1]
 				replace_characters = ['"', 'v', 'V', '+']
 				for i in replace_characters:
-					version_line=version_line.replace(i, '')
+					version_line = version_line.replace(i, '')
 				print program + ' (' + version_line + ') found'
 				if programs[program][1] == '>=':
 					program_found_version = version_line.split('.')
@@ -181,6 +194,7 @@ def checkPrograms(programs_version_dictionary):
 						listMissings.append('It is required ' + program + ' with version ' + programs[program][1] + ' ' + programs[program][2])
 	return listMissings
 
+
 def setPATHvariable(doNotUseProvidedSoftware, script_path):
 	path_variable = os.environ['PATH']
 	script_folder = os.path.dirname(script_path)
@@ -194,13 +208,14 @@ def setPATHvariable(doNotUseProvidedSoftware, script_path):
 	print '\n' + 'PATH variable:'
 	print os.environ['PATH']
 
+
 # Search for fastq files in the directory
 # pairEnd_filesSeparation_list can be None
 def searchFastqFiles(directory, pairEnd_filesSeparation_list, listAllFilesOnly):
 	filesExtensions = ['fastq.gz', 'fq.gz', 'fastq.bz2', 'fq.bz2']
 	pairEnd_filesSeparation = [['_R1_001.f', '_R2_001.f'], ['_1.f', '_2.f']]
 
-	if pairEnd_filesSeparation_list != None:
+	if pairEnd_filesSeparation_list is not None:
 		filesExtensions = pairEnd_filesSeparation_list
 
 	files = [f for f in os.listdir(directory) if not f.startswith('.') and os.path.isfile(os.path.join(directory, f))]
@@ -215,7 +230,7 @@ def searchFastqFiles(directory, pairEnd_filesSeparation_list, listAllFilesOnly):
 				for file in files:
 					if file.endswith(extension):
 						filesCorrectExtensions.append(file)
-				if pairEnd_filesSeparation_list == None:
+				if pairEnd_filesSeparation_list is None:
 					if len(filesCorrectExtensions) >= 1:
 						if len(filesCorrectExtensions) > 2:
 							file_pair = []
@@ -231,6 +246,7 @@ def searchFastqFiles(directory, pairEnd_filesSeparation_list, listAllFilesOnly):
 				filesToUse.append(os.path.join(directory, file))
 	return filesToUse
 
+
 # Organize fastq files from multiple samples into samples folders
 def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 	# Get files in directory
@@ -240,7 +256,7 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 		sys.exit('No fastq files were found!')
 
 	pairEnd_filesSeparation = [['_R1_001.f', '_R2_001.f'], ['_1.f', '_2.f']]
-	if pairEnd_filesSeparation_list != None:
+	if pairEnd_filesSeparation_list is not None:
 		pairEnd_filesSeparation = pairEnd_filesSeparation_list
 
 	# Store samples files information
@@ -254,7 +270,7 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 			if fastq.find(PE_separation[1]) > -1:
 				sample = fastq[:fastq.find(PE_separation[1])]
 				break
-		if sample != None and sample not in samples:
+		if sample is not None and sample not in samples:
 			samples[sample] = []
 		if sample in samples:
 			samples[sample].append(fastq)
@@ -277,6 +293,7 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 				os.symlink(os.path.join(directory, fastq), link_path)
 
 	return samples.keys()
+
 
 # Check if input directory exists with fastq files and store samples name that have fastq files
 def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list):
@@ -307,10 +324,12 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 		sys.exit('There is no fastq files for the samples folders provided!')
 	return samples, removeCreatedSamplesDirectories
 
+
 # Remove directory
 def removeDirectory(directory):
 	if os.path.isdir(directory):
 		shutil.rmtree(directory)
+
 
 # Get script version
 def scriptVersionGit(version, directory, script_path):
