@@ -310,7 +310,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		program_start_time = time.time()
 		print 'RUNNING SPAdes'
 		program = []
-		run_successfully, pass_qc, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory[0], args.spadesMinCoverage[0], args.spadesMinContigsLength[0], genomeSize, args.spadesKmers, maximumReadsLength)
+		run_successfully, pass_qc, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory[0], args.spadesMinCoverage[0], args.spadesMinContigsLength[0], genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport)
 		print 'END SPAdes'
 		time_taken = utils.runTime(program_start_time)
 		program.append(run_successfully)
@@ -348,10 +348,11 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		runs['MLST'] = [None, None, 0, {'sample':'Skipped'}]
 
 	# Remove Trimmomatic directory with cleaned reads
-	try:
-		utils.removeDirectory(trimmomatic_folder)
-	except:
-		print 'It is not possible to remove Trimmomatic directory ' + trimmomatic_folder + ' because Trimmomatic did not run'
+	if not args.trimKeepFiles:
+		try:
+			utils.removeDirectory(trimmomatic_folder)
+		except:
+			print 'It is not possible to remove Trimmomatic directory ' + trimmomatic_folder + ' because Trimmomatic did not run'
 
 	# Check run
 	run_successfully = True
