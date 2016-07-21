@@ -1,10 +1,10 @@
 INNUca.py
 =========
-*INNUca - Reads Control and Assembly*
+INNUca - Reads Control and Assembly
 
 *INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search*
 
-<https://github.com/INNUENDOCON/INNUca>
+<https://github.com/B-UMMI/INNUca>
 
 Requirements
 ------------
@@ -33,7 +33,7 @@ Dependencies
 
 Installation
 ------------
-    git clone https://github.com/INNUENDOCON/INNUca.git
+    git clone https://github.com/B-UMMI/INNUca.git
 
 Usage
 -----
@@ -126,6 +126,7 @@ Usage
                             a threshold quality (default: [3])
       --trimMinLength N     Trimmomatic: drop the read if it is below a specified
                             length (default: [55])
+      --trimKeepFiles       Tells INNUca.py to not remove the output of Trimmomatic
 
     SPAdes options:
       --spadesNotUseCareful
@@ -134,15 +135,17 @@ Usage
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: [200])
-      --spadesKmers N,N     Manually sets SPAdes k-mers lengths (all values must
+      --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
                             be odd, less than 128) (default: [55, 77, 99, 113,
                             127])
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
                             (default: [25])
-      --spadesMinCoverage N
+      --spadesMinCoverage 10
                             The minimum number of reads to consider an edge in the  
                             de Bruijn graph (or path I am not sure). Can also be
                             auto or off (default: ['off'])
+      --spadesSaveReport    Tells INNUca to store the number of contigs and
+                            assembled nucleotides for each sample
 
 Contact
 -------
