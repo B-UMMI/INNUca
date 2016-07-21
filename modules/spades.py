@@ -62,7 +62,7 @@ def define_kmers(kmers, maximumReadsLength):
 	return kmers_use
 
 # Run SPAdes procedure
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength):
+def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -86,6 +86,14 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 		print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides'
 		contigsFiltered, number_contigs, number_bases = renameFilterContigs(sampleName, outdir, contigs, minContigsLength)
 		print str(number_bases) + ' assembled nucleotides in ' + str(number_contigs) + ' contigs'
+
+		if saveReport:
+			report_file = os.path.join(outdir, 'spades_report.txt')
+			writer = open(report_file, 'wt')
+			writer.write(str(number_contigs) + ' contigs' + '\n')
+			writer.write(str(number_bases) + ' bp' + '\n')
+			writer.flush()
+			writer.close()
 
 		if number_bases >= estimatedGenomeSizeMb*1000000*0.8 and number_bases <= estimatedGenomeSizeMb*1000000*1.5:
 			if number_contigs <= 100*number_bases/1500000:

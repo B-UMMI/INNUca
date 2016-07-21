@@ -40,6 +40,7 @@ def parseArguments(version):
 	trimmomatic_options.add_argument('--trimLeading', nargs=1, type=int, metavar='N', help='Trimmomatic: cut bases off the start of a read, if below a threshold quality', required=False, default=[3])
 	trimmomatic_options.add_argument('--trimTrailing', nargs=1, type=int, metavar='N', help='Trimmomatic: cut bases off the end of a read, if below a threshold quality', required=False, default=[3])
 	trimmomatic_options.add_argument('--trimMinLength', nargs=1, type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=[55])
+	trimmomatic_options.add_argument('--trimKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Trimmomatic')
 
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
@@ -47,6 +48,7 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
 	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
+	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
 
 	args = parser.parse_args()
 
