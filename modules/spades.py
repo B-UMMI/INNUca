@@ -89,11 +89,9 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 
 		if saveReport:
 			report_file = os.path.join(outdir, 'spades_report.txt')
-			writer = open(report_file, 'wt')
-			writer.write(str(number_contigs) + ' contigs' + '\n')
-			writer.write(str(number_bases) + ' bp' + '\n')
-			writer.flush()
-			writer.close()
+			with open(report_file, 'wt') as writer:
+				writer.write('#contigs' + '\n' + str(number_contigs) + '\n' + '#bp' + '\n' + str(number_bases) + '\n')
+				writer.flush()
 
 		if number_bases >= estimatedGenomeSizeMb*1000000*0.8 and number_bases <= estimatedGenomeSizeMb*1000000*1.5:
 			if number_contigs <= 100*number_bases/1500000:
