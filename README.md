@@ -147,6 +147,32 @@ Usage
       --spadesSaveReport    Tells INNUca to store the number of contigs and
                             assembled nucleotides for each sample
 
+
+
+Combine INNUca reports
+----------------------
+In order to combine **INNUca** reports (Coverage, SPAdes, MLST), use *combine_reports.py* found in **INNUca** modules folder
+
+    usage: python combine_reports.py [-h] [--version] -i
+                              /path/to/INNUca/output/directory/
+                              [-o /path/to/output/directory/]
+
+    Combine INNUca reports (Coverage, SPAdes, MLST)
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --version             Version information
+
+    Required options:
+      -i /path/to/INNUca/output/directory/, --innucaOut /path/to/INNUca/output/directory/
+                            Path to INNUca output directory (default: None)
+
+    Facultative options:
+      -o /path/to/output/directory/, --outdir /path/to/output/directory/
+                            Path to where to store the outputs (default: ['.'])
+
+
+
 Contact
 -------
 Miguel Machado
