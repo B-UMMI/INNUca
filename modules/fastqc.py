@@ -1,7 +1,7 @@
 import sys
 import os
-import shutil
 import utils
+
 
 # Prepare adapters fasta file to FastQC (tabular file)
 def adapters2fastQC(outdir, adaptersFastaFile):
@@ -9,7 +9,7 @@ def adapters2fastQC(outdir, adaptersFastaFile):
 	writer = open(adaptersFile, 'wt')
 	adapterHeader = ''
 	adapterSequence = ''
-	with adaptersFastaFile as adapters:
+	with open(adaptersFastaFile, 'rtU') as adapters:
 		for line in adapters:
 			if line.startswith('>'):
 				if adapterHeader != '':
@@ -23,26 +23,28 @@ def adapters2fastQC(outdir, adaptersFastaFile):
 	writer.close()
 	return adaptersFile
 
+
 # Run FastQC
 def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 	# Create temporary FastQC foldes
 	os.mkdir(os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', ''))
 
 	# Run FastQC
-	command = ['fastqc', '-o', fastqc_folder, '--extract', '--nogroup', '--format', 'fastq', '--threads', str(threads), '', '--dir',  os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', '')]
+	command = ['fastqc', '-o', fastqc_folder, '--extract', '--nogroup', '--format', 'fastq', '--threads', str(threads), '', '--dir', os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', '')]
 	command = command + fastq_files
-	if adaptersFasta != None:
+	if adaptersFasta is not None:
 		adaptersTEMP = adapters2fastQC(fastqc_folder, adaptersFasta)
-		print 'Scanning for adapters contamination using ' + adaptersFasta.name
+		print 'Scanning for adapters contamination using ' + adaptersFasta
 		command[9] = '--adapters ' + adaptersTEMP
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
 
 	# Remove temporary files
 	os.rmdir(os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', ''))
-	if adaptersFasta != None:
+	if adaptersFasta is not None:
 		os.remove(adaptersTEMP)
 
 	return run_successfully
+
 
 # Parse FastQC run
 def parseFastQC(fastqc_folder, fastq_files):
@@ -93,6 +95,7 @@ def parseFastQC(fastqc_folder, fastq_files):
 
 	return goodReads, badReads, failing
 
+
 # Get reads length data, nucleotide bias status & number of reads
 def getReadsInformation(fastqc_folder, fastq_files):
 	fastq_files = map(os.path.basename, fastq_files)
@@ -124,20 +127,20 @@ def getReadsInformation(fastqc_folder, fastq_files):
 						elif line.startswith('Sequence Length Distribution', 2):
 							lengthModule = True
 						else:
-							if basicModule == True:
+							if basicModule:
 								basicModule = False
 								modulesAssessed += 1
-							elif nt_content_Module == True:
+							elif nt_content_Module:
 								nt_content_Module = False
 								modulesAssessed += 1
-							elif lengthModule == True:
+							elif lengthModule:
 								lengthModule = False
 								modulesAssessed += 1
 							else:
 								if modulesAssessed == 3:
 									break
 					else:
-						if basicModule == True:
+						if basicModule:
 							line_splited = line.splitlines()[0].split('\t')
 							if line_splited[0] == 'Sequence length':
 								lengths = line_splited[1].split('-')
@@ -146,12 +149,11 @@ def getReadsInformation(fastqc_folder, fastq_files):
 								elif len(lengths) == 2:
 									maxLength = int(lengths[1])
 								else:
-									print "Find logfile at " + os.path.join(outdir, "run.log") + "\n"
 									sys.exit("ERROR: strange FastQC 'Sequence length' information")
 							elif line_splited[0] == 'Total Sequences':
 								numberReads.append(int(line_splited[1]))
 						# Get nucleotide content bias status for read position
-						elif nt_content_Module == True:
+						elif nt_content_Module:
 							line_splited = line.splitlines()[0].split('\t')
 							gc = (float(line_splited[1]) + 0.1) / (float(line_splited[4]) + 0.1)
 							at = (float(line_splited[2]) + 0.1) / (float(line_splited[3]) + 0.1)
@@ -159,7 +161,7 @@ def getReadsInformation(fastqc_folder, fastq_files):
 								ntsContent_biasStatus[reads].append('unbiased')
 							else:
 								ntsContent_biasStatus[reads].append('biased')
-						elif lengthModule == True:
+						elif lengthModule:
 							line_splited = line.splitlines()[0].split('\t')
 							number_reads = float(line_splited[1])
 							if numberReadsPerLength < number_reads:
@@ -177,6 +179,7 @@ def getReadsInformation(fastqc_folder, fastq_files):
 	# numberReads for each fastq file
 	return maximumReadsLength, moreFrequentReadsLength, numberReads, ntsContent_biasStatus
 
+
 # Get the number of nucleotides for 5' and 3' that we want trimmomatic to clip based on nucleotide content bias for each fastq file
 def nts2clip(dict_fastqs_ntsBiased_status):
 	nts2clip_based_ntsContent = {}
@@ -185,31 +188,32 @@ def nts2clip(dict_fastqs_ntsBiased_status):
 		nts2clip_based_ntsContent[fastq] = [0, 0]
 		nt_content = dict_fastqs_ntsBiased_status[fastq]
 		five_end = False
-		reads_range = list(range(0, len(nt_content)-1))
+		reads_range = list(range(0, len(nt_content) - 1))
 		for i in reads_range:
 			if nt_content[i] == 'biased':
-				if i <= len(nt_content)/2:
+				if i <= len(nt_content) / 2:
 					if not five_end:
-						if nt_content[i+1] == 'unbiased' and nt_content[i+2] == 'unbiased':
-							nts2clip_based_ntsContent[fastq][0] = i+1
+						if nt_content[i + 1] == 'unbiased' and nt_content[i + 2] == 'unbiased':
+							nts2clip_based_ntsContent[fastq][0] = i + 1
 							five_end = True
 				else:
-					if i+1 not in reads_range:
-							nts2clip_based_ntsContent[fastq][1] = len(nt_content)-i
+					if i + 1 not in reads_range:
+							nts2clip_based_ntsContent[fastq][1] = len(nt_content) - i
 							break
-					elif i+2 not in reads_range:
-							nts2clip_based_ntsContent[fastq][1] = len(nt_content)-i
+					elif i + 2 not in reads_range:
+							nts2clip_based_ntsContent[fastq][1] = len(nt_content) - i
 							break
 					else:
-						if nt_content[i+1] == 'unbiased' and nt_content[i+2] == 'unbiased':
+						if nt_content[i + 1] == 'unbiased' and nt_content[i + 2] == 'unbiased':
 							continue
 						else:
-							nts2clip_based_ntsContent[fastq][1] = len(nt_content)-i
+							nts2clip_based_ntsContent[fastq][1] = len(nt_content) - i
 							break
 
 	nts2clip_based_ntsContent = [max(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][0], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][0]), min(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][1], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][1])]
 
 	return nts2clip_based_ntsContent
+
 
 # Run FastQC analysis
 def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):

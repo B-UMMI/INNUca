@@ -35,6 +35,7 @@ import time
 import os
 import sys
 
+
 def main():
 	version = '1.4'
 	args = utils.parseArguments(version)
@@ -50,7 +51,7 @@ def main():
 	# Start logger
 	sys.stdout = utils.Logger(outdir, time_str)
 
-	print  '\n' + '==========> INNUca.py <=========='
+	print '\n' + '==========> INNUca.py <=========='
 	print '\n' + 'Program start: ' + time.ctime()
 
 	# Tells where the logfile will be stored
@@ -74,7 +75,7 @@ def main():
 	utils.setPATHvariable(args.doNotUseProvidedSoftware, script_path)
 
 	# Check programms
-	programs_version_dictionary = {'java':['-version', '>=', '1.8'], 'bunzip2':['--version', '>=', '1.0.6'], 'gunzip':['--version', '>=', '1.6'], 'fastqc':['--version', '==', '0.11.5'], 'trimmomatic-0.36.jar':['-version', '==', '0.36'], 'spades.py':['--version', '>=', '3.7.1'], 'mlst':['--version', '>=', '2.4']}
+	programs_version_dictionary = {'java': ['-version', '>=', '1.8'], 'bunzip2': ['--version', '>=', '1.0.6'], 'gunzip': ['--version', '>=', '1.6'], 'fastqc': ['--version', '==', '0.11.5'], 'trimmomatic-0.36.jar': ['-version', '==', '0.36'], 'spades.py': ['--version', '>=', '3.7.1'], 'mlst': ['--version', '>=', '2.4']}
 	missingPrograms = utils.checkPrograms(programs_version_dictionary)
 	if len(missingPrograms) > 0:
 		sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
@@ -201,6 +202,8 @@ def main():
 def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 	threads = args.threads[0]
 	adaptersFasta = args.adapters[0]
+	if adaptersFasta is not None:
+		adaptersFasta = os.path.abspath(adaptersFasta.name)
 	genomeSize = args.genomeSizeExpectedMb[0]
 	maximumReadsLength = None
 
@@ -211,6 +214,11 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		program_start_time = time.time()
 		print 'RUNNING First Estimated Coverage analysis'
 		program = []
+		# Check whether the Estimated Coverage output is already present
+		report_file = os.path.join(outdir, 'coverage_report.txt')
+		if os.path.isfile(report_file):
+			os.remove(report_file)
+		# Run getEstimatedCoverage
 		run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
 		print 'END First Estimated Coverage analysis'
 		time_taken = utils.runTime(program_start_time)
@@ -222,7 +230,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		runs['first_Coverage'] = program
 	else:
 		print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
-		runs['first_Coverage'] = [None, None, 0, {'sample':'Skipped'}]
+		runs['first_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
 
 	# Run first FastQC
 	nts2clip_based_ntsContent = None
@@ -241,14 +249,14 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		runs['first_FastQC'] = program
 	else:
 		print '--skipFastQC set. Skipping First FastQC analysis'
-		runs['first_FastQC'] = [None, None, 0, {'sample':'Skipped'}]
+		runs['first_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
 
 	# Run Trimmomatic
 	if not args.skipTrimmomatic:
 		program_start_time = time.time()
 		print 'RUNNING Trimmomatic'
 		program = []
-		run_successfully, paired_reads, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir,  threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading[0], args.trimTrailing[0], args.trimSlidingWindow[0], args.trimMinLength[0], nts2clip_based_ntsContent)
+		run_successfully, paired_reads, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading[0], args.trimTrailing[0], args.trimSlidingWindow[0], args.trimMinLength[0], nts2clip_based_ntsContent)
 		print 'END Trimmomatic'
 		time_taken = utils.runTime(program_start_time)
 		program.append(run_successfully)
@@ -277,7 +285,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 				runs['second_Coverage'] = program
 			else:
 				print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
-				runs['second_Coverage'] = [None, None, 0, {'sample':'Skipped'}]
+				runs['second_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
 
 			# Run second FastQC
 			if not args.skipFastQC:
@@ -295,15 +303,15 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 				runs['second_FastQC'] = program
 			else:
 				print '--skipFastQC set. Skipping Second FastQC analysis'
-				runs['second_FastQC'] = [None, None, 0, {'sample':'Skipped'}]
+				runs['second_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
 		else:
 			print 'Trimmomatic did not run successfully! Skipping Second Estimated Coverage analysis and FastQC analysis'
-			runs['second_Coverage'] = [None, None, 0, {'sample':'Skipped'}]
-			runs['second_FastQC'] = [None, None, 0, {'sample':'Skipped'}]
+			runs['second_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
+			runs['second_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
 
 	else:
 		print '--skipTrimmomatic set. Skipping Trimmomatic'
-		runs['Trimmomatic'] = [None, None, 0, {'sample':'Skipped'}]
+		runs['Trimmomatic'] = [None, None, 0, {'sample': 'Skipped'}]
 
 	# Run SPAdes
 	if not args.skipSPAdes:
@@ -337,15 +345,15 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 				runs['MLST'] = program
 			else:
 				print '--skipMLST set. Skipping MLST analysis'
-				runs['MLST'] = [None, None, 0, {'sample':'Skipped'}]
+				runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 		else:
 			print 'SPAdes did not run successfully! Skipping MLST analysis'
-			runs['MLST'] = [None, None, 0, {'sample':'Skipped'}]
+			runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 
 	else:
 		print '--skipSPAdes set. Skipping SPAdes and MLST analysis'
-		runs['SPAdes'] = [None, None, 0, {'sample':'Skipped'}]
-		runs['MLST'] = [None, None, 0, {'sample':'Skipped'}]
+		runs['SPAdes'] = [None, None, 0, {'sample': 'Skipped'}]
+		runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 
 	# Remove Trimmomatic directory with cleaned reads
 	if not args.trimKeepFiles:
@@ -359,27 +367,27 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 	pass_qc = True
 
 	for step in runs:
-		if runs[step][0] == False:
+		if not runs[step][0]:
 			run_successfully = False
 
-	if runs['second_Coverage'][1] == False:
+	if not runs['second_Coverage'][1]:
 		pass_qc = False
-	elif runs['second_Coverage'][1] == None and runs['first_Coverage'][1] == False:
+	elif runs['second_Coverage'][1] is None and not runs['first_Coverage'][1]:
 		pass_qc = False
-	elif runs['second_Coverage'][1] == None and runs['first_Coverage'][1] == None:
-		pass_qc = False
-
-	if runs['second_FastQC'][1] == False:
-		pass_qc = False
-	elif runs['second_FastQC'][1] == None and runs['first_FastQC'][1] == False:
-		pass_qc = False
-	elif runs['second_FastQC'][1] == None and runs['first_FastQC'][1] == None:
+	elif runs['second_Coverage'][1] is None and not runs['first_Coverage'][1]:
 		pass_qc = False
 
-	if runs['SPAdes'][1] == False or runs['SPAdes'][1] == None:
+	if not runs['second_FastQC'][1]:
+		pass_qc = False
+	elif runs['second_FastQC'][1] is None and not runs['first_FastQC'][1]:
+		pass_qc = False
+	elif runs['second_FastQC'][1] is None and not runs['first_FastQC'][1]:
 		pass_qc = False
 
-	if runs['MLST'][1] == False or runs['MLST'][1] == None:
+	if not runs['SPAdes'][1] or runs['SPAdes'][1] is None:
+		pass_qc = False
+
+	if not runs['MLST'][1] or runs['MLST'][1] is None:
 		pass_qc = False
 
 	return run_successfully, pass_qc, runs
