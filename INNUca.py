@@ -75,7 +75,20 @@ def main():
 	utils.setPATHvariable(args.doNotUseProvidedSoftware, script_path)
 
 	# Check programms
-	programs_version_dictionary = {'java': ['-version', '>=', '1.8'], 'bunzip2': ['--version', '>=', '1.0.6'], 'gunzip': ['--version', '>=', '1.6'], 'fastqc': ['--version', '==', '0.11.5'], 'trimmomatic-0.36.jar': ['-version', '==', '0.36'], 'spades.py': ['--version', '>=', '3.7.1'], 'mlst': ['--version', '>=', '2.4']}
+	programs_version_dictionary = {}
+	if not args.skipEstimatedCoverage:
+		programs_version_dictionary['bunzip2'] = ['--version', '>=', '1.0.6']
+		programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
+	if not (args.skipFastQC and args.skipTrimmomatic):
+		programs_version_dictionary['java'] = ['-version', '>=', '1.8']
+	if not args.skipFastQC:
+		programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
+	if not args.skipTrimmomatic:
+		programs_version_dictionary['trimmomatic-0.36.jar'] = ['-version', '==', '0.36']
+	if not args.skipSPAdes:
+		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.7.1']
+	if not args.skipMLST and not args.skipSPAdes:
+		programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
 	missingPrograms = utils.checkPrograms(programs_version_dictionary)
 	if len(missingPrograms) > 0:
 		sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
@@ -367,27 +380,23 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 	pass_qc = True
 
 	for step in runs:
-		if not runs[step][0]:
+		if runs[step][0] is False:
 			run_successfully = False
 
-	if not runs['second_Coverage'][1]:
+	if runs['second_Coverage'][1] is False:
 		pass_qc = False
-	elif runs['second_Coverage'][1] is None and not runs['first_Coverage'][1]:
-		pass_qc = False
-	elif runs['second_Coverage'][1] is None and not runs['first_Coverage'][1]:
+	elif runs['second_Coverage'][1] is None and runs['first_Coverage'][1] is False:
 		pass_qc = False
 
-	if not runs['second_FastQC'][1]:
+	if runs['second_FastQC'][1] is False:
 		pass_qc = False
-	elif runs['second_FastQC'][1] is None and not runs['first_FastQC'][1]:
-		pass_qc = False
-	elif runs['second_FastQC'][1] is None and not runs['first_FastQC'][1]:
+	elif runs['second_FastQC'][1] is None and runs['first_FastQC'][1] is False:
 		pass_qc = False
 
-	if not runs['SPAdes'][1] or runs['SPAdes'][1] is None:
+	if runs['SPAdes'][1] is False:
 		pass_qc = False
 
-	if not runs['MLST'][1] or runs['MLST'][1] is None:
+	if runs['MLST'][1] is False:
 		pass_qc = False
 
 	return run_successfully, pass_qc, runs
