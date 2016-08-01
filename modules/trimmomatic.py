@@ -33,8 +33,8 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 
 	if not doNotSearchAdapters:
 		if adaptersFasta is not None:
-			print 'Removing adapters contamination using ' + adaptersFasta.name
-			command[10] = 'ILLUMINACLIP:' + adaptersFasta.name + ':3:30:10:6:true'
+			print 'Removing adapters contamination using ' + adaptersFasta
+			command[10] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
 		else:
 			trimmomatic_adapters_folder = os.path.join(os.path.dirname(script_path), 'src', 'Trimmomatic-0.36', 'adapters')
 			adapters_files = [os.path.join(trimmomatic_adapters_folder, 'NexteraPE-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq2-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq3-PE-2.fa')]
@@ -43,6 +43,15 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 			command[10] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
 
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+
+	if not run_successfully:
+		print 'Trimmomatic fail! Trying run with Phred+33 enconding defined...'
+		command.append('-phred33')
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+		if not run_successfully:
+			print 'Trimmomatic fail again! Trying run with Phred+64 enconding defined...'
+			command[18] = '-phred64'
+			run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
 
 	return run_successfully
 
@@ -54,8 +63,10 @@ def concatenateFastaFiles(list_fasta_files, outdir, outFileName):
 		for fasta in list_fasta_files:
 			with open(fasta, 'rtU') as infile:
 				for line in infile:
-					outfile.write(line)
-					outfile.flush()
+					if len(line) > 0:
+						line = line.splitlines()[0]
+						outfile.write(line + '\n')
+						outfile.flush()
 
 	return concatenated_file
 
