@@ -26,8 +26,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import modules.utils as utils
-import modules.fastqc as fastqc
+import modules.fastQintegrity as fastQintegrity
 import modules.estimated_coverage as coverage
+import modules.fastqc as fastqc
 import modules.trimmomatic as trimmomatic
 import modules.spades as spades
 import modules.mlst as mlst
@@ -102,7 +103,7 @@ def main():
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
 
-	steps = ['first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
+	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
 
 	# Prepare run report file
 	samples_report = open(os.path.join(outdir, str('samples_report.' + time_str + '.tab')), 'wt')
@@ -110,7 +111,9 @@ def main():
 	# fileSize in bytes
 	samples_report.write('#samples' + '\t' + 'samples_runSuccessfully' + '\t' + 'samples_passQC' + '\t' + 'samples_runningTime' + '\t' + 'samples_fileSize' + '\t')
 	for step in steps:
-		if step == 'Trimmomatic':
+		if step == 'FastQ_Integrity':
+			samples_report.write(str(step + '_filesOK') + '\t' + str(step + '_runningTime') + '\t')
+		elif step == 'Trimmomatic':
 			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_runningTime') + '\t')
 		else:
 			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_passQC') + '\t' + str(step + '_runningTime'))
@@ -189,7 +192,9 @@ def main():
 		# Save run report
 		samples_report.write(sample + '\t' + str(run_successfully) + '\t' + ('PASS' if pass_qc else 'FAIL') + '\t' + str(time_taken) + '\t' + str(fileSize) + '\t')
 		for step in steps:
-			if step == 'Trimmomatic':
+			if step == 'FastQ_Integrity':
+				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
+			elif step == 'Trimmomatic':
 				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
 			else:
 				samples_report.write(str(run_report[step][0]) + '\t' + ('PASS' if run_report[step][1] else 'FAIL') + '\t' + str(run_report[step][2]))
@@ -222,166 +227,196 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 	runs = {}
 
-	# Run first Estimated Coverage
-	if not args.skipEstimatedCoverage:
-		program_start_time = time.time()
-		print 'RUNNING First Estimated Coverage analysis'
-		program = []
-		# Check whether the Estimated Coverage output is already present
-		report_file = os.path.join(outdir, 'coverage_report.txt')
-		if os.path.isfile(report_file):
-			os.remove(report_file)
-		# Run getEstimatedCoverage
-		run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
-		print 'END First Estimated Coverage analysis'
-		time_taken = utils.runTime(program_start_time)
-		program.append(run_successfully)
-		program.append(pass_qc)
-		program.append(time_taken)
-		program.append(failing)
-		runs['first_Coverage'] = []
-		runs['first_Coverage'] = program
-	else:
-		print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
-		runs['first_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
+	# Run FastQ integrity check
+	program_start_time = time.time()
+	print 'RUNNING FastQ integrity check'
+	program = []
+	not_corruption_found, failing = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
+	print 'END FastQ integrity check'
+	time_taken = utils.runTime(program_start_time)
+	program.append(not_corruption_found)
+	program.append(None)
+	program.append(time_taken)
+	program.append(failing)
+	runs['FastQ_Integrity'] = []
+	runs['FastQ_Integrity'] = program
 
-	# Run first FastQC
-	nts2clip_based_ntsContent = None
-	if not args.skipFastQC:
-		program_start_time = time.time()
-		print 'RUNNING First FastQC analysis'
-		program = []
-		run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
-		print 'END First FastQC analysis'
-		time_taken = utils.runTime(program_start_time)
-		program.append(run_successfully)
-		program.append(pass_qc)
-		program.append(time_taken)
-		program.append(failing)
-		runs['first_FastQC'] = []
-		runs['first_FastQC'] = program
-	else:
-		print '--skipFastQC set. Skipping First FastQC analysis'
-		runs['first_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
-
-	# Run Trimmomatic
-	if not args.skipTrimmomatic:
-		program_start_time = time.time()
-		print 'RUNNING Trimmomatic'
-		program = []
-		run_successfully, paired_reads, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading[0], args.trimTrailing[0], args.trimSlidingWindow[0], args.trimMinLength[0], nts2clip_based_ntsContent)
-		print 'END Trimmomatic'
-		time_taken = utils.runTime(program_start_time)
-		program.append(run_successfully)
-		program.append(None)
-		program.append(time_taken)
-		program.append(failing)
-		runs['Trimmomatic'] = []
-		runs['Trimmomatic'] = program
-
-		if run_successfully:
-			fastq_files = paired_reads
-
-			# Run second Estimated Coverage
-			if not args.skipEstimatedCoverage:
-				program_start_time = time.time()
-				print 'RUNNING Second Estimated Coverage analysis'
-				program = []
-				run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
-				print 'END Second Estimated Coverage analysis'
-				time_taken = utils.runTime(program_start_time)
-				program.append(run_successfully)
-				program.append(pass_qc)
-				program.append(time_taken)
-				program.append(failing)
-				runs['second_Coverage'] = []
-				runs['second_Coverage'] = program
-			else:
-				print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
-				runs['second_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
-
-			# Run second FastQC
-			if not args.skipFastQC:
-				program_start_time = time.time()
-				print 'RUNNING Second FastQC analysis'
-				program = []
-				run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
-				print 'END Second FastQC analysis'
-				time_taken = utils.runTime(program_start_time)
-				program.append(run_successfully)
-				program.append(pass_qc)
-				program.append(time_taken)
-				program.append(failing)
-				runs['second_FastQC'] = []
-				runs['second_FastQC'] = program
-			else:
-				print '--skipFastQC set. Skipping Second FastQC analysis'
-				runs['second_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
+	if not_corruption_found:
+		# Run first Estimated Coverage
+		if not args.skipEstimatedCoverage:
+			program_start_time = time.time()
+			print 'RUNNING First Estimated Coverage analysis'
+			program = []
+			# Check whether the Estimated Coverage output is already present
+			report_file = os.path.join(outdir, 'coverage_report.txt')
+			if os.path.isfile(report_file):
+				os.remove(report_file)
+			# Run getEstimatedCoverage
+			run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
+			print 'END First Estimated Coverage analysis'
+			time_taken = utils.runTime(program_start_time)
+			program.append(run_successfully)
+			program.append(pass_qc)
+			program.append(time_taken)
+			program.append(failing)
+			runs['first_Coverage'] = []
+			runs['first_Coverage'] = program
 		else:
-			print 'Trimmomatic did not run successfully! Skipping Second Estimated Coverage analysis and FastQC analysis'
+			print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
+			runs['first_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
+
+		# Run first FastQC
+		nts2clip_based_ntsContent = None
+		if not args.skipFastQC:
+			program_start_time = time.time()
+			print 'RUNNING First FastQC analysis'
+			program = []
+			run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
+			print 'END First FastQC analysis'
+			time_taken = utils.runTime(program_start_time)
+			program.append(run_successfully)
+			program.append(pass_qc)
+			program.append(time_taken)
+			program.append(failing)
+			runs['first_FastQC'] = []
+			runs['first_FastQC'] = program
+		else:
+			print '--skipFastQC set. Skipping First FastQC analysis'
+			runs['first_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
+
+		# Run Trimmomatic
+		if not args.skipTrimmomatic:
+			program_start_time = time.time()
+			print 'RUNNING Trimmomatic'
+			program = []
+			run_successfully, paired_reads, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading[0], args.trimTrailing[0], args.trimSlidingWindow[0], args.trimMinLength[0], nts2clip_based_ntsContent)
+			print 'END Trimmomatic'
+			time_taken = utils.runTime(program_start_time)
+			program.append(run_successfully)
+			program.append(None)
+			program.append(time_taken)
+			program.append(failing)
+			runs['Trimmomatic'] = []
+			runs['Trimmomatic'] = program
+
+			if run_successfully:
+				fastq_files = paired_reads
+
+				# Run second Estimated Coverage
+				if not args.skipEstimatedCoverage:
+					program_start_time = time.time()
+					print 'RUNNING Second Estimated Coverage analysis'
+					program = []
+					run_successfully, pass_qc, failing = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
+					print 'END Second Estimated Coverage analysis'
+					time_taken = utils.runTime(program_start_time)
+					program.append(run_successfully)
+					program.append(pass_qc)
+					program.append(time_taken)
+					program.append(failing)
+					runs['second_Coverage'] = []
+					runs['second_Coverage'] = program
+				else:
+					print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
+					runs['second_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
+
+				# Run second FastQC
+				if not args.skipFastQC:
+					program_start_time = time.time()
+					print 'RUNNING Second FastQC analysis'
+					program = []
+					run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
+					print 'END Second FastQC analysis'
+					time_taken = utils.runTime(program_start_time)
+					program.append(run_successfully)
+					program.append(pass_qc)
+					program.append(time_taken)
+					program.append(failing)
+					runs['second_FastQC'] = []
+					runs['second_FastQC'] = program
+				else:
+					print '--skipFastQC set. Skipping Second FastQC analysis'
+					runs['second_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
+			else:
+				print 'Trimmomatic did not run successfully! Skipping Second Estimated Coverage analysis and FastQC analysis'
+				runs['second_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
+				runs['second_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
+
+		else:
+			print '--skipTrimmomatic set. Skipping Trimmomatic, but also Second FastQC analysis and Second Estimated Coverage analysis'
+			runs['Trimmomatic'] = [None, None, 0, {'sample': 'Skipped'}]
 			runs['second_Coverage'] = [None, None, 0, {'sample': 'Skipped'}]
 			runs['second_FastQC'] = [None, None, 0, {'sample': 'Skipped'}]
 
-	else:
-		print '--skipTrimmomatic set. Skipping Trimmomatic'
-		runs['Trimmomatic'] = [None, None, 0, {'sample': 'Skipped'}]
+		# Run SPAdes
+		if not args.skipSPAdes:
+			program_start_time = time.time()
+			print 'RUNNING SPAdes'
+			program = []
+			run_successfully, pass_qc, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory[0], args.spadesMinCoverage[0], args.spadesMinContigsLength[0], genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport, args.spadesDefaultKmers)
+			print 'END SPAdes'
+			time_taken = utils.runTime(program_start_time)
+			program.append(run_successfully)
+			program.append(pass_qc)
+			program.append(time_taken)
+			program.append(failing)
+			runs['SPAdes'] = []
+			runs['SPAdes'] = program
 
-	# Run SPAdes
-	if not args.skipSPAdes:
-		program_start_time = time.time()
-		print 'RUNNING SPAdes'
-		program = []
-		run_successfully, pass_qc, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory[0], args.spadesMinCoverage[0], args.spadesMinContigsLength[0], genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport)
-		print 'END SPAdes'
-		time_taken = utils.runTime(program_start_time)
-		program.append(run_successfully)
-		program.append(pass_qc)
-		program.append(time_taken)
-		program.append(failing)
-		runs['SPAdes'] = []
-		runs['SPAdes'] = program
-
-		if run_successfully:
-			# Run MLST
-			if not args.skipMLST:
-				program_start_time = time.time()
-				print 'RUNNING MLST analysis'
-				program = []
-				run_successfully, pass_qc, failing = mlst.runMlst(contigs, args.speciesExpected[0], outdir)
-				print 'END MLST analysis'
-				time_taken = utils.runTime(program_start_time)
-				program.append(run_successfully)
-				program.append(pass_qc)
-				program.append(time_taken)
-				program.append(failing)
-				runs['MLST'] = []
-				runs['MLST'] = program
+			if run_successfully:
+				# Run MLST
+				if not args.skipMLST:
+					program_start_time = time.time()
+					print 'RUNNING MLST analysis'
+					program = []
+					run_successfully, pass_qc, failing = mlst.runMlst(contigs, args.speciesExpected[0], outdir)
+					print 'END MLST analysis'
+					time_taken = utils.runTime(program_start_time)
+					program.append(run_successfully)
+					program.append(pass_qc)
+					program.append(time_taken)
+					program.append(failing)
+					runs['MLST'] = []
+					runs['MLST'] = program
+				else:
+					print '--skipMLST set. Skipping MLST analysis'
+					runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 			else:
-				print '--skipMLST set. Skipping MLST analysis'
+				print 'SPAdes did not run successfully! Skipping MLST analysis'
 				runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
-		else:
-			print 'SPAdes did not run successfully! Skipping MLST analysis'
-			runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 
+		else:
+			print '--skipSPAdes set. Skipping SPAdes and MLST analysis'
+			runs['SPAdes'] = [None, None, 0, {'sample': 'Skipped'}]
+			runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 	else:
-		print '--skipSPAdes set. Skipping SPAdes and MLST analysis'
-		runs['SPAdes'] = [None, None, 0, {'sample': 'Skipped'}]
-		runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
+		print 'Moving to the next sample'
+		runs['first_Coverage'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['first_FastQC'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['Trimmomatic'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['second_Coverage'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['second_FastQC'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['SPAdes'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['MLST'] = [None, None, 0, {'sample': 'Not run'}]
 
 	# Remove Trimmomatic directory with cleaned reads
 	if not args.trimKeepFiles:
 		try:
 			utils.removeDirectory(trimmomatic_folder)
 		except:
-			print 'It is not possible to remove Trimmomatic directory ' + trimmomatic_folder + ' because Trimmomatic did not run'
+			print 'It is not possible to remove Trimmomatic directory because Trimmomatic did not run'
 
 	# Check run
 	run_successfully = True
 	pass_qc = True
 
 	for step in runs:
-		if runs[step][0] is False:
+		if step != 'FastQ_Integrity' and runs[step][0] is False:
 			run_successfully = False
+			break
+
+	if runs['FastQ_Integrity'][0] is False:
+		pass_qc = False
 
 	if runs['second_Coverage'][1] is False:
 		pass_qc = False

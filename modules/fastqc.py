@@ -36,7 +36,7 @@ def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 		adaptersTEMP = adapters2fastQC(fastqc_folder, adaptersFasta)
 		print 'Scanning for adapters contamination using ' + adaptersFasta
 		command[9] = '--adapters ' + adaptersTEMP
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 
 	# Remove temporary files
 	os.rmdir(os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', ''))
@@ -215,6 +215,18 @@ def nts2clip(dict_fastqs_ntsBiased_status):
 	return nts2clip_based_ntsContent
 
 
+def check_FastQC_runSuccessfully(fastqc_folder, fastq_files):
+	run_successfully = True
+	for reads in fastq_files:
+		reads_file = os.path.basename(reads).rsplit('.', 2)[0]
+		try:
+			open(os.path.join(fastqc_folder, str(reads_file + '_fastqc'), 'fastqc_data.txt'), 'rtU')
+		except Exception as e:
+			print e
+			run_successfully = False
+	return run_successfully
+
+
 # Run FastQC analysis
 def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
 	pass_qc = False
@@ -232,6 +244,12 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
 	# Run FastQC
 	run_successfully = fastQC(fastqc_folder, threads, adaptersFasta, fastq_files)
 	if run_successfully:
+		# Check whether FastQC really run_successfully
+		run_successfully = check_FastQC_runSuccessfully(fastqc_folder, fastq_files)
+		if not run_successfully:
+			failing['sample'] = 'Did not run'
+			return run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent
+
 		# Check which reads pass FastQC
 		goodReads, badReads, failing = parseFastQC(fastqc_folder, fastq_files)
 		# Get reads information

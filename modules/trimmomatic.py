@@ -42,16 +42,16 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 			adaptersFasta = concatenateFastaFiles(adapters_files, trimmomatic_folder, 'concatenated_adaptersFile.fasta')
 			command[10] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
 
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 
 	if not run_successfully:
 		print 'Trimmomatic fail! Trying run with Phred+33 enconding defined...'
 		command.append('-phred33')
-		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 		if not run_successfully:
 			print 'Trimmomatic fail again! Trying run with Phred+64 enconding defined...'
 			command[18] = '-phred64'
-			run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+			run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 
 	return run_successfully
 

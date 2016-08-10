@@ -1,6 +1,6 @@
 import utils
 import os
-import shutil
+
 
 # Run Spades
 def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers):
@@ -15,9 +15,10 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 		kmers = ','.join(map(str, kmers))
 		command[9] = str('-k ' + kmers)
 
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 
 	return run_successfully, contigs
+
 
 # Rename contigs and contigs.fasta file while filtering for contigs length
 def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
@@ -51,6 +52,7 @@ def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
 
 	return newContigsFile, number_contigs, number_bases
 
+
 def define_kmers(kmers, maximumReadsLength):
 	if isinstance(kmers[0], (list, tuple)):
 		kmers = kmers[0]
@@ -61,8 +63,9 @@ def define_kmers(kmers, maximumReadsLength):
 				kmers_use.append(kmer)
 	return kmers_use
 
+
 # Run SPAdes procedure
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport):
+def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport, defaultKmers):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -74,11 +77,13 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	utils.removeDirectory(spades_folder)
 	os.mkdir(spades_folder)
 
-	kmers = define_kmers(kmers, maximumReadsLength)
-	if len(kmers) == 0:
-		print 'SPAdes will use its default k-mers'
-	else:
-		print 'SPAdes will use the following k-mers: ' + str(kmers)
+	kmers = []
+	if not defaultKmers:
+		kmers = define_kmers(kmers, maximumReadsLength)
+		if len(kmers) == 0:
+			print 'SPAdes will use its default k-mers'
+		else:
+			print 'SPAdes will use the following k-mers: ' + str(kmers)
 
 	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers)
 
@@ -93,11 +98,11 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 				writer.write('#contigs' + '\n' + str(number_contigs) + '\n' + '#bp' + '\n' + str(number_bases) + '\n')
 				writer.flush()
 
-		if number_bases >= estimatedGenomeSizeMb*1000000*0.8 and number_bases <= estimatedGenomeSizeMb*1000000*1.5:
-			if number_contigs <= 100*number_bases/1500000:
+		if number_bases >= estimatedGenomeSizeMb * 1000000 * 0.8 and number_bases <= estimatedGenomeSizeMb * 1000000 * 1.5:
+			if number_contigs <= 100 * number_bases / 1500000:
 				pass_qc = True
 			else:
-				failing['sample'] = 'The number of assembled contigs (' + str(number_contigs) + ') exceeds ' + str(100*number_bases/1500000)
+				failing['sample'] = 'The number of assembled contigs (' + str(number_contigs) + ') exceeds ' + str(100 * number_bases / 1500000)
 				print failing['sample']
 		else:
 			failing['sample'] = 'The number of assembled nucleotides (' + str(number_bases) + ') are lower than 80% or higher than 150% of the provided estimated genome size'

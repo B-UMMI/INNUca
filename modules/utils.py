@@ -5,6 +5,8 @@ import argparse
 import os
 import shutil
 import shlex
+from threading import Timer
+import pickle
 
 
 def parseArguments(version):
@@ -45,10 +47,13 @@ def parseArguments(version):
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', nargs=1, type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=[200])
-	spades_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
 	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
 	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
+
+	spades_kmers_options = parser.add_mutually_exclusive_group()
+	spades_kmers_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
+	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
 	args = parser.parse_args()
 
@@ -90,32 +95,27 @@ def spades_cov_cutoff(argument):
 		argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
 
 
-def runCommandPopenCommunicate(command):
+def runCommandPopenCommunicate(command, shell_True, timeout_sec_None):
 	run_successfully = False
 	if isinstance(command, basestring):
 		command = shlex.split(command)
 	else:
 		command = shlex.split(' '.join(command))
+
 	print 'Running: ' + ' '.join(command)
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	stdout, stderr = proc.communicate()
-	if proc.returncode == 0:
-		run_successfully = True
-	else:
-		print 'STDOUT'
-		print stdout.decode("utf-8")
-		print 'STDERR'
-		print stderr.decode("utf-8")
-	return run_successfully, stdout, stderr
-
-
-def runCommandPopenCommunicateShell(command):
-	run_successfully = False
-	if not isinstance(command, basestring):
+	if shell_True:
 		command = ' '.join(command)
-	print 'Running: ' + command
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-	stdout, stderr = proc.communicate()
+		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	else:
+		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	if timeout_sec_None is None:
+		stdout, stderr = proc.communicate()
+	else:
+		timer = Timer(timeout_sec_None, proc.kill)
+		timer.start()
+		stdout, stderr = proc.communicate()
+		timer.cancel()
+
 	if proc.returncode == 0:
 		run_successfully = True
 	else:
@@ -161,7 +161,7 @@ def checkPrograms(programs_version_dictionary):
 	listMissings = []
 	for program in programs:
 		which_program[1] = program
-		run_successfully, stdout, stderr = runCommandPopenCommunicate(which_program)
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(which_program, False, None)
 		if not run_successfully:
 			listMissings.append(program + ' not found in PATH.')
 		else:
@@ -169,7 +169,7 @@ def checkPrograms(programs_version_dictionary):
 				print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
 			else:
 				check_version = [stdout.splitlines()[0], programs[program][0]]
-				run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version)
+				run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None)
 				if stdout == '':
 					stdout = stderr
 				if program == 'bunzip2':
@@ -346,3 +346,30 @@ def scriptVersionGit(version, directory, script_path):
 	stdout, stderr = proc.communicate()
 	print stdout
 	os.chdir(directory)
+
+
+def saveVariableToPickle(variableToStore, outdir, prefix):
+	pickleFile = os.path.join(outdir, str(prefix + '.pkl'))
+	with open(pickleFile, 'wb') as writer:
+		pickle.dump(variableToStore, writer)
+
+
+def extractVariableFromPickle(pickleFile):
+	with open(pickleFile, 'rb') as reader:
+		variable = pickle.load(reader)
+	return variable
+
+
+# Extract compression type
+def compressionType(file):
+	magic_dict = {'\x1f\x8b\x08': 'gz', '\x42\x5a\x68': 'bz2'}
+
+	max_len = max(len(x) for x in magic_dict)
+
+	with open(file, 'r') as reader:
+		file_start = reader.read(max_len)
+
+	for magic, filetype in magic_dict.items():
+		if file_start.startswith(magic):
+			return filetype
+	return None

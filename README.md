@@ -51,8 +51,9 @@ Usage
                      [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
                      [--trimLeading N] [--trimTrailing N]
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
-                     [--spadesKmers 55,77] [--spadesMaxMemory N]
-                     [--spadesMinCoverage 10]
+                     [--spadesKmers 55,77 | --spadesDefaultKmers]
+                     [--spadesMaxMemory N] [--spadesMinCoverage 10]
+                     [--spadesSaveReport]
 
     INNUca - Reads Control and Assembly
 
@@ -135,9 +136,6 @@ Usage
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: [200])
-      --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
-                            be odd, less than 128) (default: [55, 77, 99, 113,
-                            127])
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
                             (default: [25])
       --spadesMinCoverage 10
@@ -146,6 +144,12 @@ Usage
                             auto or off (default: ['off'])
       --spadesSaveReport    Tells INNUca to store the number of contigs and
                             assembled nucleotides for each sample
+    SPAdes k-mers options (one of the following):
+      --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
+                            be odd, less than 128) (default: [55, 77, 99, 113,
+                            127])
+      --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
+                            False)
 
 
 

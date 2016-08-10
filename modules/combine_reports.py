@@ -84,10 +84,6 @@ def combine_reports(args):
 											line = line.splitlines()[0]
 											line = line.split('\t')
 											if line[0] in sample:
-												print line[5]
-												print type(line[5])
-												print line[13]
-												print type(line[13])
 												if line[5] == 'True':
 													results[sample][0] = data[0]
 												elif line[13] == 'True':

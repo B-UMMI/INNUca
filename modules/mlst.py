@@ -1,6 +1,7 @@
 import utils
 import os
 
+
 # Count sequenced bases
 def runMlst(contigs, species, outdir):
 	pass_qc = False
@@ -12,7 +13,7 @@ def runMlst(contigs, species, outdir):
 
 	command = ['mlst', contigs]
 
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 
 	if run_successfully:
 		species_mlst = stdout.splitlines()[0].split('\t')[1].split('_')[0]
