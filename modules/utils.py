@@ -7,14 +7,14 @@ import shutil
 import shlex
 from threading import Timer
 import pickle
-
+from functools import wraps
 
 def parseArguments(version):
 	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 	required_options = parser.add_argument_group('Required options')
 	required_options.add_argument('-i', '--inputDirectory', nargs=1, type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together', required=True)
-	required_options.add_argument('-s', '--speciesExpected', nargs=1, type=str, metavar='"Streptococcus agalactiae"', help='Expected species name', required=True)
+	required_options.add_argument('-s', '--speciesExpected', type=str, metavar='"Streptococcus agalactiae"', help='Expected species name', required=True)
 	required_options.add_argument('-g', '--genomeSizeExpectedMb', type=float, metavar='2.1', help='Expected genome size in Mb', required=True)
 
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
@@ -46,9 +46,9 @@ def parseArguments(version):
 
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
-	spades_options.add_argument('--spadesMinContigsLength', nargs=1, type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=[200])
-	spades_options.add_argument('--spadesMaxMemory', nargs=1, type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=[25])
-	spades_options.add_argument('--spadesMinCoverage', nargs=1, type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=['off'])
+	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=200)
+	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=25)
+	spades_options.add_argument('--spadesMinCoverage', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default='off')
 	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
@@ -404,3 +404,21 @@ def build_header(steps):
 
 		header.extend(l)
 	return header
+
+def timer(f, name):
+
+	@wraps(f)
+	def wrapper(*args, **kwargs):
+
+		print('RUNNING '.format(name))
+		start_time = time()
+
+		results = list(f(*args, **kwargs))  # guarantees return is a list to allow .insert()
+
+		time_taken = runTime(start_time)
+
+		print('END '.format(name))
+		results.insert(2, time_taken)
+
+		return results
+	return wrapper

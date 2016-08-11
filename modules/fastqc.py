@@ -1,7 +1,9 @@
 import sys
 import os
 import utils
+from functools import partial
 
+fastqc_timer = partial(utils.timer, name='FastQC Analysis')
 
 # Prepare adapters fasta file to FastQC (tabular file)
 def adapters2fastQC(outdir, adaptersFastaFile):
@@ -25,6 +27,8 @@ def adapters2fastQC(outdir, adaptersFastaFile):
 
 
 # Run FastQC
+
+@fastqc_timer
 def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 	# Create temporary FastQC foldes
 	os.mkdir(os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', ''))

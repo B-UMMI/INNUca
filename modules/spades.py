@@ -1,6 +1,8 @@
 import utils
 import os
+from functools import partial
 
+spades_timer = partial(utils.timer, 'SPAdes')
 
 # Run Spades
 def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers):
@@ -65,6 +67,7 @@ def define_kmers(kmers, maximumReadsLength):
 
 
 # Run SPAdes procedure
+@spades_timer
 def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport, defaultKmers):
 	pass_qc = False
 	failing = {}
