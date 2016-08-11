@@ -109,7 +109,7 @@ def main():
 	number_samples_successfully = 0
 	number_samples_pass = 0
 
-	steps = ['first_Coverage', 'first_FastQC', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
+	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
 
 	sample_lines = []
 	# Run comparisons for each sample
@@ -138,24 +138,29 @@ def main():
 
 		# Save sample fail report
 		with open(os.path.join(sample_outdir, 'fail_report.txt'), 'wt') as writer_failReport:
+
+			failures = []
+
 			for step in steps:
-				fail_reasons = list(run_report[step][3].values())
-				if fail_reasons.count(False) == len(fail_reasons):
-					continue
-				else:
-					writer_failReport.write('#' + step + '\n')
+				max_fails = len(list(run_report[step][3].values()))
+
+				if fail_reasons.count(False) < len(max_fails):
+
+					failures.append('#' + step)
+
 					for key, fail_reasons in run_report[step][3].items():
 						if isinstance(fail_reasons, bool) and not fail_reasons:
 							continue
 						else:
-							writer_failReport.write('>' + str(key) + '\n')
+							failures.append('>' + str(key))
+
 							if isinstance(fail_reasons, (list, tuple)):
 								for reasons in fail_reasons:
-									writer_failReport.write(str(reasons) + '\n')
-									writer_failReport.flush()
+									failures.append(str(reasons))
 							else:
-								writer_failReport.write(str(fail_reasons) + '\n')
-								writer_failReport.flush()
+								failures.append(str(fail_reasons))
+
+			writer_failReport.write( '\n'.join(failures) )
 
 		# Save runs statistics
 		if run_successfully:
