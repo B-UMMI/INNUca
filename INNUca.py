@@ -45,7 +45,7 @@ def main():
 	time_str = time.strftime("%Y%m%d-%H%M%S")
 
 	# Check if output directory exists
-	outdir = os.path.abspath(os.path.join(args.outdir[0], ''))
+	outdir = os.path.abspath(os.path.join(args.outdir, ''))
 	if not os.path.isdir(outdir):
 		os.makedirs(outdir)
 
@@ -201,11 +201,11 @@ def main():
 
 
 def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
-	threads = args.threads[0]
-	adaptersFasta = args.adapters[0]
+	threads = args.threads
+	adaptersFasta = args.adapters
 	if adaptersFasta is not None:
 		adaptersFasta = os.path.abspath(adaptersFasta.name)
-	genomeSize = args.genomeSizeExpectedMb[0]
+	genomeSize = args.genomeSizeExpectedMb
 	maximumReadsLength = None
 
 	runs = {}
@@ -265,7 +265,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 			program_start_time = time.time()
 			print 'RUNNING Trimmomatic'
 
-			run_successfully, paired_reads, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading[0], args.trimTrailing[0], args.trimSlidingWindow[0], args.trimMinLength[0], nts2clip_based_ntsContent)
+			run_successfully, paired_reads, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
 			print 'END Trimmomatic'
 
 			time_taken = utils.runTime(program_start_time)
