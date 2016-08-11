@@ -373,3 +373,34 @@ def compressionType(file):
 		if file_start.startswith(magic):
 			return filetype
 	return None
+
+def sampleReportLine(run_report):
+
+	line = []
+	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
+
+	for step in steps:
+		if step in ('FastQ_Integrity', 'Trimmomatic'):
+			l = [run_report[step][0], run_report[step][2]]
+		else:
+			pass_qc = 'PASS' if run_report[step][1] else 'FAIL'
+			l = [run_report[step][0], pass_qc, run_report[step][2]]
+
+		line.extend(l)
+
+	return line
+
+def build_header(steps):
+
+	header = []
+	for step in steps:
+		if step == 'FastQ_Integrity':
+			l = [step + '_filesOK', step + '_runningTime']
+		elif step == 'Trimmomatic':
+			l = [step + '_runSuccessfully', step + '_runningTime']
+		else:
+			l = [step + '_runSuccessfully', step + '_passQC',
+				step + '_runningTime']
+
+		header.extend(l)
+	return header

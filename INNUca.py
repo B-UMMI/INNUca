@@ -103,29 +103,15 @@ def main():
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
 
-	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
-
-	# Prepare run report file
-	samples_report = open(os.path.join(outdir, str('samples_report.' + time_str + '.tab')), 'wt')
 	# runningTime in seconds
 	# fileSize in bytes
-	samples_report.write('#samples' + '\t' + 'samples_runSuccessfully' + '\t' + 'samples_passQC' + '\t' + 'samples_runningTime' + '\t' + 'samples_fileSize' + '\t')
-	for step in steps:
-		if step == 'FastQ_Integrity':
-			samples_report.write(str(step + '_filesOK') + '\t' + str(step + '_runningTime') + '\t')
-		elif step == 'Trimmomatic':
-			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_runningTime') + '\t')
-		else:
-			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_passQC') + '\t' + str(step + '_runningTime'))
-			if step != steps[len(steps) - 1]:
-				samples_report.write('\t')
-			else:
-				samples_report.write('\n')
-	samples_report.flush()
 
 	number_samples_successfully = 0
 	number_samples_pass = 0
 
+	steps = ['first_Coverage', 'first_FastQC', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
+
+	sample_lines = []
 	# Run comparisons for each sample
 	for sample in samples:
 		sample_start_time = time.time()
@@ -173,14 +159,12 @@ def main():
 
 		# Save runs statistics
 		if run_successfully:
-			number_samples_successfully = number_samples_successfully + 1
+			number_samples_successfully += 1
 		if pass_qc:
-			number_samples_pass = number_samples_pass + 1
+			number_samples_pass += 1
 
 		# Get raw reads files size
-		fileSize = 0
-		for fastq in fastq_files:
-			fileSize = fileSize + os.path.getsize(fastq)
+		fileSize = sum(os.path.getsize(fastq) for fastq in fastq_files)
 
 		# Remove sample directory if it was created during the process
 		if removeCreatedSamplesDirectories:
@@ -189,23 +173,22 @@ def main():
 		print 'END ' + sample + ' analysis'
 		time_taken = utils.runTime(sample_start_time)
 
-		# Save run report
-		samples_report.write(sample + '\t' + str(run_successfully) + '\t' + ('PASS' if pass_qc else 'FAIL') + '\t' + str(time_taken) + '\t' + str(fileSize) + '\t')
-		for step in steps:
-			if step == 'FastQ_Integrity':
-				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
-			elif step == 'Trimmomatic':
-				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
-			else:
-				samples_report.write(str(run_report[step][0]) + '\t' + ('PASS' if run_report[step][1] else 'FAIL') + '\t' + str(run_report[step][2]))
-				if step != steps[len(steps) - 1]:
-					samples_report.write('\t')
-				else:
-					samples_report.write('\n')
-		samples_report.flush()
+		sample_lines.append(utils.sampleReportLine(run_report))
 
-	samples_report.close()
+	# Prepare run report file
 
+	samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
+
+	with open(samples_report_path, 'w') as sample_report:
+
+		out = csv.writer(sample_report, delimiter='\t')
+
+		header = utils.build_header(steps)
+
+		out.writerow(header)
+
+		for line in sample_lines:
+			out.writerow(line)
 	# Run report
 	print '\n' + 'END INNUca.py'
 	print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
