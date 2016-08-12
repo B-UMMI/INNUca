@@ -1,3 +1,4 @@
+import csv
 import subprocess
 import time
 import sys
@@ -13,7 +14,7 @@ def parseArguments(version):
 	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 	required_options = parser.add_argument_group('Required options')
-	required_options.add_argument('-i', '--inputDirectory', nargs=1, type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together', required=True)
+	required_options.add_argument('-i', '--inputDirectory', type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together', required=True)
 	required_options.add_argument('-s', '--speciesExpected', type=str, metavar='"Streptococcus agalactiae"', help='Expected species name', required=True)
 	required_options.add_argument('-g', '--genomeSizeExpectedMb', type=float, metavar='2.1', help='Expected genome size in Mb', required=True)
 
@@ -423,11 +424,11 @@ def timer(f, name):
 
 def write_sample_report(sample_report_path, sample_lines):
 
-        with open(samples_report_path, 'w') as sample_report:
+        with open(sample_report_path, 'w') as sample_report:
 
 		out = csv.writer(sample_report, delimiter='\t')
 
-		header = utils.build_header()
+		header = build_header()
 
 		out.writerow(header)
 

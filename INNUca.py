@@ -35,7 +35,6 @@ import modules.mlst as mlst
 import time
 import os
 import sys
-import csv
 
 def main():
 	version = '1.4'
@@ -95,7 +94,7 @@ def main():
 		sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
 
 	# Check if input directory exists with fastq files and store samples name that have fastq files
-	inputDirectory = os.path.abspath(os.path.join(args.inputDirectory[0], ''))
+	inputDirectory = os.path.abspath(os.path.join(args.inputDirectory, ''))
 	pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
 	print ''
 	samples, removeCreatedSamplesDirectories = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
