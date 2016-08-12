@@ -2,7 +2,7 @@ import utils
 import os
 from functools import partial
 
-coverage_timer = partial(utils.timer, name='First Estimated Coverage analysis')
+coverage_timer = partial(utils.timer, name='Estimated Coverage analysis')
 
 # Count sequenced bases
 def countSequencedBases(fastq_file):

@@ -62,4 +62,4 @@ def runFastQintegrity(fastq_files, threads, outdir):
 
 	utils.removeDirectory(fastQintegrity_folder)
 
-	return not_corruption_found, failing
+	return not_corruption_found, None, failing  # None added for consistency with other steps

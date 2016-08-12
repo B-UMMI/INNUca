@@ -28,7 +28,6 @@ def adapters2fastQC(outdir, adaptersFastaFile):
 
 # Run FastQC
 
-@fastqc_timer
 def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 	# Create temporary FastQC foldes
 	os.mkdir(os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', ''))
@@ -232,6 +231,7 @@ def check_FastQC_runSuccessfully(fastqc_folder, fastq_files):
 
 
 # Run FastQC analysis
+@fastqc_timer
 def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
 	pass_qc = False
 	failing = {}

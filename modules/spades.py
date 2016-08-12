@@ -2,7 +2,7 @@ import utils
 import os
 from functools import partial
 
-spades_timer = partial(utils.timer, 'SPAdes')
+spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run Spades
 def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers):
@@ -56,8 +56,7 @@ def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
 
 
 def define_kmers(kmers, maximumReadsLength):
-	if isinstance(kmers[0], (list, tuple)):
-		kmers = kmers[0]
+
 	kmers_use = []
 	if maximumReadsLength is not None:
 		for kmer in kmers:
@@ -113,7 +112,8 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']
-
+		contigsFiltered = None  # a hack to prevent an exception being raised if run_successfully == False;
+					# without this, contigsFiltered is unbound in that circumstance
 	utils.removeDirectory(spades_folder)
 
 	return run_successfully, pass_qc, failing, contigsFiltered

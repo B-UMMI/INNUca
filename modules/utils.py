@@ -38,10 +38,10 @@ def parseArguments(version):
 	trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
 	trimmomatic_options.add_argument('--trimCrop', nargs=1, type=int, metavar='N', help='Cut the specified number of bases to the end of the maximum reads length', required=False)
 	trimmomatic_options.add_argument('--trimHeadCrop', nargs=1, type=int, metavar='N', help='Trimmomatic: cut the specified number of bases from the start of the reads', required=False)
-	trimmomatic_options.add_argument('--trimSlidingWindow', type=str, metavar='window:meanQuality', help='Trimmomatic: perform a sliding window trimming, cutting once the average quality within the window falls below a threshold', required=False, default=['5:20'])
-	trimmomatic_options.add_argument('--trimLeading', type=int, metavar='N', help='Trimmomatic: cut bases off the start of a read, if below a threshold quality', required=False, default=[3])
-	trimmomatic_options.add_argument('--trimTrailing', type=int, metavar='N', help='Trimmomatic: cut bases off the end of a read, if below a threshold quality', required=False, default=[3])
-	trimmomatic_options.add_argument('--trimMinLength', type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=[55])
+	trimmomatic_options.add_argument('--trimSlidingWindow', type=str, metavar='window:meanQuality', help='Trimmomatic: perform a sliding window trimming, cutting once the average quality within the window falls below a threshold', required=False, default='5:20')
+	trimmomatic_options.add_argument('--trimLeading', type=int, metavar='N', help='Trimmomatic: cut bases off the start of a read, if below a threshold quality', required=False, default=3)
+	trimmomatic_options.add_argument('--trimTrailing', type=int, metavar='N', help='Trimmomatic: cut bases off the end of a read, if below a threshold quality', required=False, default=3)
+	trimmomatic_options.add_argument('--trimMinLength', type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=55)
 	trimmomatic_options.add_argument('--trimKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Trimmomatic')
 
 	spades_options = parser.add_argument_group('SPAdes options')
@@ -52,7 +52,7 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
-	spades_kmers_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
+	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=spades_kmers, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
 	args = parser.parse_args()
@@ -65,17 +65,12 @@ def parseArguments(version):
 
 # For parseArguments
 def spades_kmers(arguments):
-	arguments = map(int, arguments.split(','))
-	arguments = sorted(arguments)
-	for number in arguments:
-		if number % 2 != 0:
-			if number < 128:
-				continue
-			else:
-				argparse.ArgumentParser.error()
-		else:
-			argparse.ArgumentParser.error()
-	return arguments
+	kmers = sorted(map(int, arguments))
+
+        for number in kmers:
+		if number % 2 != 0 or number >= 128:
+                        raise argparse.ArgumentParser.error()
+	return kmers
 
 
 # For parseArguments
@@ -282,7 +277,7 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 		if len(samples[sample]) == 1:
 			print 'Only one fastq file was found: ' + str(samples[sample])
 			print 'Pair-End sequencing is required. This sample will be ignored'
-			samples.remove(sample)
+		        del samples[sample]
 			continue
 		sample_folder = os.path.join(directory, sample, '')
 		if not os.path.isdir(sample_folder):
@@ -377,7 +372,8 @@ def compressionType(file):
 def sampleReportLine(run_report):
 
 	line = []
-	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
+	steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC',
+                'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST')
 
 	for step in steps:
 		if step in ('FastQ_Integrity', 'Trimmomatic'):
@@ -390,10 +386,12 @@ def sampleReportLine(run_report):
 
 	return line
 
-def build_header(steps):
+def build_header():
 
+	steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST')
 	header = []
-	for step in steps:
+
+        for step in steps:
 		if step == 'FastQ_Integrity':
 			l = [step + '_filesOK', step + '_runningTime']
 		elif step == 'Trimmomatic':
@@ -410,15 +408,56 @@ def timer(f, name):
 	@wraps(f)
 	def wrapper(*args, **kwargs):
 
-		print('RUNNING '.format(name))
-		start_time = time()
+		print('RUNNING {}\n'.format(name))
+		start_time = time.time()
 
 		results = list(f(*args, **kwargs))  # guarantees return is a list to allow .insert()
 
 		time_taken = runTime(start_time)
 
-		print('END '.format(name))
+		print('END {}\n'.format(name))
 		results.insert(2, time_taken)
 
 		return results
 	return wrapper
+
+def write_sample_report(sample_report_path, sample_lines):
+
+        with open(samples_report_path, 'w') as sample_report:
+
+		out = csv.writer(sample_report, delimiter='\t')
+
+		header = utils.build_header()
+
+		out.writerow(header)
+
+		for line in sample_lines:
+			out.writerow(line)
+
+def write_fail_report(fail_report_path, run_report):
+
+        with open(fail_report_path, 'wt') as writer_failReport:
+
+                failures = []
+
+                for step in run_report:
+
+                        fail_reasons = list(run_report[step][3].values())
+
+                        if fail_reasons.count(False) < len(fail_reasons):
+
+                                failures.append('#' + step)
+
+                                for key, fail_reasons in run_report[step][3].items():
+                                        if isinstance(fail_reasons, bool) and not fail_reasons:
+                                                continue
+                                        else:
+                                                failures.append('>' + str(key))
+
+                                                if isinstance(fail_reasons, (list, tuple)):
+                                                        for reasons in fail_reasons:
+                                                                failures.append(str(reasons))
+                                                else:
+                                                        failures.append(str(fail_reasons))
+
+                writer_failReport.write( '\n'.join(failures) )

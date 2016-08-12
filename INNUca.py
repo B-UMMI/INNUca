@@ -35,7 +35,7 @@ import modules.mlst as mlst
 import time
 import os
 import sys
-
+import csv
 
 def main():
 	version = '1.4'
@@ -100,6 +100,8 @@ def main():
 	print ''
 	samples, removeCreatedSamplesDirectories = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 
+	samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
+
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
 
@@ -109,11 +111,11 @@ def main():
 	number_samples_successfully = 0
 	number_samples_pass = 0
 
-	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
-
 	sample_lines = []
+
 	# Run comparisons for each sample
 	for sample in samples:
+
 		sample_start_time = time.time()
 
 		print '\n' + 'Sample: ' + sample
@@ -137,30 +139,9 @@ def main():
 		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path)
 
 		# Save sample fail report
-		with open(os.path.join(sample_outdir, 'fail_report.txt'), 'wt') as writer_failReport:
+		fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
 
-			failures = []
-
-			for step in steps:
-				max_fails = len(list(run_report[step][3].values()))
-
-				if fail_reasons.count(False) < len(max_fails):
-
-					failures.append('#' + step)
-
-					for key, fail_reasons in run_report[step][3].items():
-						if isinstance(fail_reasons, bool) and not fail_reasons:
-							continue
-						else:
-							failures.append('>' + str(key))
-
-							if isinstance(fail_reasons, (list, tuple)):
-								for reasons in fail_reasons:
-									failures.append(str(reasons))
-							else:
-								failures.append(str(fail_reasons))
-
-			writer_failReport.write( '\n'.join(failures) )
+		utils.write_fail_report(fail_report_path, run_report)
 
 		# Save runs statistics
 		if run_successfully:
@@ -182,19 +163,8 @@ def main():
 
 	# Prepare run report file
 
-	samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
-
-	with open(samples_report_path, 'w') as sample_report:
-
-		out = csv.writer(sample_report, delimiter='\t')
-
-		header = utils.build_header(steps)
-
-		out.writerow(header)
-
-		for line in sample_lines:
-			out.writerow(line)
-	# Run report
+	utils.write_sample_report(samples_report_path, sample_lines)
+		# Run report
 	print '\n' + 'END INNUca.py'
 	print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
 	print '\n' + str(number_samples_pass) + ' samples out of ' + str(number_samples_successfully) + ' (run successfully) PASS INNUca.py analysis'
@@ -221,7 +191,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 	runs = {}
 
 	# Run FastQ integrity check
-	not_corruption_found, time_taken, failing = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
+	not_corruption_found, _, time_taken, failing = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
 
 	runs['FastQ_Integrity'] = [not_corruption_found, None, time_taken, failing]
 
@@ -327,15 +297,15 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
         # Remove Trimmomatic directory with cleaned reads
 	if not args.trimKeepFiles:
-		try:
-			utils.removeDirectory(trimmomatic_folder)
-		except:
-			print 'It is not possible to remove Trimmomatic directory because Trimmomatic did not run'
+
+		# the except block formerly here never ran because error checking
+		# is performed internally by utils.removeDirectory()
+		utils.removeDirectory(trimmomatic_folder)
 
 	# Check run
 	run_successfully = all(runs[step][0] for step in runs if step != 'FastQ_Integrity')
 
-	pass_qc = all([runs['FastQC_Integrity'][0], runs['first_Coverage'][1], runs['second_Coverage'][1],
+	pass_qc = all([runs['FastQ_Integrity'][0], runs['first_Coverage'][1], runs['second_Coverage'][1],
 			runs['first_FastQC'][1], runs['second_FastQC'][1], runs['SPAdes'][1], runs['MLST'][1]])
 
 	return run_successfully, pass_qc, runs
