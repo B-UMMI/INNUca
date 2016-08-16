@@ -77,8 +77,9 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	utils.removeDirectory(spades_folder)
 	os.mkdir(spades_folder)
 
-	kmers = []
-	if not defaultKmers:
+	if defaultKmers:
+		kmers = []
+	else:
 		kmers = define_kmers(kmers, maximumReadsLength)
 		if len(kmers) == 0:
 			print 'SPAdes will use its default k-mers'

@@ -30,6 +30,9 @@ Dependencies
  - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
    in your PATH)
  - *SPAdes* >= v3.7.1
+ - *Pilon* = v1.18
+ - *Bowtie2* >= v2.2.9
+ - *Samtools* = v1.3.1
 
 Installation
 ------------
@@ -45,15 +48,16 @@ Usage
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
                      [--pairEnd_filesSeparation "_left/rigth.fq.gz" "_left/rigth.fq.gz"]
                      [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipSPAdes] [--skipMLST]
+                     [--skipSPAdes] [--skipPilon] [--skipMLST]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
-                     [--trimLeading N] [--trimTrailing N]
+                     [--trimLeading N] [--trimTrailing N] [--trimKeepFiles]
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
                      [--spadesKmers 55,77 | --spadesDefaultKmers]
                      [--spadesMaxMemory N] [--spadesMinCoverage 10]
                      [--spadesSaveReport]
+                     [--pilonKeepFiles] [--pilonKeepSPAdesAssembly]
 
     INNUca - Reads Control and Assembly
 
@@ -96,6 +100,8 @@ Usage
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
                             MLST analysis (requires SPAdes contigs) (default:
                             False)
+      --skipPilon           Tells the programme to not run Pilon correction
+                            (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
 
@@ -151,17 +157,24 @@ Usage
       --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
                             False)
 
+    Pilon options:
+      --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
+                            (default: False)
+      --pilonKeepSPAdesAssembly
+                            Tells INNUca.py to not remove the unpolished SPAdes
+                            assembly (default: False)
+
 
 
 Combine INNUca reports
 ----------------------
-In order to combine **INNUca** reports (Coverage, SPAdes, MLST), use *combine_reports.py* found in **INNUca** modules folder
+In order to combine **INNUca** reports (Coverage, SPAdes, Pilon, MLST), use *combine_reports.py* found in **INNUca** modules folder
 
     usage: python combine_reports.py [-h] [--version] -i
                               /path/to/INNUca/output/directory/
                               [-o /path/to/output/directory/]
 
-    Combine INNUca reports (Coverage, SPAdes, MLST)
+    Combine INNUca reports (Coverage, SPAdes, Pilon, MLST)
 
     optional arguments:
       -h, --help            show this help message and exit

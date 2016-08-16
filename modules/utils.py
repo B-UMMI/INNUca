@@ -20,7 +20,7 @@ def parseArguments(version):
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
 
 	general_options = parser.add_argument_group('General options')
-	general_options.add_argument('-o', '--outdir', nargs=1, type=str, metavar='/output/directory/', help='Path for output directory', required=False, default='.')
+	general_options.add_argument('-o', '--outdir', nargs=1, type=str, metavar='/output/directory/', help='Path for output directory', required=False, default=['.'])
 	general_options.add_argument('-j', '--threads', nargs=1, type=int, metavar='N', help='Number of threads', required=False, default=[1])
 	general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes and Samtools that are provided with INNUca.py')
 	general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
@@ -28,6 +28,7 @@ def parseArguments(version):
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
 	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently MLST analysis (requires SPAdes contigs)')
+	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction')
 	general_options.add_argument('--skipMLST', action='store_true', help='Tells the programme to not run MLST analysis')
 
 	adapters_options = parser.add_mutually_exclusive_group()
@@ -54,6 +55,10 @@ def parseArguments(version):
 	spades_kmers_options = parser.add_mutually_exclusive_group()
 	spades_kmers_options.add_argument('--spadesKmers', nargs=1, type=spades_kmers, metavar='55,77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
+
+	pilon_options = parser.add_argument_group('Pilon options')
+	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
+	pilon_options.add_argument('--pilonKeepSPAdesAssembly', action='store_true', help='Tells INNUca.py to not remove the unpolished SPAdes assembly')
 
 	args = parser.parse_args()
 
@@ -174,6 +179,8 @@ def checkPrograms(programs_version_dictionary):
 					stdout = stderr
 				if program == 'bunzip2':
 					version_line = stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
+				elif program == 'pilon-1.18.jar':
+					version_line = stdout.splitlines()[0].split(' ', 3)[2]
 				else:
 					version_line = stdout.splitlines()[0].split(' ')[-1]
 				replace_characters = ['"', 'v', 'V', '+']
@@ -205,8 +212,11 @@ def setPATHvariable(doNotUseProvidedSoftware, script_path):
 		fastQC = os.path.join(script_folder, 'src', 'fastqc_v0.11.5')
 		trimmomatic = os.path.join(script_folder, 'src', 'Trimmomatic-0.36')
 		spades = os.path.join(script_folder, 'src', 'SPAdes-3.7.1-Linux', 'bin')
+		bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
+		samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
+		pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')
 
-		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, spades, path_variable]))
+		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, spades, bowtie2, samtools, pilon, path_variable]))
 	print '\n' + 'PATH variable:'
 	print os.environ['PATH']
 

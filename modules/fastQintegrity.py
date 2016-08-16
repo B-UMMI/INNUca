@@ -31,9 +31,6 @@ def runFastQintegrity(fastq_files, threads, outdir):
 	failing['sample'] = False
 	not_corruption_found = True
 
-	# failing[reads].append('Bad per base N content')
-
-	# Create Trimmomatic output directory
 	fastQintegrity_folder = os.path.join(outdir, 'fastQintegrity', '')
 	utils.removeDirectory(fastQintegrity_folder)
 	os.mkdir(fastQintegrity_folder)

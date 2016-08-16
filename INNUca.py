@@ -31,6 +31,7 @@ import modules.estimated_coverage as coverage
 import modules.fastqc as fastqc
 import modules.trimmomatic as trimmomatic
 import modules.spades as spades
+import modules.pilon as pilon
 import modules.mlst as mlst
 import time
 import os
@@ -80,7 +81,7 @@ def main():
 	if not args.skipEstimatedCoverage:
 		programs_version_dictionary['bunzip2'] = ['--version', '>=', '1.0.6']
 		programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
-	if not (args.skipFastQC and args.skipTrimmomatic):
+	if not (args.skipFastQC and args.skipTrimmomatic and args.skipPilon):
 		programs_version_dictionary['java'] = ['-version', '>=', '1.8']
 	if not args.skipFastQC:
 		programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
@@ -88,6 +89,10 @@ def main():
 		programs_version_dictionary['trimmomatic-0.36.jar'] = ['-version', '==', '0.36']
 	if not args.skipSPAdes:
 		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.7.1']
+	if not args.skipPilon and not args.skipSPAdes:
+		programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
+		programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
+		programs_version_dictionary['pilon-1.18.jar'] = ['--version', '==', '1.18']
 	if not args.skipMLST and not args.skipSPAdes:
 		programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
 	missingPrograms = utils.checkPrograms(programs_version_dictionary)
@@ -103,7 +108,7 @@ def main():
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
 
-	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST']
+	steps = ['FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'MLST']
 
 	# Prepare run report file
 	samples_report = open(os.path.join(outdir, str('samples_report.' + time_str + '.tab')), 'wt')
@@ -114,6 +119,8 @@ def main():
 		if step == 'FastQ_Integrity':
 			samples_report.write(str(step + '_filesOK') + '\t' + str(step + '_runningTime') + '\t')
 		elif step == 'Trimmomatic':
+			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_runningTime') + '\t')
+		elif step == 'Pilon':
 			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_runningTime') + '\t')
 		else:
 			samples_report.write(str(step + '_runSuccessfully') + '\t' + str(step + '_passQC') + '\t' + str(step + '_runningTime'))
@@ -195,6 +202,8 @@ def main():
 			if step == 'FastQ_Integrity':
 				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
 			elif step == 'Trimmomatic':
+				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
+			elif step == 'Pilon':
 				samples_report.write(str(run_report[step][0]) + '\t' + str(run_report[step][2]) + '\t')
 			else:
 				samples_report.write(str(run_report[step][0]) + '\t' + ('PASS' if run_report[step][1] else 'FAIL') + '\t' + str(run_report[step][2]))
@@ -364,6 +373,27 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 			runs['SPAdes'] = program
 
 			if run_successfully:
+				# Run Pilon
+				if not args.skipPilon:
+					program_start_time = time.time()
+					print 'RUNNING Pilon'
+					program = []
+					run_successfully, failing, assembly_polished = pilon.runPilon(contigs, fastq_files, threads, outdir, args.pilonKeepFiles, args.pilonKeepSPAdesAssembly)
+					print 'END Pilon'
+					time_taken = utils.runTime(program_start_time)
+					program.append(run_successfully)
+					program.append(None)
+					program.append(time_taken)
+					program.append(failing)
+					runs['Pilon'] = []
+					runs['Pilon'] = program
+
+					if run_successfully:
+						contigs = assembly_polished
+				else:
+					print '--skipPilon set. Skipping Pilon correction'
+					runs['Pilon'] = [None, None, 0, {'sample': 'Skipped'}]
+
 				# Run MLST
 				if not args.skipMLST:
 					program_start_time = time.time()
@@ -382,12 +412,14 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 					print '--skipMLST set. Skipping MLST analysis'
 					runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 			else:
-				print 'SPAdes did not run successfully! Skipping MLST analysis'
+				print 'SPAdes did not run successfully! Skipping Pilon correction and MLST analysis'
+				runs['Pilon'] = [None, None, 0, {'sample': 'Skipped'}]
 				runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 
 		else:
-			print '--skipSPAdes set. Skipping SPAdes and MLST analysis'
+			print '--skipSPAdes set. Skipping SPAdes Pilon correction and MLST analysis'
 			runs['SPAdes'] = [None, None, 0, {'sample': 'Skipped'}]
+			runs['Pilon'] = [None, None, 0, {'sample': 'Skipped'}]
 			runs['MLST'] = [None, None, 0, {'sample': 'Skipped'}]
 	else:
 		print 'Moving to the next sample'
@@ -397,6 +429,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 		runs['second_Coverage'] = [None, None, 0, {'sample': 'Not run'}]
 		runs['second_FastQC'] = [None, None, 0, {'sample': 'Not run'}]
 		runs['SPAdes'] = [None, None, 0, {'sample': 'Not run'}]
+		runs['Pilon'] = [None, None, 0, {'sample': 'Skipped'}]
 		runs['MLST'] = [None, None, 0, {'sample': 'Not run'}]
 
 	# Remove Trimmomatic directory with cleaned reads
