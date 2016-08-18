@@ -304,8 +304,17 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 	# Check run
 	run_successfully = all(runs[step][0] for step in runs if step != 'FastQ_Integrity')
 
-	pass_qc = all([runs['FastQ_Integrity'][0], runs['first_Coverage'][1], runs['second_Coverage'][1],
-			runs['first_FastQC'][1], runs['second_FastQC'][1], runs['SPAdes'][1], runs['MLST'][1]])
+	clean = runs['FastQ_Integrity'][0]
+
+	pass_fastqc = runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'])
+
+	pass_cov = runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'])
+
+	pass_spades = runs['SPAdes'] is not False
+
+	pass_mlst = runs['MLST'] is not False
+
+	pass_qc = all([clean, pass_fastqc, pass_cov, pass_spades, pass_mlst])
 
 	return run_successfully, pass_qc, runs
 
