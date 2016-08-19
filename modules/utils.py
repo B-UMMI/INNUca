@@ -1,4 +1,3 @@
-import csv
 import subprocess
 import time
 import sys
@@ -9,6 +8,8 @@ import shlex
 from threading import Timer
 import pickle
 from functools import wraps
+import csv
+
 
 def parseArguments(version):
 	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -29,6 +30,7 @@ def parseArguments(version):
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
 	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently MLST analysis (requires SPAdes contigs)')
+	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction')
 	general_options.add_argument('--skipMLST', action='store_true', help='Tells the programme to not run MLST analysis')
 
 	adapters_options = parser.add_mutually_exclusive_group()
@@ -53,13 +55,21 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
-	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=spades_kmers, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, less than 128)', required=False, default=[55, 77, 99, 113, 127])
+	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
+
+	pilon_options = parser.add_argument_group('Pilon options')
+	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
+	pilon_options.add_argument('--pilonKeepSPAdesAssembly', action='store_true', help='Tells INNUca.py to not remove the unpolished SPAdes assembly')
 
 	args = parser.parse_args()
 
 	if args.doNotTrimCrops and (args.trimCrop or args.trimHeadCrop):
 		parser.error('Cannot use --doNotTrimCrops option with --trimCrop or --trimHeadCrop')
+
+	for number in args.spadesKmers:
+		if number % 2 == 0 or number >= 128:
+			parser.error('All k-mers values must be odd integers, lower than 128')
 
 	return args
 
@@ -67,10 +77,9 @@ def parseArguments(version):
 # For parseArguments
 def spades_kmers(arguments):
 	kmers = sorted(map(int, arguments))
-
-        for number in kmers:
+	for number in kmers:
 		if number % 2 != 0 or number >= 128:
-                        raise argparse.ArgumentParser.error()
+			raise argparse.ArgumentParser.error('All k-mers values must be odd integers, lower than 128')
 	return kmers
 
 
@@ -170,6 +179,8 @@ def checkPrograms(programs_version_dictionary):
 					stdout = stderr
 				if program == 'bunzip2':
 					version_line = stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
+				elif program == 'pilon-1.18.jar':
+					version_line = stdout.splitlines()[0].split(' ', 3)[2]
 				else:
 					version_line = stdout.splitlines()[0].split(' ')[-1]
 				replace_characters = ['"', 'v', 'V', '+']
@@ -201,8 +212,11 @@ def setPATHvariable(doNotUseProvidedSoftware, script_path):
 		fastQC = os.path.join(script_folder, 'src', 'fastqc_v0.11.5')
 		trimmomatic = os.path.join(script_folder, 'src', 'Trimmomatic-0.36')
 		spades = os.path.join(script_folder, 'src', 'SPAdes-3.7.1-Linux', 'bin')
+		bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
+		samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
+		pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')
 
-		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, spades, path_variable]))
+		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, spades, bowtie2, samtools, pilon, path_variable]))
 	print '\n' + 'PATH variable:'
 	print os.environ['PATH']
 
@@ -273,13 +287,16 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 		if sample in samples:
 			samples[sample].append(fastq)
 
-	# Create the file structure required
+	# Check PE files
+	samples_to_remove = []
 	for sample in samples:
 		if len(samples[sample]) == 1:
 			print 'Only one fastq file was found: ' + str(samples[sample])
 			print 'Pair-End sequencing is required. This sample will be ignored'
-		        del samples[sample]
-			continue
+			samples_to_remove.append(sample)
+	samples = {k: v for k, v in samples.items() if k not in samples_to_remove}
+	# Create the file structure required
+	for sample in samples:
 		sample_folder = os.path.join(directory, sample, '')
 		if not os.path.isdir(sample_folder):
 			os.makedirs(sample_folder)
@@ -370,95 +387,76 @@ def compressionType(file):
 			return filetype
 	return None
 
+
+steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'MLST')
+
+
 def sampleReportLine(run_report):
-
 	line = []
-	steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC',
-                'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST')
-
 	for step in steps:
-		if step in ('FastQ_Integrity', 'Trimmomatic'):
+		if step in ('FastQ_Integrity', 'Trimmomatic', 'Pilon'):
 			l = [run_report[step][0], run_report[step][2]]
 		else:
 			pass_qc = 'PASS' if run_report[step][1] else 'FAIL'
 			l = [run_report[step][0], pass_qc, run_report[step][2]]
-
 		line.extend(l)
-
 	return line
 
-def build_header():
 
-	steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST')
-	header = []
-
-        for step in steps:
+def start_sample_report_file(samples_report_path):
+	header = ['#samples', 'samples_runSuccessfully', 'samples_passQC', 'samples_runningTime', 'samples_fileSize']
+	for step in steps:
 		if step == 'FastQ_Integrity':
 			l = [step + '_filesOK', step + '_runningTime']
-		elif step == 'Trimmomatic':
+		elif step == 'Trimmomatic' or step == 'Pilon':
 			l = [step + '_runSuccessfully', step + '_runningTime']
 		else:
-			l = [step + '_runSuccessfully', step + '_passQC',
-				step + '_runningTime']
-
+			l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime']
 		header.extend(l)
-	return header
+	with open(samples_report_path, 'wt') as report:
+		out = csv.writer(report, delimiter='\t')
+		out.writerow(header)
 
-def timer(f, name):
 
-	@wraps(f)
+def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, runningTime, fileSize, run_report):
+	line = [sample, run_successfully, 'PASS' if pass_qc else 'FAIL', runningTime, fileSize]
+	line.extend(sampleReportLine(run_report))
+	with open(samples_report_path, 'at') as report:
+		out = csv.writer(report, delimiter='\t')
+		out.writerow(line)
+
+
+def timer(function, name):
+	@wraps(function)
 	def wrapper(*args, **kwargs):
-
 		print('RUNNING {}\n'.format(name))
 		start_time = time.time()
 
-		results = list(f(*args, **kwargs))  # guarantees return is a list to allow .insert()
+		results = list(function(*args, **kwargs))  # guarantees return is a list to allow .insert()
 
 		time_taken = runTime(start_time)
-
 		print('END {}\n'.format(name))
-		results.insert(2, time_taken)
 
+		results.insert(2, time_taken)
 		return results
 	return wrapper
 
-def write_sample_report(sample_report_path, sample_lines):
-
-        with open(sample_report_path, 'w') as sample_report:
-
-		out = csv.writer(sample_report, delimiter='\t')
-
-		header = build_header()
-
-		out.writerow(header)
-
-		for line in sample_lines:
-			out.writerow(line)
 
 def write_fail_report(fail_report_path, run_report):
-
-        with open(fail_report_path, 'wt') as writer_failReport:
-
-                failures = []
-
-                for step in run_report:
-
-                        fail_reasons = list(run_report[step][3].values())
-
-                        if fail_reasons.count(False) < len(fail_reasons):
-
-                                failures.append('#' + step)
-
-                                for key, fail_reasons in run_report[step][3].items():
-                                        if isinstance(fail_reasons, bool) and not fail_reasons:
-                                                continue
-                                        else:
-                                                failures.append('>' + str(key))
-
-                                                if isinstance(fail_reasons, (list, tuple)):
-                                                        for reasons in fail_reasons:
-                                                                failures.append(str(reasons))
-                                                else:
-                                                        failures.append(str(fail_reasons))
-
-                writer_failReport.write( '\n'.join(failures) )
+	with open(fail_report_path, 'wt') as writer_failReport:
+		failures = []
+		for step in steps:
+			fail_reasons = list(run_report[step][3].values())
+			if fail_reasons.count(False) < len(fail_reasons):
+				failures.append('#' + step)
+				for key, fail_reasons in run_report[step][3].items():
+					if isinstance(fail_reasons, bool) and not fail_reasons:
+						continue
+					else:
+						failures.append('>' + str(key))
+						if isinstance(fail_reasons, (list, tuple)):
+							for reasons in fail_reasons:
+								failures.append(str(reasons))
+						else:
+							failures.append(str(fail_reasons))
+		writer_failReport.write('\n'.join(failures))
