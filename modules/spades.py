@@ -2,7 +2,6 @@ import utils
 import os
 from functools import partial
 
-spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run Spades
 def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers):
@@ -56,13 +55,15 @@ def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
 
 
 def define_kmers(kmers, maximumReadsLength):
-
 	kmers_use = []
 	if maximumReadsLength is not None:
 		for kmer in kmers:
 			if kmer <= maximumReadsLength:
 				kmers_use.append(kmer)
 	return kmers_use
+
+
+spades_timer = partial(utils.timer, name='SPAdes')
 
 
 # Run SPAdes procedure
@@ -79,8 +80,9 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	utils.removeDirectory(spades_folder)
 	os.mkdir(spades_folder)
 
-	kmers = []
-	if not defaultKmers:
+	if defaultKmers:
+		kmers = []
+	else:
 		kmers = define_kmers(kmers, maximumReadsLength)
 		if len(kmers) == 0:
 			print 'SPAdes will use its default k-mers'
@@ -112,8 +114,8 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']
-		contigsFiltered = None  # a hack to prevent an exception being raised if run_successfully == False;
-					# without this, contigsFiltered is unbound in that circumstance
+		contigsFiltered = None
+
 	utils.removeDirectory(spades_folder)
 
 	return run_successfully, pass_qc, failing, contigsFiltered
