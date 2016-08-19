@@ -9,7 +9,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: July 01, 2016
+Last modified: August 19, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,13 +31,15 @@ import modules.estimated_coverage as coverage
 import modules.fastqc as fastqc
 import modules.trimmomatic as trimmomatic
 import modules.spades as spades
+import modules.pilon as pilon
 import modules.mlst as mlst
 import time
 import os
 import sys
 
+
 def main():
-	version = '1.4'
+	version = '1.5'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -79,7 +81,7 @@ def main():
 	if not args.skipEstimatedCoverage:
 		programs_version_dictionary['bunzip2'] = ['--version', '>=', '1.0.6']
 		programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
-	if not (args.skipFastQC and args.skipTrimmomatic):
+	if not (args.skipFastQC and args.skipTrimmomatic and args.skipPilon):
 		programs_version_dictionary['java'] = ['-version', '>=', '1.8']
 	if not args.skipFastQC:
 		programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
@@ -87,6 +89,10 @@ def main():
 		programs_version_dictionary['trimmomatic-0.36.jar'] = ['-version', '==', '0.36']
 	if not args.skipSPAdes:
 		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.7.1']
+	if not args.skipPilon and not args.skipSPAdes:
+		programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
+		programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
+		programs_version_dictionary['pilon-1.18.jar'] = ['--version', '==', '1.18']
 	if not args.skipMLST and not args.skipSPAdes:
 		programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
 	missingPrograms = utils.checkPrograms(programs_version_dictionary)
@@ -99,22 +105,18 @@ def main():
 	print ''
 	samples, removeCreatedSamplesDirectories = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 
-	samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
-
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
 
-	# runningTime in seconds
-	# fileSize in bytes
+	# Prepare run report file
+	samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
+	utils.start_sample_report_file(samples_report_path)
 
 	number_samples_successfully = 0
 	number_samples_pass = 0
 
-	sample_lines = []
-
 	# Run comparisons for each sample
 	for sample in samples:
-
 		sample_start_time = time.time()
 
 		print '\n' + 'Sample: ' + sample
@@ -139,7 +141,6 @@ def main():
 
 		# Save sample fail report
 		fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
-
 		utils.write_fail_report(fail_report_path, run_report)
 
 		# Save runs statistics
@@ -158,16 +159,15 @@ def main():
 		print 'END ' + sample + ' analysis'
 		time_taken = utils.runTime(sample_start_time)
 
-		sample_lines.append(utils.sampleReportLine(run_report))
+		# Save run report
+		utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
 
-	# Prepare run report file
-
-	utils.write_sample_report(samples_report_path, sample_lines)
-		# Run report
+	# Run report
 	print '\n' + 'END INNUca.py'
 	print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
 	print '\n' + str(number_samples_pass) + ' samples out of ' + str(number_samples_successfully) + ' (run successfully) PASS INNUca.py analysis'
 	time_taken = utils.runTime(general_start_time)
+	del time_taken
 
 	# Check whether INNUca.py run at least one sample successfully
 	if number_samples_successfully == 0:
@@ -175,15 +175,12 @@ def main():
 
 
 def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
-
 	threads = args.threads
 	adaptersFasta = args.adapters
-
 	if adaptersFasta is not None:
 		adaptersFasta = os.path.abspath(adaptersFasta.name)
 	genomeSize = args.genomeSizeExpectedMb
 	maximumReadsLength = None
-
 	skipped = [None, None, 0, {'sample': 'Skipped'}]
 	not_run = [None, None, 0, {'sample': 'Not run'}]
 
@@ -191,21 +188,16 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 	# Run FastQ integrity check
 	not_corruption_found, _, time_taken, failing = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
-
 	runs['FastQ_Integrity'] = [not_corruption_found, None, time_taken, failing]
 
 	if not_corruption_found:
 		# Run first Estimated Coverage
 		if not args.skipEstimatedCoverage:
-
 			# Check whether the Estimated Coverage output is already present
 			report_file = os.path.join(outdir, 'coverage_report.txt')
-
 			if os.path.isfile(report_file):
 				os.remove(report_file)
-
 			# Run getEstimatedCoverage
-
 			runs['first_Coverage'] = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
 		else:
 			print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
@@ -213,22 +205,16 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 		# Run first FastQC
 		nts2clip_based_ntsContent = None
-
 		if not args.skipFastQC:
-
 			run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
-
 			runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
-
 		else:
 			print '--skipFastQC set. Skipping First FastQC analysis'
 			runs['first_FastQC'] = skipped
 
 		# Run Trimmomatic
 		if not args.skipTrimmomatic:
-
-			run_successfully, paired_reads, time_taken, trimmomatic_folder, failing = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
-
+			run_successfully, _, time_taken, failing, paired_reads, trimmomatic_folder = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
 			runs['Trimmomatic'] = [run_successfully, None, time_taken, failing]
 
 			if run_successfully:
@@ -236,7 +222,6 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 				# Run second Estimated Coverage
 				if not args.skipEstimatedCoverage:
-
 					runs['second_Coverage'] = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir)
 				else:
 					print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
@@ -244,10 +229,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 				# Run second FastQC
 				if not args.skipFastQC:
-
-					run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
-
-					runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
+					runs['second_FastQC'] = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)[0:4]
 				else:
 					print '--skipFastQC set. Skipping Second FastQC analysis'
 					runs['second_FastQC'] = skipped
@@ -264,57 +246,58 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 		# Run SPAdes
 		if not args.skipSPAdes:
-
 			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory, args.spadesMinCoverage, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport, args.spadesDefaultKmers)
-
 			runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
 			if run_successfully:
+				# Run Pilon
+				if not args.skipPilon:
+					run_successfully, _, time_taken, failing, assembly_polished = pilon.runPilon(contigs, fastq_files, threads, outdir, args.pilonKeepFiles, args.pilonKeepSPAdesAssembly)
+					runs['Pilon'] = [run_successfully, None, time_taken, failing]
+
+					if run_successfully:
+						contigs = assembly_polished
+				else:
+					print '--skipPilon set. Skipping Pilon correction'
+					runs['Pilon'] = skipped
+
 				# Run MLST
 				if not args.skipMLST:
-
 					runs['MLST'] = mlst.runMlst(contigs, args.speciesExpected, outdir)
 				else:
 					print '--skipMLST set. Skipping MLST analysis'
 					runs['MLST'] = skipped
 			else:
-				print 'SPAdes did not run successfully! Skipping MLST analysis'
+				print 'SPAdes did not run successfully! Skipping Pilon correction and MLST analysis'
+				runs['Pilon'] = skipped
 				runs['MLST'] = skipped
 
 		else:
-			print '--skipSPAdes set. Skipping SPAdes and MLST analysis'
+			print '--skipSPAdes set. Skipping SPAdes Pilon correction and MLST analysis'
 			runs['SPAdes'] = skipped
+			runs['Pilon'] = skipped
 			runs['MLST'] = skipped
 	else:
 		print 'Moving to the next sample'
-
-
-		for step in ('first_Coverage', 'first_FastQC', 'Trimmomatic',
-				'second_Coverage', 'second_FastQC', 'SPAdes', 'MLST'):
-
+		for step in ('first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'MLST'):
 			runs[step] = not_run
 
-        # Remove Trimmomatic directory with cleaned reads
+	# Remove Trimmomatic directory with cleaned reads
 	if not args.trimKeepFiles:
-
-		# the except block formerly here never ran because error checking
-		# is performed internally by utils.removeDirectory()
-		utils.removeDirectory(trimmomatic_folder)
+		try:
+			utils.removeDirectory(trimmomatic_folder)
+		except:
+			print 'It is not possible to remove Trimmomatic directory because Trimmomatic did not run'
 
 	# Check run
 	run_successfully = all(runs[step][0] for step in runs if step != 'FastQ_Integrity')
 
-	clean = runs['FastQ_Integrity'][0]
-
-	pass_fastqc = runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'])
-
+	pass_fastqIntegrity = runs['FastQ_Integrity'][0]
 	pass_cov = runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'])
-
+	pass_fastqc = runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'])
 	pass_spades = runs['SPAdes'] is not False
-
 	pass_mlst = runs['MLST'] is not False
-
-	pass_qc = all([clean, pass_fastqc, pass_cov, pass_spades, pass_mlst])
+	pass_qc = all([pass_fastqIntegrity, pass_cov, pass_fastqc, pass_spades, pass_mlst])
 
 	return run_successfully, pass_qc, runs
 
