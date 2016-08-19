@@ -30,8 +30,8 @@ version = '0.1'
 
 
 def combine_reports(args):
-	innucaOut = os.path.abspath(args.innucaOut[0])
-	outdir = os.path.abspath(args.outdir[0])
+	innucaOut = os.path.abspath(args.innucaOut)
+	outdir = os.path.abspath(args.outdir)
 	check_create_directory(outdir)
 
 	files = [f for f in os.listdir(innucaOut) if not f.startswith('.') and os.path.isfile(os.path.join(innucaOut, f))]
@@ -167,7 +167,7 @@ def combine_reports(args):
 
 	print '\n' + 'Writing results...'
 	report = open(os.path.join(outdir, str('combine_samples_report.' + time.strftime("%Y%m%d-%H%M%S") + '.tab')), 'wt')
-	report.write('#samples' + '\t' + 'first_coverage' + '\t' + 'second_Coverage' + '\t' + 'number_contigs' + '\t' + 'number_bp' + '\t' + 'Pilon_changes' + '\t' + 'Pilon_contigs_changed' + '\t' + 'species' + '\t' + 'ST' + '\n')
+	report.write('#samples' + '\t' + 'first_coverage' + '\t' + 'second_Coverage' + '\t' + 'SPAdes_number_contigs' + '\t' + 'SPAdes_number_bp' + '\t' + 'Pilon_changes' + '\t' + 'Pilon_contigs_changed' + '\t' + 'species' + '\t' + 'ST' + '\n')
 	report.flush()
 
 	for sample in results:
@@ -189,10 +189,10 @@ def main():
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
 
 	parser_required = parser.add_argument_group('Required options')
-	parser_required.add_argument('-i', '--innucaOut', nargs=1, type=str, metavar='/path/to/INNUca/output/directory/', help='Path to INNUca output directory', required=True)
+	parser_required.add_argument('-i', '--innucaOut', type=str, metavar='/path/to/INNUca/output/directory/', help='Path to INNUca output directory', required=True)
 
 	parser_optional = parser.add_argument_group('Facultative options')
-	parser_optional.add_argument('-o', '--outdir', nargs=1, type=str, metavar='/path/to/output/directory/', help='Path to where to store the outputs', required=False, default=['.'])
+	parser_optional.add_argument('-o', '--outdir', type=str, metavar='/path/to/output/directory/', help='Path to where to store the outputs', required=False, default='.')
 
 	parser.set_defaults(func=combine_reports)
 

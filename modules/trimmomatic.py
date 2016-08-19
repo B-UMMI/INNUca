@@ -1,5 +1,6 @@
 import os
 import utils
+from functools import partial
 
 
 # Run Trimmomatic
@@ -84,7 +85,11 @@ def getTrimmomaticPairedReads(trimmomatic_folder):
 	return paired_reads
 
 
+trim_timer = partial(utils.timer, name='Trimmomatic')
+
+
 # Run Trimmomatic procedure
+@trim_timer
 def runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent):
 	failing = {}
 	failing['sample'] = False
@@ -104,4 +109,4 @@ def runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, doNo
 		failing['sample'] = 'Did not run'
 		print failing['sample']
 
-	return run_successfully, paired_reads, trimmomatic_folder, failing
+	return run_successfully, None, failing, paired_reads, trimmomatic_folder

@@ -1,6 +1,7 @@
 import utils
 import os
 import shutil
+from functools import partial
 
 
 # Indexing reference file using Bowtie2
@@ -84,7 +85,10 @@ def parsePilonResult(assembly_polished, outdir):
 	print str(sum(corrections.values())) + ' changes made by Pilon in ' + str(len(corrections)) + ' contigs'
 
 
-# Count sequenced bases
+pilon_timer = partial(utils.timer, name='Pilon')
+
+
+@pilon_timer
 def runPilon(assembly, fastq_files, threads, outdir, keepFiles, keepSPAdesAssembly):
 	failing = {}
 	failing['sample'] = False
@@ -126,4 +130,4 @@ def runPilon(assembly, fastq_files, threads, outdir, keepFiles, keepSPAdesAssemb
 	if not keepFiles:
 		utils.removeDirectory(pilon_folder)
 
-	return run_successfully, failing, assembly_polished
+	return run_successfully, None, failing, assembly_polished

@@ -1,8 +1,11 @@
 import utils
 import os
+from functools import partial
+
+mlst_timer = partial(utils.timer, name='MLST')
 
 
-# Count sequenced bases
+@mlst_timer
 def runMlst(contigs, species, outdir):
 	pass_qc = False
 	failing = {}

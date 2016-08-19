@@ -1,6 +1,7 @@
 import utils
 import os
 import multiprocessing
+from functools import partial
 
 
 def fastQintegrity(fastq, outdir):
@@ -25,7 +26,10 @@ def fastQintegrity(fastq, outdir):
 	utils.saveVariableToPickle(run_successfully, outdir, os.path.basename(fastq))
 
 
-# Count sequenced bases
+fastq_timer = partial(utils.timer, name='FastQ integrity check')
+
+
+@fastq_timer
 def runFastQintegrity(fastq_files, threads, outdir):
 	failing = {}
 	failing['sample'] = False
@@ -56,4 +60,4 @@ def runFastQintegrity(fastq_files, threads, outdir):
 
 	utils.removeDirectory(fastQintegrity_folder)
 
-	return not_corruption_found, failing
+	return not_corruption_found, None, failing  # None added for consistency with other steps

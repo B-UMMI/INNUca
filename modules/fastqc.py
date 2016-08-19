@@ -1,6 +1,7 @@
 import sys
 import os
 import utils
+from functools import partial
 
 
 # Prepare adapters fasta file to FastQC (tabular file)
@@ -227,7 +228,11 @@ def check_FastQC_runSuccessfully(fastqc_folder, fastq_files):
 	return run_successfully
 
 
+fastqc_timer = partial(utils.timer, name='FastQC analysis')
+
+
 # Run FastQC analysis
+@fastqc_timer
 def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
 	pass_qc = False
 	failing = {}
