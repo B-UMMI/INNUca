@@ -1,5 +1,6 @@
 import utils
 import os
+from functools import partial
 
 
 # Count sequenced bases
@@ -34,7 +35,11 @@ def countSequencedBases(fastq_file):
 	return run_successfully, bases
 
 
+coverage_timer = partial(utils.timer, name='Estimated Coverage analysis')
+
+
 # Get extimated coverage
+@coverage_timer
 def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir):
 	run_successfully = False
 	pass_qc = False

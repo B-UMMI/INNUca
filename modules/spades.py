@@ -1,5 +1,6 @@
 import utils
 import os
+from functools import partial
 
 
 # Run Spades
@@ -54,8 +55,6 @@ def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
 
 
 def define_kmers(kmers, maximumReadsLength):
-	if isinstance(kmers[0], (list, tuple)):
-		kmers = kmers[0]
 	kmers_use = []
 	if maximumReadsLength is not None:
 		for kmer in kmers:
@@ -64,7 +63,11 @@ def define_kmers(kmers, maximumReadsLength):
 	return kmers_use
 
 
+spades_timer = partial(utils.timer, name='SPAdes')
+
+
 # Run SPAdes procedure
+@spades_timer
 def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport, defaultKmers):
 	pass_qc = False
 	failing = {}
@@ -77,8 +80,9 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	utils.removeDirectory(spades_folder)
 	os.mkdir(spades_folder)
 
-	kmers = []
-	if not defaultKmers:
+	if defaultKmers:
+		kmers = []
+	else:
 		kmers = define_kmers(kmers, maximumReadsLength)
 		if len(kmers) == 0:
 			print 'SPAdes will use its default k-mers'
@@ -110,6 +114,7 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']
+		contigsFiltered = None
 
 	utils.removeDirectory(spades_folder)
 

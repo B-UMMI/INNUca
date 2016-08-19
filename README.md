@@ -30,6 +30,9 @@ Dependencies
  - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
    in your PATH)
  - *SPAdes* >= v3.7.1
+ - *Pilon* = v1.18
+ - *Bowtie2* >= v2.2.9
+ - *Samtools* = v1.3.1
 
 Installation
 ------------
@@ -45,15 +48,16 @@ Usage
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
                      [--pairEnd_filesSeparation "_left/rigth.fq.gz" "_left/rigth.fq.gz"]
                      [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipSPAdes] [--skipMLST]
+                     [--skipSPAdes] [--skipPilon] [--skipMLST]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
-                     [--trimLeading N] [--trimTrailing N]
+                     [--trimLeading N] [--trimTrailing N] [--trimKeepFiles]
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
-                     [--spadesKmers 55,77 | --spadesDefaultKmers]
+                     [--spadesKmers 55 77 | --spadesDefaultKmers]
                      [--spadesMaxMemory N] [--spadesMinCoverage 10]
                      [--spadesSaveReport]
+                     [--pilonKeepFiles] [--pilonKeepSPAdesAssembly]
 
     INNUca - Reads Control and Assembly
 
@@ -74,7 +78,7 @@ Usage
     General options:
       -o /output/directory/, --outdir /output/directory/
                             Path for output directory (default: .)
-      -j N, --threads N     Number of threads (default: [1])
+      -j N, --threads N     Number of threads (default: 1)
       --doNotUseProvidedSoftware
                             Tells the software to not use FastQC, Trimmomatic,
                             SPAdes and Samtools that are provided with INNUca.py
@@ -96,13 +100,15 @@ Usage
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
                             MLST analysis (requires SPAdes contigs) (default:
                             False)
+      --skipPilon           Tells the programme to not run Pilon correction
+                            (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
 
     Adapters options (one of the following):
       --adapters adaptersFile.fasta
                             Fasta file containing adapters sequences to be used in
-                            FastQC and Trimmomatic (default: [None])
+                            FastQC and Trimmomatic (default: None)
       --doNotSearchAdapters
                             Tells INNUca.py to not search for adapters and clip
                             them during Trimmomatic step (default: False)
@@ -120,13 +126,13 @@ Usage
       --trimSlidingWindow window:meanQuality
                             Trimmomatic: perform a sliding window trimming,
                             cutting once the average quality within the window
-                            falls below a threshold (default: ['5:20'])
+                            falls below a threshold (default: '5:20')
       --trimLeading N       Trimmomatic: cut bases off the start of a read, if
-                            below a threshold quality (default: [3])
+                            below a threshold quality (default: 3)
       --trimTrailing N      Trimmomatic: cut bases off the end of a read, if below
-                            a threshold quality (default: [3])
+                            a threshold quality (default: 3)
       --trimMinLength N     Trimmomatic: drop the read if it is below a specified
-                            length (default: [55])
+                            length (default: 55)
       --trimKeepFiles       Tells INNUca.py to not remove the output of Trimmomatic
 
     SPAdes options:
@@ -135,33 +141,40 @@ Usage
                             --careful option (default: False)
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
-                            this value (default: [200])
+                            this value (default: 200)
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
-                            (default: [25])
+                            (default: 25)
       --spadesMinCoverage 10
                             The minimum number of reads to consider an edge in the  
                             de Bruijn graph (or path I am not sure). Can also be
-                            auto or off (default: ['off'])
+                            auto or off (default: 'off')
       --spadesSaveReport    Tells INNUca to store the number of contigs and
                             assembled nucleotides for each sample
     SPAdes k-mers options (one of the following):
       --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
-                            be odd, less than 128) (default: [55, 77, 99, 113,
-                            127])
+                            be odd, less than 128) (default: 55, 77, 99, 113,
+                            127)
       --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
                             False)
+
+    Pilon options:
+      --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
+                            (default: False)
+      --pilonKeepSPAdesAssembly
+                            Tells INNUca.py to not remove the unpolished SPAdes
+                            assembly (default: False)
 
 
 
 Combine INNUca reports
 ----------------------
-In order to combine **INNUca** reports (Coverage, SPAdes, MLST), use *combine_reports.py* found in **INNUca** modules folder
+In order to combine **INNUca** reports (Coverage, SPAdes, Pilon, MLST), use *combine_reports.py* found in **INNUca** modules folder
 
     usage: python combine_reports.py [-h] [--version] -i
                               /path/to/INNUca/output/directory/
                               [-o /path/to/output/directory/]
 
-    Combine INNUca reports (Coverage, SPAdes, MLST)
+    Combine INNUca reports (Coverage, SPAdes, Pilon, MLST)
 
     optional arguments:
       -h, --help            show this help message and exit
