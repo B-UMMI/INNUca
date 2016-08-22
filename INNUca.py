@@ -290,7 +290,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 			print 'It is not possible to remove Trimmomatic directory because Trimmomatic did not run'
 
 	# Check run
-	run_successfully = all(runs[step][0] for step in runs if step != 'FastQ_Integrity')
+	run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
 
 	pass_fastqIntegrity = runs['FastQ_Integrity'][0]
 	pass_cov = runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'])
