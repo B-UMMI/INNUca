@@ -103,7 +103,7 @@ def main():
 	inputDirectory = os.path.abspath(os.path.join(args.inputDirectory, ''))
 	pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
 	print ''
-	samples, removeCreatedSamplesDirectories = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
+	samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
@@ -114,6 +114,11 @@ def main():
 
 	number_samples_successfully = 0
 	number_samples_pass = 0
+
+	# Get MLST scheme to use
+	scheme = 'unknown'
+	if not args.skipMLST:
+		scheme = mlst.getScheme(args.speciesExpected)
 
 	# Run comparisons for each sample
 	for sample in samples:
@@ -137,7 +142,7 @@ def main():
 		print str(fastq_files)
 
 		# Run INNUca.py analysis
-		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path)
+		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme)
 
 		# Save sample fail report
 		fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
@@ -153,7 +158,7 @@ def main():
 		fileSize = sum(os.path.getsize(fastq) for fastq in fastq_files)
 
 		# Remove sample directory if it was created during the process
-		if removeCreatedSamplesDirectories:
+		if removeCreatedSamplesDirectories and not indir_same_outdir:
 			utils.removeDirectory(os.path.join(inputDirectory, sample, ''))
 
 		print 'END ' + sample + ' analysis'
@@ -174,7 +179,7 @@ def main():
 		sys.exit('No samples run successfully!')
 
 
-def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
+def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 	threads = args.threads
 	adaptersFasta = args.adapters
 	if adaptersFasta is not None:
@@ -263,7 +268,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path):
 
 				# Run MLST
 				if not args.skipMLST:
-					runs['MLST'] = mlst.runMlst(contigs, args.speciesExpected, outdir)
+					runs['MLST'] = mlst.runMlst(contigs, scheme, outdir)
 				else:
 					print '--skipMLST set. Skipping MLST analysis'
 					runs['MLST'] = skipped

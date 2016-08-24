@@ -71,6 +71,9 @@ def parseArguments(version):
 		if number % 2 == 0 or number >= 128:
 			parser.error('All k-mers values must be odd integers, lower than 128')
 
+	if len(args.speciesExpected.split(' ')) != 2:
+		parser.error('Mal-formatted species name. Should be something like "Streptococcus agalactiae"')
+
 	return args
 
 
@@ -314,6 +317,11 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list):
 	samples = []
 	removeCreatedSamplesDirectories = False
+	indir_same_outdir = False
+
+	if	inputDirectory == outdir:
+		print 'Input directory and output directory are the same'
+		indir_same_outdir = True
 
 	if not os.path.isdir(inputDirectory):
 		sys.exit('Input directory does not exist!')
@@ -337,7 +345,7 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 					samples.append(directory)
 	if len(samples) == 0:
 		sys.exit('There is no fastq files for the samples folders provided!')
-	return samples, removeCreatedSamplesDirectories
+	return samples, removeCreatedSamplesDirectories, indir_same_outdir
 
 
 # Remove directory

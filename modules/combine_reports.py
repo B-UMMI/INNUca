@@ -150,7 +150,7 @@ def combine_reports(args):
 								if len(line) > 0:
 									line = line.splitlines()[0].split(' ')[0]
 									if line.startswith('#'):
-										if line.startswith('species', 1):
+										if line.startswith('scheme', 1):
 											species = True
 										elif line.startswith('ST', 1):
 											st = True
@@ -167,7 +167,7 @@ def combine_reports(args):
 
 	print '\n' + 'Writing results...'
 	report = open(os.path.join(outdir, str('combine_samples_report.' + time.strftime("%Y%m%d-%H%M%S") + '.tab')), 'wt')
-	report.write('#samples' + '\t' + 'first_coverage' + '\t' + 'second_Coverage' + '\t' + 'SPAdes_number_contigs' + '\t' + 'SPAdes_number_bp' + '\t' + 'Pilon_changes' + '\t' + 'Pilon_contigs_changed' + '\t' + 'species' + '\t' + 'ST' + '\n')
+	report.write('#samples' + '\t' + 'first_coverage' + '\t' + 'second_Coverage' + '\t' + 'SPAdes_number_contigs' + '\t' + 'SPAdes_number_bp' + '\t' + 'Pilon_changes' + '\t' + 'Pilon_contigs_changed' + '\t' + 'scheme' + '\t' + 'ST' + '\n')
 	report.flush()
 
 	for sample in results:
