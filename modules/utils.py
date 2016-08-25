@@ -297,7 +297,17 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 			print 'Only one fastq file was found: ' + str(samples[sample])
 			print 'Pair-End sequencing is required. This sample will be ignored'
 			samples_to_remove.append(sample)
-	samples = {k: v for k, v in samples.items() if k not in samples_to_remove}
+
+	# In Python2.7 this works
+	# samples = {k: v for k, v in samples.items() if k not in samples_to_remove}
+	# For Python2.6 compatibility
+	temp_samples = {}
+	for k, v in samples.items():
+		if k not in samples_to_remove:
+			temp_samples[k] = v
+	samples = temp_samples
+	del temp_samples
+
 	# Create the file structure required
 	for sample in samples:
 		sample_folder = os.path.join(directory, sample, '')
@@ -319,7 +329,7 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 	removeCreatedSamplesDirectories = False
 	indir_same_outdir = False
 
-	if	inputDirectory == outdir:
+	if inputDirectory == outdir:
 		print 'Input directory and output directory are the same'
 		indir_same_outdir = True
 
@@ -402,7 +412,7 @@ steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'se
 def sampleReportLine(run_report):
 	line = []
 	for step in steps:
-		if step in ('FastQ_Integrity', 'Trimmomatic', 'Pilon'):
+		if step in ('FastQ_Integrity', 'Pilon'):
 			l = [run_report[step][0], run_report[step][2]]
 		else:
 			pass_qc = 'PASS' if run_report[step][1] else 'FAIL'
@@ -416,7 +426,7 @@ def start_sample_report_file(samples_report_path):
 	for step in steps:
 		if step == 'FastQ_Integrity':
 			l = [step + '_filesOK', step + '_runningTime']
-		elif step == 'Trimmomatic' or step == 'Pilon':
+		elif step == 'Pilon':
 			l = [step + '_runSuccessfully', step + '_runningTime']
 		else:
 			l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime']
@@ -437,13 +447,13 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
 def timer(function, name):
 	@wraps(function)
 	def wrapper(*args, **kwargs):
-		print('RUNNING {}\n'.format(name))
+		print('RUNNING {0}\n'.format(name))
 		start_time = time.time()
 
 		results = list(function(*args, **kwargs))  # guarantees return is a list to allow .insert()
 
 		time_taken = runTime(start_time)
-		print('END {}\n'.format(name))
+		print('END {0}\n'.format(name))
 
 		results.insert(2, time_taken)
 		return results

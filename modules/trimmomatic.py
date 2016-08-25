@@ -85,6 +85,31 @@ def getTrimmomaticPairedReads(trimmomatic_folder):
 	return paired_reads
 
 
+# Chech whether Trimmomatic returns 0 reads
+def controlForZeroReads(fastq_files):
+	not_empty_fastq = False
+
+	fastq = fastq_files[0]
+
+	command = ['', '--stdout', '--keep', fastq, '|', 'head', '-n', '4']
+
+	filetype = utils.compressionType(fastq)
+	if filetype == 'gz':
+		command[0] = 'gunzip'
+	elif filetype == 'bz2':
+		command[0] = 'bunzip2'
+
+	if command[0] != '':
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None)
+
+		if run_successfully:
+			stdout = stdout.splitlines()
+			if len(stdout) == 4:
+				not_empty_fastq = True
+
+	return not_empty_fastq
+
+
 trim_timer = partial(utils.timer, name='Trimmomatic')
 
 
@@ -93,6 +118,7 @@ trim_timer = partial(utils.timer, name='Trimmomatic')
 def runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent):
 	failing = {}
 	failing['sample'] = False
+	not_empty_fastq = False
 
 	paired_reads = None
 
@@ -105,8 +131,13 @@ def runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, doNo
 
 	if run_successfully:
 		paired_reads = getTrimmomaticPairedReads(trimmomatic_folder)
+		not_empty_fastq = controlForZeroReads(paired_reads)
+
+		if not not_empty_fastq:
+			failing['sample'] = 'Zero reads after Trimmomatic'
+			print failing['sample']
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']
 
-	return run_successfully, None, failing, paired_reads, trimmomatic_folder
+	return run_successfully, not_empty_fastq, failing, paired_reads, trimmomatic_folder

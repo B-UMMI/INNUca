@@ -38,7 +38,7 @@ def countSequencedBases(fastq_file):
 coverage_timer = partial(utils.timer, name='Estimated Coverage analysis')
 
 
-# Get extimated coverage
+# Get estimated coverage
 @coverage_timer
 def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir):
 	run_successfully = False
