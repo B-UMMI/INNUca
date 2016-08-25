@@ -9,7 +9,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: August 19, 2016
+Last modified: August 25, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ import sys
 
 
 def main():
-	version = '1.5'
+	version = '1.6'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -72,6 +72,12 @@ def main():
 	# Print program version
 	print '\n' + 'VERSION INNUca.py:'
 	utils.scriptVersionGit(version, os.getcwd(), script_path)
+
+	# Save CPU information
+	with open(os.path.join(outdir, 'cpu_information.' + time_str + '.cpu.txt')) as reader:
+		command = ['cat', '/proc/cpuinfo']
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
+		reader.write(stdout)
 
 	# Set and print PATH variable
 	utils.setPATHvariable(args.doNotUseProvidedSoftware, script_path)
@@ -219,10 +225,10 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 
 		# Run Trimmomatic
 		if not args.skipTrimmomatic:
-			run_successfully, _, time_taken, failing, paired_reads, trimmomatic_folder = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
-			runs['Trimmomatic'] = [run_successfully, None, time_taken, failing]
+			run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
+			runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing]
 
-			if run_successfully:
+			if run_successfully and not_empty_fastq:
 				fastq_files = paired_reads
 
 				# Run second Estimated Coverage
@@ -239,7 +245,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 					print '--skipFastQC set. Skipping Second FastQC analysis'
 					runs['second_FastQC'] = skipped
 			else:
-				print 'Trimmomatic did not run successfully! Skipping Second Estimated Coverage analysis and FastQC analysis'
+				print 'Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated Coverage analysis and FastQC analysis'
 				runs['second_Coverage'] = skipped
 				runs['second_FastQC'] = skipped
 
@@ -298,11 +304,12 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 	run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
 
 	pass_fastqIntegrity = runs['FastQ_Integrity'][0]
-	pass_cov = runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'])
-	pass_fastqc = runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'])
-	pass_spades = runs['SPAdes'] is not False
-	pass_mlst = runs['MLST'] is not False
-	pass_qc = all([pass_fastqIntegrity, pass_cov, pass_fastqc, pass_spades, pass_mlst])
+	pass_cov = runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'][1])
+	pass_fastqc = runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])
+	pass_trimmomatic = runs['Trimmomatic'][1] is not False
+	pass_spades = runs['SPAdes'][1] is not False
+	pass_mlst = runs['MLST'][1] is not False
+	pass_qc = all([pass_fastqIntegrity, pass_cov, pass_fastqc, pass_trimmomatic, pass_spades, pass_mlst])
 
 	return run_successfully, pass_qc, runs
 
