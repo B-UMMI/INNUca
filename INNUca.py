@@ -74,7 +74,7 @@ def main():
 	utils.scriptVersionGit(version, os.getcwd(), script_path)
 
 	# Save CPU information
-	with open(os.path.join(outdir, 'cpu_information.' + time_str + '.cpu.txt')) as reader:
+	with open(os.path.join(outdir, 'cpu_information.' + time_str + '.cpu.txt'), 'wt') as reader:
 		command = ['cat', '/proc/cpuinfo']
 		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 		reader.write(stdout)
