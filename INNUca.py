@@ -9,7 +9,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: August 25, 2016
+Last modified: August 31, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ import sys
 
 
 def main():
-	version = '1.6'
+	version = '1.7'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -94,7 +94,7 @@ def main():
 	if not args.skipTrimmomatic:
 		programs_version_dictionary['trimmomatic-0.36.jar'] = ['-version', '==', '0.36']
 	if not args.skipSPAdes:
-		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.7.1']
+		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.9.0']
 	if not args.skipPilon and not args.skipSPAdes:
 		programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
 		programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
@@ -257,7 +257,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 
 		# Run SPAdes
 		if not args.skipSPAdes:
-			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory, args.spadesMinCoverage, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport, args.spadesDefaultKmers)
+			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport, args.spadesDefaultKmers, args.spadesMinCoverageContigs)
 			runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
 			if run_successfully:

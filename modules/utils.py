@@ -51,7 +51,8 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=200)
 	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=25)
-	spades_options.add_argument('--spadesMinCoverage', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default='off')
+	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default='off')
+	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported coverage equal or above this value', required=False, default=5)
 	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
@@ -98,9 +99,9 @@ def spades_cov_cutoff(argument):
 		if argument > 0:
 			return argument
 		else:
-			argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
+			argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
 	except:
-		argparse.ArgumentParser.error('--spadesMinCoverage must be positive integer, auto or off')
+		argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
 
 
 def runCommandPopenCommunicate(command, shell_True, timeout_sec_None):
@@ -214,7 +215,7 @@ def setPATHvariable(doNotUseProvidedSoftware, script_path):
 	if not doNotUseProvidedSoftware:
 		fastQC = os.path.join(script_folder, 'src', 'fastqc_v0.11.5')
 		trimmomatic = os.path.join(script_folder, 'src', 'Trimmomatic-0.36')
-		spades = os.path.join(script_folder, 'src', 'SPAdes-3.7.1-Linux', 'bin')
+		spades = os.path.join(script_folder, 'src', 'SPAdes-3.9.0-Linux', 'bin')
 		bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
 		samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
 		pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')

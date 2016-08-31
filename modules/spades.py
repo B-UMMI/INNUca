@@ -1,13 +1,14 @@
 import utils
 import os
+import shutil
 from functools import partial
 
 
 # Run Spades
-def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers):
+def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers):
 	contigs = os.path.join(spades_folder, 'contigs.fasta')
 
-	command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory), '--cov-cutoff', str(minCoverage), '', '-1', fastq_files[0], '-2', fastq_files[1], '-o', spades_folder]
+	command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory), '--cov-cutoff', str(minCoverageAssembly), '', '-1', fastq_files[0], '-2', fastq_files[1], '-o', spades_folder]
 
 	if not notUseCareful:
 		command[1] = '--careful'
@@ -22,7 +23,7 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 
 
 # Rename contigs and contigs.fasta file while filtering for contigs length
-def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
+def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength, minCoverageContigs):
 	newContigsFile = os.path.join(outdir, str(sampleName + '.contigs.fasta'))
 	number_contigs = 0
 	number_bases = 0
@@ -34,18 +35,20 @@ def renameFilterContigs(sampleName, outdir, spadesContigs, minContigsLength):
 	for line in contigs:
 		if line[0] == '>':
 			if contigHeader != "":
-				if len(contigSequence) >= minContigsLength:
-					writer.write(contigHeader + "\n")
+				items = contigHeader.split('_')
+				if len(contigSequence) >= minContigsLength and float(items[5]) >= minCoverageContigs:
+					writer.write(">" + sampleName + "_" + contigHeader + "\n")
 					writer.write(contigSequence + "\n")
 					number_bases = number_bases + len(contigSequence)
 					number_contigs = number_contigs + 1
 			contigHeader = ""
 			contigSequence = ""
-			contigHeader = ">" + sampleName + "_" + line[1:].splitlines()[0]
+			contigHeader = line[1:].splitlines()[0]
 		else:
 			contigSequence = contigSequence + line.splitlines()[0]
-	if len(contigSequence) >= minContigsLength:
-		writer.write(contigHeader + "\n")
+	items = contigHeader.split('_')
+	if len(contigSequence) >= minContigsLength and float(items[5]) >= minCoverageContigs:
+		writer.write(">" + sampleName + "_" + contigHeader + "\n")
 		writer.write(contigSequence + "\n")
 		number_bases = number_bases + len(contigSequence)
 		number_contigs = number_contigs + 1
@@ -68,7 +71,7 @@ spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run SPAdes procedure
 @spades_timer
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverage, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport, defaultKmers):
+def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport, defaultKmers, minCoverageContigs):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -89,11 +92,12 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 		else:
 			print 'SPAdes will use the following k-mers: ' + str(kmers)
 
-	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverage, kmers)
+	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers)
 
 	if run_successfully:
-		print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides'
-		contigsFiltered, number_contigs, number_bases = renameFilterContigs(sampleName, outdir, contigs, minContigsLength)
+		shutil.copyfile(contigs, os.path.join(outdir, 'SPAdes_original_assembly.contigs.fasta'))
+		print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides and a coverage of ' + str(minCoverageContigs)
+		contigsFiltered, number_contigs, number_bases = renameFilterContigs(sampleName, outdir, contigs, minContigsLength, minCoverageContigs)
 		print str(number_bases) + ' assembled nucleotides in ' + str(number_contigs) + ' contigs'
 
 		if saveReport:

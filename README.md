@@ -29,7 +29,7 @@ Dependencies
  - *FastQC* = v0.11.5
  - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
    in your PATH)
- - *SPAdes* >= v3.7.1
+ - *SPAdes* >= v3.9.0
  - *Pilon* = v1.18
  - *Bowtie2* >= v2.2.9
  - *Samtools* = v1.3.1
@@ -55,8 +55,8 @@ Usage
                      [--trimLeading N] [--trimTrailing N] [--trimKeepFiles]
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
                      [--spadesKmers 55 77 | --spadesDefaultKmers]
-                     [--spadesMaxMemory N] [--spadesMinCoverage 10]
-                     [--spadesSaveReport]
+                     [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
+                     [--spadesMinCoverageContigs N] [--spadesSaveReport]
                      [--pilonKeepFiles] [--pilonKeepSPAdesAssembly]
 
     INNUca - Reads Control and Assembly
@@ -144,10 +144,14 @@ Usage
                             this value (default: 200)
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
                             (default: 25)
-      --spadesMinCoverage 10
+      --spadesMinCoverageAssembly 10
                             The minimum number of reads to consider an edge in the  
                             de Bruijn graph (or path I am not sure). Can also be
                             auto or off (default: 'off')
+      --spadesMinCoverageContigs N
+                            Minimum contigs coverage. After assembly only keep
+                            contigs with reported coverage equal or above this
+                            value (default: 5)
       --spadesSaveReport    Tells INNUca to store the number of contigs and
                             assembled nucleotides for each sample
     SPAdes k-mers options (one of the following):
