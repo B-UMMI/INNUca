@@ -100,21 +100,32 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 		contigsFiltered, number_contigs, number_bases = renameFilterContigs(sampleName, outdir, contigs, minContigsLength, minCoverageContigs)
 		print str(number_bases) + ' assembled nucleotides in ' + str(number_contigs) + ' contigs'
 
+		if number_contigs == 0:
+			failing['sample'] = 'No contigs with at least ' + str(minContigsLength) + ' nucleotides and a coverage of ' + str(minCoverageContigs)
+			print failing['sample']
+			print 'Filtering again but now only for contigs with at least ' + str(minContigsLength) + ' nucleotides'
+			contigsFiltered, number_contigs, number_bases = renameFilterContigs(sampleName, outdir, contigs, minContigsLength, 0)
+			print str(number_bases) + ' assembled nucleotides in ' + str(number_contigs) + ' contigs'
+
+			if number_contigs == 0:
+				run_successfully = False
+
 		if saveReport:
 			report_file = os.path.join(outdir, 'spades_report.txt')
 			with open(report_file, 'wt') as writer:
 				writer.write('#contigs' + '\n' + str(number_contigs) + '\n' + '#bp' + '\n' + str(number_bases) + '\n')
 				writer.flush()
 
-		if number_bases >= estimatedGenomeSizeMb * 1000000 * 0.8 and number_bases <= estimatedGenomeSizeMb * 1000000 * 1.5:
-			if number_contigs <= 100 * number_bases / 1500000:
-				pass_qc = True
+		if failing['sample'] is False:
+			if number_bases >= estimatedGenomeSizeMb * 1000000 * 0.8 and number_bases <= estimatedGenomeSizeMb * 1000000 * 1.5:
+				if number_contigs <= 100 * number_bases / 1500000:
+					pass_qc = True
+				else:
+					failing['sample'] = 'The number of assembled contigs (' + str(number_contigs) + ') exceeds ' + str(100 * number_bases / 1500000)
+					print failing['sample']
 			else:
-				failing['sample'] = 'The number of assembled contigs (' + str(number_contigs) + ') exceeds ' + str(100 * number_bases / 1500000)
+				failing['sample'] = 'The number of assembled nucleotides (' + str(number_bases) + ') are lower than 80% or higher than 150% of the provided estimated genome size'
 				print failing['sample']
-		else:
-			failing['sample'] = 'The number of assembled nucleotides (' + str(number_bases) + ') are lower than 80% or higher than 150% of the provided estimated genome size'
-			print failing['sample']
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']
