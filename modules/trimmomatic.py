@@ -8,7 +8,7 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 	fastq = sorted(fastq_files)[0]
 
 	# Run Trimmomatic
-	command = ['trimmomatic-0.36.jar', 'PE', '-threads', str(threads), '-basein', fastq, '-baseout', os.path.join(trimmomatic_folder, str(sampleName + '.fastq.gz')), '', '', '', str('SLIDINGWINDOW:' + slidingWindow), str('LEADING:' + str(leading)), str('TRAILING:' + str(trailing)), str('MINLEN:' + str(minLength)), 'TOPHRED33']
+	command = ['trimmomatic-0.36.jar', 'PE', '-threads', str(threads), '-basein', fastq, '-baseout', os.path.join(trimmomatic_folder, str(sampleName + '.fastq.gz')), '', '', '', str('SLIDINGWINDOW:' + slidingWindow), str('LEADING:' + str(leading)), str('TRAILING:' + str(trailing)), str('MINLEN:' + str(minLength)), 'TOPHRED33', '']
 
 	if not doNotTrimCrops:
 		if maxReadsLength is not None:
@@ -47,11 +47,11 @@ def trimmomatic(sampleName, trimmomatic_folder, threads, adaptersFasta, script_p
 
 	if not run_successfully:
 		print 'Trimmomatic fail! Trying run with Phred+33 enconding defined...'
-		command.append('-phred33')
+		command[16] = '-phred33'
 		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 		if not run_successfully:
 			print 'Trimmomatic fail again! Trying run with Phred+64 enconding defined...'
-			command[18] = '-phred64'
+			command[16] = '-phred64'
 			run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 
 	return run_successfully

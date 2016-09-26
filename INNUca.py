@@ -257,7 +257,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 
 		# Run SPAdes
 		if not args.skipSPAdes:
-			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesSaveReport, args.spadesDefaultKmers, args.spadesMinCoverageContigs)
+			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinCoverageContigs)
 			runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
 			if run_successfully:

@@ -56,8 +56,8 @@ Usage
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
                      [--spadesKmers 55 77 | --spadesDefaultKmers]
                      [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
-                     [--spadesMinCoverageContigs N] [--spadesSaveReport]
-                     [--pilonKeepFiles] [--pilonKeepSPAdesAssembly]
+                     [--spadesMinCoverageContigs N] [--pilonKeepFiles]
+                     [--pilonKeepSPAdesAssembly]
 
     INNUca - Reads Control and Assembly
 
@@ -152,8 +152,6 @@ Usage
                             Minimum contigs coverage. After assembly only keep
                             contigs with reported coverage equal or above this
                             value (default: 5)
-      --spadesSaveReport    Tells INNUca to store the number of contigs and
-                            assembled nucleotides for each sample
     SPAdes k-mers options (one of the following):
       --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
                             be odd, less than 128) (default: 55, 77, 99, 113,

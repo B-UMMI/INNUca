@@ -71,7 +71,7 @@ spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run SPAdes procedure
 @spades_timer
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, saveReport, defaultKmers, minCoverageContigs):
+def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -110,11 +110,10 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 			if number_contigs == 0:
 				run_successfully = False
 
-		if saveReport:
-			report_file = os.path.join(outdir, 'spades_report.txt')
-			with open(report_file, 'wt') as writer:
-				writer.write('#contigs' + '\n' + str(number_contigs) + '\n' + '#bp' + '\n' + str(number_bases) + '\n')
-				writer.flush()
+		report_file = os.path.join(outdir, 'spades_report.txt')
+		with open(report_file, 'wt') as writer:
+			writer.write('#contigs' + '\n' + str(number_contigs) + '\n' + '#bp' + '\n' + str(number_bases) + '\n')
+			writer.flush()
 
 		if failing['sample'] is False:
 			if number_bases >= estimatedGenomeSizeMb * 1000000 * 0.8 and number_bases <= estimatedGenomeSizeMb * 1000000 * 1.5:

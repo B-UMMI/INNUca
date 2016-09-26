@@ -53,7 +53,6 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=25)
 	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default='off')
 	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported coverage equal or above this value', required=False, default=5)
-	spades_options.add_argument('--spadesSaveReport', action='store_true', help='Tells INNUca to store the number of contigs and assembled nucleotides for each sample')
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
 	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
