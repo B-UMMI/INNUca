@@ -50,8 +50,8 @@ def parseArguments(version):
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=200)
-	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False, default=25)
-	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default='off')
+	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False)
+	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=2)
 	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported coverage equal or above this value', required=False, default=5)
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
@@ -176,7 +176,11 @@ def checkPrograms(programs_version_dictionary):
 			if programs[program][0] is None:
 				print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
 			else:
-				check_version = [stdout.splitlines()[0], programs[program][0]]
+				if program.endswith('.jar'):
+					check_version = ['java', '-jar', stdout.splitlines()[0], programs[program][0]]
+					programs[program].append(stdout.splitlines()[0])
+				else:
+					check_version = [stdout.splitlines()[0], programs[program][0]]
 				run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None)
 				if stdout == '':
 					stdout = stderr
@@ -204,7 +208,7 @@ def checkPrograms(programs_version_dictionary):
 				else:
 					if version_line != programs[program][2]:
 						listMissings.append('It is required ' + program + ' with version ' + programs[program][1] + ' ' + programs[program][2])
-	return listMissings
+	return listMissings, programs
 
 
 def setPATHvariable(doNotUseProvidedSoftware, script_path):
@@ -478,3 +482,7 @@ def write_fail_report(fail_report_path, run_report):
 						else:
 							failures.append(str(fail_reasons))
 		writer_failReport.write('\n'.join(failures))
+
+
+def getJarPath():
+	pass

@@ -2,6 +2,7 @@ import utils
 import os
 import shutil
 from functools import partial
+import time
 
 
 # Run Spades
@@ -66,6 +67,33 @@ def define_kmers(kmers, maximumReadsLength):
 	return kmers_use
 
 
+def define_memory(maxMemory, threads):
+	GB_per_thread = 800 / 1024.0
+	available_memory_GB = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_AVPHYS_PAGES')) / (1024.0 ** 3)
+	minimum_required_memory_GB = GB_per_thread * threads
+	if maxMemory is None:
+		if minimum_required_memory_GB > available_memory_GB:
+			print 'WARNNING: the minimum memory required to run SPAdes with ' + str(threads) + ' threads (' + str(round(minimum_required_memory_GB, 1)) + ' GB) are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!'
+			print 'Setting SPAdes maximum memory to ' + str(int(round((available_memory_GB - 0.5), 0))) + ' GB'
+			return int(round((available_memory_GB - 0.5), 0))
+		else:
+			print 'Setting SPAdes maximum memory to ' + str(int(round(minimum_required_memory_GB, 0))) + ' GB'
+			return int(round(minimum_required_memory_GB, 0))
+	else:
+		if maxMemory < minimum_required_memory_GB < available_memory_GB:
+			print 'WARNNING: the minimum memory required to run SPAdes with ' + str(threads) + ' threads (' + str(round(minimum_required_memory_GB, 1)) + ' GB) are higher than the maximum memory set (' + str(maxMemory) + ' GB)!'
+			print 'Consider to increase the SPAdes maximum memory to ' + str(int(round(minimum_required_memory_GB, 0))) + ' GB'
+		elif maxMemory > available_memory_GB:
+			print 'WARNNING: the maximum memory set are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!'
+			if minimum_required_memory_GB > available_memory_GB:
+				print 'WARNNING: the minimum memory required to run SPAdes with ' + str(threads) + ' threads (' + str(round(minimum_required_memory_GB, 1)) + ' GB) are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!'
+				print 'Nevertheless, consider setting SPAdes maximum memory to ' + str(int(round((available_memory_GB - 0.5), 0))) + ' GB'
+			else:
+				print 'Consider setting SPAdes maximum memory to ' + str(int(round(minimum_required_memory_GB, 0))) + ' GB (the minimum memory required to run SPAdes with ' + str(threads) + ' threads)'
+		time.sleep(10)
+		return maxMemory
+
+
 spades_timer = partial(utils.timer, name='SPAdes')
 
 
@@ -83,6 +111,7 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	utils.removeDirectory(spades_folder)
 	os.mkdir(spades_folder)
 
+	# Determine k-mers to run
 	if defaultKmers:
 		kmers = []
 	else:

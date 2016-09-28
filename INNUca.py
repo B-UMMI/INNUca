@@ -101,9 +101,13 @@ def main():
 		programs_version_dictionary['pilon-1.18.jar'] = ['--version', '==', '1.18']
 	if not args.skipMLST and not args.skipSPAdes:
 		programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
-	missingPrograms = utils.checkPrograms(programs_version_dictionary)
+	missingPrograms, programs_version_dictionary = utils.checkPrograms(programs_version_dictionary)
 	if len(missingPrograms) > 0:
 		sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
+
+	# .jar paths
+	jar_path_trimmomatic = programs_version_dictionary['trimmomatic-0.36.jar'][3]
+	jar_path_pilon = programs_version_dictionary['pilon-1.18.jar'][3]
 
 	# Check if input directory exists with fastq files and store samples name that have fastq files
 	inputDirectory = os.path.abspath(os.path.join(args.inputDirectory, ''))
@@ -125,6 +129,11 @@ def main():
 	scheme = 'unknown'
 	if not args.skipMLST:
 		scheme = mlst.getScheme(args.speciesExpected)
+
+	# Determine SPAdes maximum memory
+	spadesMaxMemory = None
+	if not args.skipSPAdes:
+		spadesMaxMemory = spades.define_memory(args.spadesMaxMemory, args.threads)
 
 	# Run comparisons for each sample
 	for sample in samples:
@@ -148,7 +157,7 @@ def main():
 		print str(fastq_files)
 
 		# Run INNUca.py analysis
-		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme)
+		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon)
 
 		# Save sample fail report
 		fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
@@ -185,7 +194,7 @@ def main():
 		sys.exit('No samples run successfully!')
 
 
-def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
+def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon):
 	threads = args.threads
 	adaptersFasta = args.adapters
 	if adaptersFasta is not None:
@@ -225,7 +234,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 
 		# Run Trimmomatic
 		if not args.skipTrimmomatic:
-			run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder = trimmomatic.runTrimmomatic(sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
+			run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
 			runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing]
 
 			if run_successfully and not_empty_fastq:
@@ -257,13 +266,13 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme):
 
 		# Run SPAdes
 		if not args.skipSPAdes:
-			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, args.spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinCoverageContigs)
+			run_successfully, pass_qc, time_taken, failing, contigs = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinCoverageContigs)
 			runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
 			if run_successfully:
 				# Run Pilon
 				if not args.skipPilon:
-					run_successfully, _, time_taken, failing, assembly_polished = pilon.runPilon(contigs, fastq_files, threads, outdir, args.pilonKeepFiles, args.pilonKeepSPAdesAssembly)
+					run_successfully, _, time_taken, failing, assembly_polished = pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir, args.pilonKeepFiles, args.pilonKeepSPAdesAssembly)
 					runs['Pilon'] = [run_successfully, None, time_taken, failing]
 
 					if run_successfully:

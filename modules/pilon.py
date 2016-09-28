@@ -54,9 +54,9 @@ def indexAlignment(alignment_file):
 	return run_successfully
 
 
-def pilon(assembly, bam_file, outdir):
+def pilon(jar_path_pilon, assembly, bam_file, outdir):
 	assembly_polished = os.path.splitext(assembly)[0] + '.polished.fasta'
-	command = ['pilon-1.18.jar', '--genome', assembly, '--frags', bam_file, '--outdir', outdir, '--output', os.path.basename(os.path.splitext(assembly_polished)[0]), '--changes', '--vcf']
+	command = ['java', '-jar', jar_path_pilon, '--genome', assembly, '--frags', bam_file, '--outdir', outdir, '--output', os.path.basename(os.path.splitext(assembly_polished)[0]), '--changes', '--vcf']
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
 	if not run_successfully:
 		assembly_polished = None
@@ -89,7 +89,7 @@ pilon_timer = partial(utils.timer, name='Pilon')
 
 
 @pilon_timer
-def runPilon(assembly, fastq_files, threads, outdir, keepFiles, keepSPAdesAssembly):
+def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir, keepFiles, keepSPAdesAssembly):
 	failing = {}
 	failing['sample'] = False
 
@@ -118,7 +118,7 @@ def runPilon(assembly, fastq_files, threads, outdir, keepFiles, keepSPAdesAssemb
 				run_successfully = indexAlignment(bam_file)
 
 				if run_successfully:
-					run_successfully, assembly_polished = pilon(assembly_link, bam_file, pilon_folder)
+					run_successfully, assembly_polished = pilon(jar_path_pilon, assembly_link, bam_file, pilon_folder)
 
 					if run_successfully:
 						parsePilonResult(assembly_polished, outdir)
