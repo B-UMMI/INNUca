@@ -43,16 +43,16 @@ def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, a
 			adaptersFasta = concatenateFastaFiles(adapters_files, trimmomatic_folder, 'concatenated_adaptersFile.fasta')
 			command[12] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
 
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
 	if not run_successfully:
 		print 'Trimmomatic fail! Trying run with Phred+33 enconding defined...'
 		command[18] = '-phred33'
-		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 		if not run_successfully:
 			print 'Trimmomatic fail again! Trying run with Phred+64 enconding defined...'
 			command[18] = '-phred64'
-			run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
+			run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
 	return run_successfully
 
@@ -100,7 +100,7 @@ def controlForZeroReads(fastq_files):
 		command[0] = 'bunzip2'
 
 	if command[0] != '':
-		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None)
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None, False)
 
 		if run_successfully:
 			stdout = stdout.splitlines()

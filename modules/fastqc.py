@@ -37,7 +37,7 @@ def fastQC(fastqc_folder, threads, adaptersFasta, fastq_files):
 		adaptersTEMP = adapters2fastQC(fastqc_folder, adaptersFasta)
 		print 'Scanning for adapters contamination using ' + adaptersFasta
 		command[9] = '--adapters ' + adaptersTEMP
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
 	# Remove temporary files
 	os.rmdir(os.path.join(fastqc_folder, 'temp.fastqc_temporary_dir', ''))

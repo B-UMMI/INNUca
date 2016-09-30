@@ -9,7 +9,7 @@ INNUca - Reads Control and Assembly
 Requirements
 ------------
 
- - Illumina paired-end reads
+ - Illumina paired-end reads (gzip compressed)
  - Expected species name
  - Expected genome size in Mb
 
@@ -48,7 +48,7 @@ Usage
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
                      [--pairEnd_filesSeparation "_left/rigth.fq.gz" "_left/rigth.fq.gz"]
                      [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipSPAdes] [--skipPilon] [--skipMLST]
+                     [--skipSPAdes] [--skipPilon] [--skipAssemblyMapping] [--skipMLST]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
@@ -98,9 +98,12 @@ Usage
       --skipTrimmomatic     Tells the programme to not run Trimmomatic (default:
                             False)
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
-                            MLST analysis (requires SPAdes contigs) (default:
-                            False)
-      --skipPilon           Tells the programme to not run Pilon correction
+                            Pilon correction, Assembly Mapping check and MLST analysis
+                            (SPAdes contigs required) (default: False)
+      --skipPilon           Tells the programme to not run Pilon correction and
+                            consequently Assembly Mapping check (bam files required)
+                            (default: False)
+      --skipAssemblyMapping Tells the programme to not run Assembly Mapping check')
                             (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
@@ -141,13 +144,14 @@ Usage
                             --careful option (default: False)
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
-                            this value (default: 200)
-      --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
-                            (default: 25)
+                            this value (default: maximum reads size or 200 bp)
+      --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use (default:
+                            free memory available at the beginning of INNUca)
       --spadesMinCoverageAssembly 10
                             The minimum number of reads to consider an edge in the  
                             de Bruijn graph (or path I am not sure). Can also be
-                            auto or off (default: 'off')
+
+                          auto or off (default: 'off')
       --spadesMinCoverageContigs N
                             Minimum contigs coverage. After assembly only keep
                             contigs with reported coverage equal or above this
@@ -165,6 +169,15 @@ Usage
       --pilonKeepSPAdesAssembly
                             Tells INNUca.py to not remove the unpolished SPAdes
                             assembly (default: False)
+
+    Assembly Mapping options:
+      --assemblyMinCoverageContigs
+                            Minimum contigs average coverage. After mapping reads
+                            back to the contigs, only keep contigs with at least
+                            this average coverage (default: 2)
+      --assemblyKeepPilonContigs
+                            Tells INNUca.py to not remove the polished Pilon contigs
+                            (default: False)
 
 
 

@@ -54,7 +54,7 @@ def combine_reports(args):
 	if len(directories) == 0:
 		sys.exit('No samples found')
 
-	files_to_search = ['coverage_report.txt', 'spades_report.txt', 'pilon_report.txt', 'mlst_report.txt']
+	files_to_search = ['coverage_report.txt', 'spades_report.txt', 'pilon_report.txt', 'assembly_coverage_report.txt', 'assembly_mapping_report.txt', 'mlst_report.txt']
 
 	for directory in directories:
 		sample = directory
@@ -65,7 +65,7 @@ def combine_reports(args):
 		if len(files) == 0:
 			print 'No files found! Continue to the next sample'
 		else:
-			results[sample] = ['NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA']
+			results[sample] = ['NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA']
 
 			for file_found in files:
 				name_file_found = file_found
@@ -143,6 +143,45 @@ def combine_reports(args):
 									else:
 										break
 					elif name_file_found == files_to_search[3]:
+						coverage = False
+						with open(file_found, 'rtU') as reader:
+							for line in reader:
+								if len(line) > 0:
+									line = line.splitlines()[0].split(' ')[0]
+									if line.startswith('#'):
+										if line.startswith('general', 1):
+											coverage = True
+									else:
+										if coverage:
+											results[sample][6] = line
+											coverage = False
+					elif name_file_found == files_to_search[4]:
+						total = False
+						total_reads = 0
+						mapped = False
+						mapped_reads = 0
+						with open(file_found, 'rtU') as reader:
+							for line in reader:
+								if len(line) > 0:
+									line = line.splitlines()[0].split(' ')[0]
+									if line.startswith('#'):
+										total = False
+										mapped = False
+										if line.startswith('in_total', 1):
+											total = True
+										elif line.startswith('mapped', 1):
+											mapped = True
+									elif line.startswith('>'):
+										continue
+									else:
+										if total:
+											total_reads = int(line)
+											total = False
+										elif mapped:
+											mapped_reads = int(line)
+											mapped = False
+						results[sample][7] = str(round((float(mapped_reads) / float(total_reads)), 2) * 100)
+					elif name_file_found == files_to_search[5]:
 						species = False
 						st = False
 						with open(file_found, 'rtU') as reader:
@@ -156,10 +195,10 @@ def combine_reports(args):
 											st = True
 									else:
 										if species:
-											results[sample][6] = line
+											results[sample][8] = line
 											species = False
 										if st:
-											results[sample][7] = line
+											results[sample][9] = line
 											st = False
 
 	if len(results) == 0:
@@ -167,7 +206,7 @@ def combine_reports(args):
 
 	print '\n' + 'Writing results...'
 	report = open(os.path.join(outdir, str('combine_samples_report.' + time.strftime("%Y%m%d-%H%M%S") + '.tab')), 'wt')
-	report.write('#samples' + '\t' + 'first_coverage' + '\t' + 'second_Coverage' + '\t' + 'SPAdes_number_contigs' + '\t' + 'SPAdes_number_bp' + '\t' + 'Pilon_changes' + '\t' + 'Pilon_contigs_changed' + '\t' + 'scheme' + '\t' + 'ST' + '\n')
+	report.write('#samples' + '\t' + 'first_coverage' + '\t' + 'second_Coverage' + '\t' + 'SPAdes_number_contigs' + '\t' + 'SPAdes_number_bp' + '\t' + 'Pilon_changes' + '\t' + 'Pilon_contigs_changed' + '\t' + 'assembly_coverage' + '\t' + 'mapped_reads_percentage' + '\t' + 'scheme' + '\t' + 'ST' + '\n')
 	report.flush()
 
 	for sample in results:

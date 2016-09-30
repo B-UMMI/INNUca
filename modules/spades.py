@@ -18,7 +18,7 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 		kmers = ','.join(map(str, kmers))
 		command[9] = str('-k ' + kmers)
 
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None)
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
 	return run_successfully, contigs
 
@@ -67,10 +67,35 @@ def define_kmers(kmers, maximumReadsLength):
 	return kmers_use
 
 
+def define_minContigsLength(maximumReadsLength, minContigsLength):
+	minimum_length = 200
+	if minContigsLength is not None:
+		minimum_length = minContigsLength
+	else:
+		if maximumReadsLength > minimum_length:
+			minimum_length = maximumReadsLength
+
+	return minimum_length
+
+
 def define_memory(maxMemory, threads):
-	GB_per_thread = 800 / 1024.0
-	available_memory_GB = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_AVPHYS_PAGES')) / (1024.0 ** 3)
+	GB_per_thread = 1024 / 1024.0
+
 	minimum_required_memory_GB = GB_per_thread * threads
+
+	available_memory_GB = utils.get_free_memory()
+	if available_memory_GB == 0:
+		print 'WARNING: it was not possible to determine the free available memory!'
+		if maxMemory is not None:
+			print 'Setting SPAdes maximum memory to the one provided by user'
+			time.sleep(10)
+			return maxMemory
+		else:
+			print 'Trying use the minimum memory required for SPAdes to run'
+			available_memory_GB = minimum_required_memory_GB
+	else:
+		available_memory_GB = available_memory_GB / (1024.0 ** 2)
+
 	if maxMemory is None:
 		if minimum_required_memory_GB > available_memory_GB:
 			print 'WARNNING: the minimum memory required to run SPAdes with ' + str(threads) + ' threads (' + str(round(minimum_required_memory_GB, 1)) + ' GB) are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!'
@@ -125,6 +150,7 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 
 	if run_successfully:
 		shutil.copyfile(contigs, os.path.join(outdir, 'SPAdes_original_assembly.contigs.fasta'))
+		minContigsLength = define_minContigsLength(maximumReadsLength, minContigsLength)
 		print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides and a coverage of ' + str(minCoverageContigs)
 		contigsFiltered, number_contigs, number_bases = renameFilterContigs(sampleName, outdir, contigs, minContigsLength, minCoverageContigs)
 		print str(number_bases) + ' assembled nucleotides in ' + str(number_contigs) + ' contigs'

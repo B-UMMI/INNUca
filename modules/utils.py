@@ -29,8 +29,9 @@ def parseArguments(version):
 	general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
-	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently MLST analysis (requires SPAdes contigs)')
-	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction')
+	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently Pilon correction, Assembly Mapping check and MLST analysis (SPAdes contigs required)')
+	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction and consequently Assembly Mapping check (bam files required)')
+	general_options.add_argument('--skipAssemblyMapping', action='store_true', help='Tells the programme to not run Assembly Mapping check')
 	general_options.add_argument('--skipMLST', action='store_true', help='Tells the programme to not run MLST analysis')
 
 	adapters_options = parser.add_mutually_exclusive_group()
@@ -49,8 +50,8 @@ def parseArguments(version):
 
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
-	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value', required=False, default=200)
-	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use', required=False)
+	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value (default: maximum reads size or 200 bp)', required=False)
+	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: free memory available at the beginning of INNUca)', required=False)
 	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=2)
 	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported coverage equal or above this value', required=False, default=5)
 
@@ -61,6 +62,10 @@ def parseArguments(version):
 	pilon_options = parser.add_argument_group('Pilon options')
 	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
 	pilon_options.add_argument('--pilonKeepSPAdesAssembly', action='store_true', help='Tells INNUca.py to not remove the unpolished SPAdes assembly')
+
+	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
+	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=2)
+	assembly_mapping_options.add_argument('--assemblyKeepPilonContigs', action='store_true', help='Tells INNUca.py to not remove the polished Pilon contigs')
 
 	args = parser.parse_args()
 
@@ -103,14 +108,16 @@ def spades_cov_cutoff(argument):
 		argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
 
 
-def runCommandPopenCommunicate(command, shell_True, timeout_sec_None):
+def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_comand_True):
 	run_successfully = False
 	if isinstance(command, basestring):
 		command = shlex.split(command)
 	else:
 		command = shlex.split(' '.join(command))
 
-	print 'Running: ' + ' '.join(command)
+	if print_comand_True:
+		print 'Running: ' + ' '.join(command)
+
 	if shell_True:
 		command = ' '.join(command)
 		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -127,6 +134,8 @@ def runCommandPopenCommunicate(command, shell_True, timeout_sec_None):
 	if proc.returncode == 0:
 		run_successfully = True
 	else:
+		if not print_comand_True:
+			print 'Running: ' + str(command)
 		print 'STDOUT'
 		print stdout.decode("utf-8")
 		print 'STDERR'
@@ -169,7 +178,7 @@ def checkPrograms(programs_version_dictionary):
 	listMissings = []
 	for program in programs:
 		which_program[1] = program
-		run_successfully, stdout, stderr = runCommandPopenCommunicate(which_program, False, None)
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(which_program, False, None, False)
 		if not run_successfully:
 			listMissings.append(program + ' not found in PATH.')
 		else:
@@ -181,7 +190,7 @@ def checkPrograms(programs_version_dictionary):
 					programs[program].append(stdout.splitlines()[0])
 				else:
 					check_version = [stdout.splitlines()[0], programs[program][0]]
-				run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None)
+				run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None, False)
 				if stdout == '':
 					stdout = stderr
 				if program == 'bunzip2':
@@ -231,7 +240,7 @@ def setPATHvariable(doNotUseProvidedSoftware, script_path):
 # Search for fastq files in the directory
 # pairEnd_filesSeparation_list can be None
 def searchFastqFiles(directory, pairEnd_filesSeparation_list, listAllFilesOnly):
-	filesExtensions = ['fastq.gz', 'fq.gz', 'fastq.bz2', 'fq.bz2']
+	filesExtensions = ['fastq.gz', 'fq.gz']
 	pairEnd_filesSeparation = [['_R1_001.f', '_R2_001.f'], ['_1.f', '_2.f']]
 
 	if pairEnd_filesSeparation_list is not None:
@@ -410,7 +419,7 @@ def compressionType(file):
 	return None
 
 
-steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'MLST')
+steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST')
 
 
 def sampleReportLine(run_report):
@@ -451,13 +460,13 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
 def timer(function, name):
 	@wraps(function)
 	def wrapper(*args, **kwargs):
-		print('RUNNING {0}\n'.format(name))
+		print('\n' + 'RUNNING {0}\n'.format(name))
 		start_time = time.time()
 
 		results = list(function(*args, **kwargs))  # guarantees return is a list to allow .insert()
 
 		time_taken = runTime(start_time)
-		print('END {0}\n'.format(name))
+		print('END {0}'.format(name))
 
 		results.insert(2, time_taken)
 		return results
@@ -484,5 +493,110 @@ def write_fail_report(fail_report_path, run_report):
 		writer_failReport.write('\n'.join(failures))
 
 
-def getJarPath():
-	pass
+def parse_free_output(free_output):
+	free_output = free_output.splitlines()
+
+	dict_free_output = {}
+
+	memory_fields = []
+
+	counter = 0
+	for line in free_output:
+		if len(line) > 0:
+			fields = line.split(':', 1)
+
+			values = []
+			if len(fields) == 1:
+				fields = fields[0].split(' ')
+
+				for field in fields:
+					if field != '':
+						values.append(field)
+			elif len(fields) == 2:
+				fields = fields[1].split(' ')
+
+				for field in fields:
+					if field != '':
+						values.append(field)
+
+			if counter == 0:
+				memory_fields = values
+			elif counter == 1:
+				dict_free_output['memory'] = {}
+				for i in range(0, len(memory_fields)):
+					dict_free_output['memory'][memory_fields[i]] = values[i]
+			elif counter == 2 and len(values) == 2:
+				dict_free_output['buffers'] = {memory_fields[1]: values[0], memory_fields[2]: values[1]}
+			elif counter == 3 or (counter == 2 and len(values) == 3):
+				dict_free_output['swap'] = {}
+				for i in range(0, 3):
+					dict_free_output['swap'][memory_fields[i]] = values[i]
+
+			counter += 1
+
+	return dict_free_output
+
+
+def get_free_memory_free(dict_free_output):
+	cached = 0
+
+	mem_cached_found = False
+	for mem_type in dict_free_output['memory']:
+		if 'cache' in mem_type:
+			cached = int(dict_free_output['memory'][mem_type])
+			mem_cached_found = True
+
+	if not mem_cached_found:
+		print 'WARNING: it was not possible to determine the cached memory!'
+
+	return cached
+
+
+def get_free_memory_os():
+	free_memory_Kb = 0
+	try:
+		free_memory_Kb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_AVPHYS_PAGES')) / 1024.0
+		print 'The strict free memory available determined is ' + str(round((free_memory_Kb / (1024.0 ** 2)), 1)) + ' Gb'
+	except Exception as e:
+		print e
+		print 'WARNING: it was not possible to determine the free memory available!'
+
+	return free_memory_Kb
+
+
+def get_free_memory():
+	free_memory_Kb = 0
+
+	command = ['free', '-k']
+	run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+
+	if run_successfully:
+		dict_free_output = parse_free_output(stdout)
+
+		cached = get_free_memory_free(dict_free_output)
+
+		try:
+			free_memory_Kb = int(dict_free_output['memory']['free']) + cached
+			print 'For the memory use (in Kb) below, the free memory available (free + cached) is ' + str(round((free_memory_Kb / (1024.0 ** 2)), 1)) + ' Gb'
+			print dict_free_output['memory']
+		except:
+			print 'WARNING: it was impossible to determine the free memory using the free command!'
+			free_memory_Kb = get_free_memory_os()
+	else:
+		print 'WARNING: it was impossible to determine the free memory using the free command!'
+		free_memory_Kb = get_free_memory_os()
+
+	return free_memory_Kb
+
+
+def get_cpu_information(outdir, time_str):
+	with open(os.path.join(outdir, 'cpu_information.' + time_str + '.cpu.txt'), 'wt') as writer:
+		command = ['cat', '/proc/cpuinfo']
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+		if run_successfully:
+			writer.write(stdout)
+
+	with open(os.path.join(outdir, 'cpu_information.' + time_str + '.slurm.txt'), 'wt') as writer:
+		for environment in sorted(os.environ):
+			if environment.startswith('SLURM_'):
+				writer.write('#' + environment + '\n' + os.environ[environment] + '\n')

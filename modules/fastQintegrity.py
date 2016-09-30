@@ -18,7 +18,7 @@ def fastQintegrity(fastq, outdir):
 		command[0] = 'bunzip2'
 
 	if command[0] != '':
-		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None)
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None, False)
 
 	if os.path.isfile(temporary_output_file):
 		os.remove(temporary_output_file)
