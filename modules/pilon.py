@@ -54,9 +54,11 @@ def indexAlignment(alignment_file):
 	return run_successfully
 
 
-def pilon(jar_path_pilon, assembly, bam_file, outdir):
+def pilon(jar_path_pilon, assembly, bam_file, outdir, jarMaxMemory):
 	assembly_polished = os.path.splitext(assembly)[0] + '.polished.fasta'
-	command = ['java', '-jar', jar_path_pilon, '--genome', assembly, '--frags', bam_file, '--outdir', outdir, '--output', os.path.basename(os.path.splitext(assembly_polished)[0]), '--changes', '--vcf']
+	command = ['java', '', '-jar', jar_path_pilon, '--genome', assembly, '--frags', bam_file, '--outdir', outdir, '--output', os.path.basename(os.path.splitext(assembly_polished)[0]), '--changes', '--vcf']
+	if str(jarMaxMemory) != 'off':
+		command[1] = '-Xmx' + str(int(round(jarMaxMemory * 1024, 0))) + 'M'
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 	if not run_successfully:
 		assembly_polished = None
@@ -89,7 +91,7 @@ pilon_timer = partial(utils.timer, name='Pilon')
 
 
 @pilon_timer
-def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir):
+def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir, jarMaxMemory):
 	failing = {}
 	failing['sample'] = False
 
@@ -119,7 +121,7 @@ def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir):
 				run_successfully = indexAlignment(bam_file)
 
 				if run_successfully:
-					run_successfully, assembly_polished = pilon(jar_path_pilon, assembly_link, bam_file, pilon_folder)
+					run_successfully, assembly_polished = pilon(jar_path_pilon, assembly_link, bam_file, pilon_folder, jarMaxMemory)
 
 					if run_successfully:
 						parsePilonResult(assembly_polished, outdir)

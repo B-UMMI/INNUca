@@ -24,6 +24,7 @@ def parseArguments(version):
 	general_options = parser.add_argument_group('General options')
 	general_options.add_argument('-o', '--outdir', type=str, metavar='/output/directory/', help='Path for output directory', required=False, default='.')
 	general_options.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads', required=False, default=1)
+	general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10', help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be auto or off. When auto is set, 1 Gb per thread will be used up to the free available memory', required=False, default='off')
 	general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes and Samtools that are provided with INNUca.py')
 	general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
 	general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
@@ -51,9 +52,9 @@ def parseArguments(version):
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value (default: maximum reads size or 200 bp)', required=False)
-	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: free memory available at the beginning of INNUca)', required=False)
-	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph (or path I am not sure). Can also be auto or off', required=False, default=2)
-	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported coverage equal or above this value', required=False, default=5)
+	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: 1 Gb per thread will be used up to the free available memory)', required=False)
+	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph during the assembly. Can also be auto or off', required=False, default=2)
+	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported k-mer coverage equal or above this value', required=False, default=5)
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
 	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
@@ -61,7 +62,7 @@ def parseArguments(version):
 
 	pilon_options = parser.add_argument_group('Pilon options')
 	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
-	pilon_options.add_argument('--pilonKeepSPAdesAssembly', action='store_true', help='Tells INNUca.py to not remove the unpolished SPAdes assembly')
+	pilon_options.add_argument('--pilonKeepSPAdesAssembly', action='store_true', help='Tells INNUca.py to not remove the filtered but unpolished SPAdes assembly')
 
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
 	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=2)
@@ -106,6 +107,42 @@ def spades_cov_cutoff(argument):
 			argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
 	except:
 		argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
+
+
+# For parseArguments
+def jar_max_memory(argument):
+	string_options = ['auto', 'off']
+	for option in string_options:
+		if str(argument) == option:
+			return str(argument)
+
+	try:
+		argument = int(argument)
+		if argument > 0:
+			return argument
+		else:
+			argparse.ArgumentParser.error('--jarMaxMemory must be positive integer, auto or off')
+	except:
+		argparse.ArgumentParser.error('--jarMaxMemory must be positive integer, auto or off')
+
+
+def define_jar_max_memory(jar_max_memory, threads, available_memory_GB):
+	GB_per_thread = 1024 / 1024.0
+
+	maximum_memory_GB = GB_per_thread * threads
+
+	if str(jar_max_memory) == 'off':
+		return jar_max_memory
+	elif str(jar_max_memory) == 'auto':
+		if maximum_memory_GB > available_memory_GB:
+			print 'WARNNING: the maximum memory calculated for ' + str(threads) + ' threads (' + str(round(maximum_memory_GB, 1)) + ' GB) are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!'
+			print 'Setting jar maximum memory to ' + str(int(round((available_memory_GB - 0.5), 0))) + ' GB'
+			return int(round((available_memory_GB - 0.5), 0))
+		else:
+			print 'Setting jar maximum memory to ' + str(int(round(maximum_memory_GB, 0))) + ' GB'
+			return int(round(maximum_memory_GB, 0))
+	else:
+		return jar_max_memory
 
 
 def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_comand_True):
@@ -425,11 +462,14 @@ steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'se
 def sampleReportLine(run_report):
 	line = []
 	for step in steps:
+		run_successfully = str(run_report[step][0])
+		pass_qc = 'PASS' if run_report[step][1] else 'FAIL'
 		if step in ('FastQ_Integrity', 'Pilon'):
-			l = [run_report[step][0], run_report[step][2]]
+			l = [run_successfully, run_report[step][2]]
+		elif step == 'Trimmomatic':
+			l = [run_successfully, pass_qc, run_report[step][2], run_report[step][4]]
 		else:
-			pass_qc = 'PASS' if run_report[step][1] else 'FAIL'
-			l = [run_report[step][0], pass_qc, run_report[step][2]]
+			l = [run_successfully, pass_qc, run_report[step][2]]
 		line.extend(l)
 	return line
 
@@ -439,6 +479,8 @@ def start_sample_report_file(samples_report_path):
 	for step in steps:
 		if step == 'FastQ_Integrity':
 			l = [step + '_filesOK', step + '_runningTime']
+		elif step == 'Trimmomatic':
+			l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime', step + '_fileSize']
 		elif step == 'Pilon':
 			l = [step + '_runSuccessfully', step + '_runningTime']
 		else:

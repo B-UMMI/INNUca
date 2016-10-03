@@ -78,12 +78,11 @@ def define_minContigsLength(maximumReadsLength, minContigsLength):
 	return minimum_length
 
 
-def define_memory(maxMemory, threads):
+def define_memory(maxMemory, threads, available_memory_GB):
 	GB_per_thread = 1024 / 1024.0
 
 	minimum_required_memory_GB = GB_per_thread * threads
 
-	available_memory_GB = utils.get_free_memory()
 	if available_memory_GB == 0:
 		print 'WARNING: it was not possible to determine the free available memory!'
 		if maxMemory is not None:
@@ -93,8 +92,6 @@ def define_memory(maxMemory, threads):
 		else:
 			print 'Trying use the minimum memory required for SPAdes to run'
 			available_memory_GB = minimum_required_memory_GB
-	else:
-		available_memory_GB = available_memory_GB / (1024.0 ** 2)
 
 	if maxMemory is None:
 		if minimum_required_memory_GB > available_memory_GB:

@@ -21,7 +21,6 @@ Dependencies
  - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (it is recommended
    to use a mlst version with updated databases)
  - *gzip* >= v1.6 (normally found in Linux OS)
- - *bzip2* >= v1.0.6 (normally found in Linux OS)
 
 **Optional**
 (executables are provided, but user's own executables can be used with `--doNotUseProvidedSoftware` option)
@@ -47,8 +46,9 @@ Usage
                      -g 2.1
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
                      [--pairEnd_filesSeparation "_left/rigth.fq.gz" "_left/rigth.fq.gz"]
-                     [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipSPAdes] [--skipPilon] [--skipAssemblyMapping] [--skipMLST]
+                     [--jarMaxMemory] [--skipEstimatedCoverage] [--skipFastQC]
+                     [--skipTrimmomatic] [--skipSPAdes] [--skipPilon]
+                     [--skipAssemblyMapping] [--skipMLST]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
@@ -79,6 +79,10 @@ Usage
       -o /output/directory/, --outdir /output/directory/
                             Path for output directory (default: .)
       -j N, --threads N     Number of threads (default: 1)
+      --jarMaxMemory 10     Sets the maximum RAM Gb usage by jar files (Trimmomatic
+                            and Pilon). Can also be auto or off. When auto is set,
+                            1 Gb per thread will be used up to the free available memory
+                            (default: off)
       --doNotUseProvidedSoftware
                             Tells the software to not use FastQC, Trimmomatic,
                             SPAdes and Samtools that are provided with INNUca.py
@@ -146,16 +150,16 @@ Usage
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: maximum reads size or 200 bp)
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use (default:
-                            free memory available at the beginning of INNUca)
+                            1 Gb per thread will be used up to the free available
+                            memory)
       --spadesMinCoverageAssembly 10
-                            The minimum number of reads to consider an edge in the  
-                            de Bruijn graph (or path I am not sure). Can also be
-
-                          auto or off (default: 'off')
+                            The minimum number of reads to consider an edge in the
+                            de Bruijn graph during the assembly. Can also be auto
+                            or off (default: 2)
       --spadesMinCoverageContigs N
-                            Minimum contigs coverage. After assembly only keep
-                            contigs with reported coverage equal or above this
-                            value (default: 5)
+                            Minimum contigs coverage. After assembly only keep contigs
+                            with reported k-mer coverage equal or above this value
+                            (default: 5)
     SPAdes k-mers options (one of the following):
       --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
                             be odd, less than 128) (default: 55, 77, 99, 113,
@@ -167,8 +171,8 @@ Usage
       --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
                             (default: False)
       --pilonKeepSPAdesAssembly
-                            Tells INNUca.py to not remove the unpolished SPAdes
-                            assembly (default: False)
+                            Tells INNUca.py to not remove the filtered but unpolished
+                            SPAdes assembly (default: False)
 
     Assembly Mapping options:
       --assemblyMinCoverageContigs

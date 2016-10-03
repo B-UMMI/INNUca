@@ -280,6 +280,8 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 
 	assembly_filtered = None
 
+	pilon_run_successfuly = True if assembly_pilon is not None else False
+
 	# Get assembly coverage
 	sample_coverage_no_problems, mean_coverage_data = sample_coverage(reference_file, alignment_file, assemblyMapping_folder, threads)
 	if sample_coverage_no_problems:
@@ -289,8 +291,6 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 
 		assembly = reference_file if assembly_pilon is None else assembly_pilon
 
-		pilon_run_successfuly = True if assembly_pilon is not None else False
-
 		subsampleContigs(assembly, sequences_2_keep, assembly_filtered, pilon_run_successfuly)
 
 		if not pass_qc_coverage:
@@ -298,7 +298,7 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 	else:
 		failing['Coverage'] = ['Did not run']
 
-	if not keep_pilon_assembly:
+	if pilon_run_successfuly and not keep_pilon_assembly:
 		os.remove(assembly_pilon)
 
 	# Save mapping statistics

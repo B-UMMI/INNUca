@@ -82,9 +82,7 @@ def main():
 
 	# Check programms
 	programs_version_dictionary = {}
-	if not args.skipEstimatedCoverage:
-		programs_version_dictionary['bunzip2'] = ['--version', '>=', '1.0.6']
-		programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
+	programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
 	if not (args.skipFastQC and args.skipTrimmomatic and args.skipPilon):
 		programs_version_dictionary['java'] = ['-version', '>=', '1.8']
 	if not args.skipFastQC:
@@ -133,11 +131,18 @@ def main():
 	if not args.skipMLST:
 		scheme = mlst.getScheme(args.speciesExpected)
 
+	# Memory
+	available_memory_GB = utils.get_free_memory() / (1024.0 ** 2)
 	# Determine SPAdes maximum memory
 	spadesMaxMemory = None
 	if not args.skipSPAdes:
 		print ''
-		spadesMaxMemory = spades.define_memory(args.spadesMaxMemory, args.threads)
+		spadesMaxMemory = spades.define_memory(args.spadesMaxMemory, args.threads, available_memory_GB)
+	# Determine .jar maximum memory
+	jarMaxMemory = 'off'
+	if not (args.skipTrimmomatic and (args.skipSPAdes or args.skipPilon)):
+		print ''
+		jarMaxMemory = utils.define_jar_max_memory(args.jarMaxMemory, args.threads, available_memory_GB)
 
 	# Run comparisons for each sample
 	for sample in samples:
@@ -161,7 +166,7 @@ def main():
 		print str(fastq_files) + '\n'
 
 		# Run INNUca.py analysis
-		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon)
+		run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory)
 
 		# Save sample fail report
 		fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
@@ -198,7 +203,7 @@ def main():
 		sys.exit('No samples run successfully!')
 
 
-def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon):
+def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory):
 	threads = args.threads
 	adaptersFasta = args.adapters
 	if adaptersFasta is not None:
@@ -238,8 +243,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 		# Run Trimmomatic
 		if not args.skipTrimmomatic:
-			run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent)
-			runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing]
+			run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory)
+			runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing, fileSize]
 
 			if run_successfully and not_empty_fastq:
 				fastq_files = paired_reads
@@ -265,7 +270,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 		else:
 			print '--skipTrimmomatic set. Skipping Trimmomatic, but also Second FastQC analysis and Second Estimated Coverage analysis'
-			runs['Trimmomatic'] = skipped
+			runs['Trimmomatic'] = skipped + ['NA']
 			runs['second_Coverage'] = skipped
 			runs['second_FastQC'] = skipped
 
@@ -279,7 +284,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				contigs = contigs_spades
 
 				if not args.skipPilon:
-					run_successfully, _, time_taken, failing, assembly_polished, bam_file, pilon_folder = pilon.runPilon(jar_path_pilon, contigs_spades, fastq_files, threads, outdir)
+					run_successfully, _, time_taken, failing, assembly_polished, bam_file, pilon_folder = pilon.runPilon(jar_path_pilon, contigs_spades, fastq_files, threads, outdir, jarMaxMemory)
 					runs['Pilon'] = [run_successfully, None, time_taken, failing]
 
 					if run_successfully:
@@ -334,7 +339,10 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	else:
 		print 'Moving to the next sample'
 		for step in ('first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST'):
-			runs[step] = not_run
+			if step == 'Trimmomatic':
+				runs[step] = not_run + ['NA']
+			else:
+				runs[step] = not_run
 
 	# Remove Trimmomatic directory with cleaned reads
 	if not args.trimKeepFiles:
