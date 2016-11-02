@@ -2,6 +2,7 @@ import utils
 import os
 from functools import partial
 import multiprocessing
+import spades
 
 
 def sequenceHeaders(fastaFile):
@@ -119,7 +120,7 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
 	pass_qc = False
 	failing_reason = None
 
-	report_file = os.path.join(outdir, 'assembly_coverage_report.txt')
+	report_file = os.path.join(outdir, 'assembly_mapping_report.coverage.txt')
 
 	position = 0
 	coverage = 0
@@ -146,72 +147,60 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
 	return pass_qc, failing_reason, sequences_2_keep
 
 
-def subsampleContigs(fastaFile, list_sequences, outputFile, pilon_run_successfuly):
-	writer = open(outputFile, 'wt')
+def get_sequence_information(sequence_file):
+	sequence_dict = {}
 
-	number_sequences = 0
-	number_bases = 0
-	seqHeader = ''
-	seqSequence = ''
-
-	with open(fastaFile, 'rtU') as lines:
-		for line in lines:
-			if len(line.splitlines()[0]) > 0:
-				if line[0] == '>':
-					if seqHeader != '':
-						sequenced_found = False
-
-						header_2_search = None
-						if not pilon_run_successfuly:
-							header_2_search = seqHeader[1:]
-						else:
-							header_2_search = seqHeader[1:].rsplit('_', 1)[0]
-
-						if header_2_search in list_sequences:
-							sequenced_found = True
-
-						if sequenced_found:
-							writer.write(seqHeader + '\n')
-							writer.write(seqSequence + '\n')
-							writer.flush()
-
-							seqSequence = seqSequence.splitlines()
-							for seq in seqSequence:
-								number_bases += len(seq)
-
-							number_sequences += 1
-
-					seqHeader = ''
-					seqSequence = ''
-					seqHeader = line.splitlines()[0]
+	with open(sequence_file, 'rtU') as original_sequences:
+		blank_line_found = False
+		sequence_counter = 0
+		for line in original_sequences:
+			line = line.splitlines()[0]
+			if len(line) > 0:
+				if not blank_line_found:
+					if line.startswith('>'):
+						sequence_counter += 1
+						sequence_dict[sequence_counter] = {'header': line[1:], 'sequence': [], 'length': 0, 'discard': True}
+					else:
+						sequence_dict[sequence_counter]['sequence'].append(line)
+						sequence_dict[sequence_counter]['length'] += len(line)
 				else:
-					seqSequence = seqSequence + line
+					sequence_dict = None
+			else:
+				blank_line_found = True
 
-		sequenced_found = False
+	return sequence_dict
 
-		header_2_search = None
-		if not pilon_run_successfuly:
-			header_2_search = seqHeader[1:]
-		else:
-			header_2_search = seqHeader[1:].rsplit('_', 1)[0]
 
-		if header_2_search in list_sequences:
-			sequenced_found = True
+def determine_sequences_to_filter(sequence_dict, list_sequences, pilon_run_successfuly):
+	for i in sequence_dict:
+		sequence_dict[i]['discard'] = True
 
-		if sequenced_found:
-			writer.write(seqHeader + '\n')
-			writer.write(seqSequence + '\n')
-			writer.flush()
+	sequence_report_general = {'filtered': {'contigs': 0, 'bp': 0}}
 
-			seqSequence = seqSequence.splitlines()
-			for seq in seqSequence:
-				number_bases += len(seq)
+	for i in sequence_dict:
+		header = sequence_dict[i]['header']
+		if pilon_run_successfuly:
+			header = sequence_dict[i]['header'].rsplit('_', 1)[0]
 
-			number_sequences += 1
+		if header in list_sequences:
+			sequence_dict[i]['discard'] = False
+			sequence_report_general['filtered']['contigs'] += 1
+			sequence_report_general['filtered']['bp'] += sequence_dict[i]['length']
 
-	writer.close()
+	return sequence_dict, sequence_report_general
 
-	return number_sequences, number_bases
+
+def write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, filtered_sequence_file):
+	with open(os.path.join(os.path.dirname(filtered_sequence_file), str('assembly_mapping_report.sequences_filtered.' + os.path.splitext(os.path.basename(filtered_sequence_file))[0]) + '.tab'), 'wt') as report_filtered:
+		with open(filtered_sequence_file, 'wt') as contigs_filtered:
+			fields = ['header', 'length']
+			report_filtered.write('\n'.join(['#general', '>contigs', str(sequence_report_general['filtered']['contigs']), '>bp', str(sequence_report_general['filtered']['bp'])]) + '\n')
+			report_filtered.write('#' + '\t'.join(fields) + '\n')
+
+			for i in range(1, len(sequence_dict) + 1):
+				if not sequence_dict[i]['discard']:
+					report_filtered.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
+					contigs_filtered.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(sequence_dict[i]['sequence']) + '\n')
 
 
 def getting_mapping_statistics(alignment_file):
@@ -238,7 +227,7 @@ def save_mapping_statistics(dict_mapping_statistics, outdir):
 	pass_qc = False
 	failing_reason = None
 
-	report_file = os.path.join(outdir, 'assembly_mapping_report.txt')
+	report_file = os.path.join(outdir, 'assembly_mapping_report.mapping.txt')
 
 	total_reads = 0
 	total_mapped_reads = 0
@@ -267,10 +256,11 @@ assemblyMapping_timer = partial(utils.timer, name='Assembly mapping check')
 
 
 @assemblyMapping_timer
-def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCoverageAssembly, assembly_pilon, keep_pilon_assembly):
+def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCoverageAssembly, assembly_pilon, keep_pilon_assembly, estimatedGenomeSizeMb):
 	pass_qc = False
 	pass_qc_coverage = False
 	pass_qc_mapping = False
+	pass_qc_sequences = False
 
 	failing = {}
 
@@ -286,15 +276,21 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 	sample_coverage_no_problems, mean_coverage_data = sample_coverage(reference_file, alignment_file, assemblyMapping_folder, threads)
 	if sample_coverage_no_problems:
 		pass_qc_coverage, failing_reason, sequences_2_keep = save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembly)
-
-		assembly_filtered = os.path.splitext(assembly_pilon)[0] + '.filtered.fasta'
-
-		assembly = reference_file if assembly_pilon is None else assembly_pilon
-
-		subsampleContigs(assembly, sequences_2_keep, assembly_filtered, pilon_run_successfuly)
-
 		if not pass_qc_coverage:
 			failing['Coverage'] = [failing_reason]
+
+		assembly = reference_file if assembly_pilon is None else assembly_pilon
+		assembly_filtered = os.path.splitext(assembly)[0] + '.mappingCov.fasta'
+
+		sequence_dict = get_sequence_information(assembly)
+		sequence_dict, sequence_report_general = determine_sequences_to_filter(sequence_dict, sequences_2_keep, pilon_run_successfuly)
+		failing_sequences_filtered = spades.qc_assembly(sequence_report_general, estimatedGenomeSizeMb)
+		if failing_sequences_filtered['sample'] is False:
+			write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered)
+			pass_qc_sequences = True
+		else:
+			failing['Sequences_filtered'] = [failing_sequences_filtered['sample']]
+			assembly_filtered = assembly
 	else:
 		failing['Coverage'] = ['Did not run']
 
@@ -312,7 +308,7 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 		failing['Mapping'] = ['Did not run']
 
 	run_successfully = sample_coverage_no_problems and sample_mapping_statistics_no_problems
-	pass_qc = pass_qc_coverage and pass_qc_mapping
+	pass_qc = all([pass_qc_coverage, pass_qc_mapping, pass_qc_sequences])
 
 	if not pass_qc:
 		print 'Sample FAILS Assembly Mapping check with: ' + str(failing)

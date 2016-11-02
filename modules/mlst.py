@@ -25,7 +25,16 @@ def getScheme(species):
 					if line[0] == species[0] and line[1] == species[1]:
 						scheme = line[2]
 
+	print '\n' + 'MLST scheme found for ' + ' '.join(species) + ': ' + scheme
+
 	return scheme
+
+
+def getBlastPath():
+	print '\n' + 'The following blastn will be used'
+	command = ['which', 'blastn']
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
+	print stdout
 
 
 @mlst_timer
@@ -35,7 +44,6 @@ def runMlst(contigs, scheme, outdir):
 	failing['sample'] = False
 
 	command = ['mlst', contigs]
-
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
 	if run_successfully:

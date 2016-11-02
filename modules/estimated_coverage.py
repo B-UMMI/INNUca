@@ -49,6 +49,7 @@ def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir, threads):
 	failing['sample'] = False
 
 	# Run Estimated Coverage
+	estimatedCoverage = None
 
 	# Get number bases for each fastq file
 	pool = multiprocessing.Pool(processes=threads)
@@ -99,4 +100,4 @@ def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir, threads):
 		failing['sample'] = 'Did not run'
 		print failing['sample']
 
-	return run_successfully, pass_qc, failing
+	return run_successfully, pass_qc, failing, estimatedCoverage

@@ -45,7 +45,6 @@ Usage
                      -s "Streptococcus agalactiae"
                      -g 2.1
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
-                     [--pairEnd_filesSeparation "_left/rigth.fq.gz" "_left/rigth.fq.gz"]
                      [--jarMaxMemory] [--skipEstimatedCoverage] [--skipFastQC]
                      [--skipTrimmomatic] [--skipSPAdes] [--skipPilon]
                      [--skipAssemblyMapping] [--skipMLST]
@@ -87,12 +86,6 @@ Usage
                             Tells the software to not use FastQC, Trimmomatic,
                             SPAdes and Samtools that are provided with INNUca.py
                             (default: False)
-      --pairEnd_filesSeparation "_left/rigth.fq.gz" "_left/rigth.fq.gz"
-                            For unusual pair-end files separation designations,
-                            you can provide two strings containning the end of
-                            fastq files names to designate each file from a pair-
-                            end data ("_left.fq.gz" "_rigth.fq.gz" for
-                            sample_left.fq.gz sample_right.fq.gz) (default: None)
       --skipEstimatedCoverage
                             Tells the programme to not estimate coverage depth
                             based on number of sequenced nucleotides and expected
@@ -119,6 +112,11 @@ Usage
       --doNotSearchAdapters
                             Tells INNUca.py to not search for adapters and clip
                             them during Trimmomatic step (default: False)
+
+    Estimated Coverage options:
+      --estimatedMinimumCoverage N
+                            Minimum estimated coverage to continue INNUca pipeline
+                            (default: 15)
 
     Trimmomatic options:
       --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of

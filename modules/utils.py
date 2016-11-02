@@ -26,7 +26,7 @@ def parseArguments(version):
 	general_options.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads', required=False, default=1)
 	general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10', help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be auto or off. When auto is set, 1 Gb per thread will be used up to the free available memory', required=False, default='off')
 	general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes and Samtools that are provided with INNUca.py')
-	general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
+	# general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
 	general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
@@ -38,6 +38,9 @@ def parseArguments(version):
 	adapters_options = parser.add_mutually_exclusive_group()
 	adapters_options.add_argument('--adapters', type=argparse.FileType('r'), metavar='adaptersFile.fasta', help='Fasta file containing adapters sequences to be used in FastQC and Trimmomatic', required=False)
 	adapters_options.add_argument('--doNotSearchAdapters', action='store_true', help='Tells INNUca.py to not search for adapters and clip them during Trimmomatic step')
+
+	estimated_options = parser.add_argument_group('Estimated Coverage options')
+	estimated_options.add_argument('--estimatedMinimumCoverage', type=int, metavar='N', help='Minimum estimated coverage to continue INNUca pipeline', required=False, default=15)
 
 	trimmomatic_options = parser.add_argument_group('Trimmomatic options')
 	trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
@@ -54,7 +57,7 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value (default: maximum reads size or 200 bp)', required=False)
 	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: 1 Gb per thread will be used up to the free available memory)', required=False)
 	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph during the assembly. Can also be auto or off', required=False, default=2)
-	spades_options.add_argument('--spadesMinCoverageContigs', type=int, metavar='N', help='Minimum contigs coverage. After assembly only keep contigs with reported k-mer coverage equal or above this value', required=False, default=5)
+	spades_options.add_argument('--spadesMinKmerCovContigs', type=int, metavar='N', help='Minimum contigs K-mer coverage. After assembly only keep contigs with reported k-mer coverage equal or above this value', required=False, default=2)
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
 	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
@@ -219,6 +222,7 @@ def checkPrograms(programs_version_dictionary):
 		if not run_successfully:
 			listMissings.append(program + ' not found in PATH.')
 		else:
+			print stdout.splitlines()[0]
 			if programs[program][0] is None:
 				print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
 			else:
@@ -318,7 +322,7 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
 	files = searchFastqFiles(directory, None, True)
 
 	if len(files) == 0:
-		sys.exit('No fastq files were found!')
+		sys.exit('No fastq files were found! Make sure fastq files ends with .fastq.gz or .fq.gz, and the pair-end information is either in _R1_001. or _1. format.')
 
 	pairEnd_filesSeparation = [['_R1_001.f', '_R2_001.f'], ['_1.f', '_2.f']]
 	if pairEnd_filesSeparation_list is not None:
@@ -404,7 +408,7 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 				elif len(files) >= 1:
 					samples.append(directory)
 	if len(samples) == 0:
-		sys.exit('There is no fastq files for the samples folders provided!')
+		sys.exit('There is no fastq files for the samples folders provided! Make sure fastq files ends with .fastq.gz or .fq.gz, and the pair-end information is either in _R1_001. or _1. format.')
 	return samples, removeCreatedSamplesDirectories, indir_same_outdir
 
 
@@ -463,7 +467,12 @@ def sampleReportLine(run_report):
 	line = []
 	for step in steps:
 		run_successfully = str(run_report[step][0])
-		pass_qc = 'PASS' if run_report[step][1] else 'FAIL'
+		pass_qc = 'FAIL'
+		if run_report[step][1]:
+			pass_qc = 'PASS'
+		elif run_report[step][1] is None:
+			pass_qc = run_report[step][3]['sample']
+
 		if step in ('FastQ_Integrity', 'Pilon'):
 			l = [run_successfully, run_report[step][2]]
 		elif step == 'Trimmomatic':

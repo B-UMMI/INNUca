@@ -9,7 +9,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: September 30, 2016
+Last modified: November 02, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ import sys
 
 
 def main():
-	version = '1.8'
+	version = '1.9'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -112,7 +112,8 @@ def main():
 
 	# Check if input directory exists with fastq files and store samples name that have fastq files
 	inputDirectory = os.path.abspath(os.path.join(args.inputDirectory, ''))
-	pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
+	# pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
+	pairEnd_filesSeparation_list = None
 	print ''
 	samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 
@@ -130,6 +131,9 @@ def main():
 	scheme = 'unknown'
 	if not args.skipMLST:
 		scheme = mlst.getScheme(args.speciesExpected)
+
+	# Get path to blastn
+	mlst.getBlastPath()
 
 	# Memory
 	available_memory_GB = utils.get_free_memory() / (1024.0 ** 2)
@@ -221,121 +225,148 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 	if not_corruption_found:
 		# Run first Estimated Coverage
+		run_successfully_estimatedCoverage = False
+		estimatedCoverage = None
 		if not args.skipEstimatedCoverage:
 			# Check whether the Estimated Coverage output is already present
 			report_file = os.path.join(outdir, 'coverage_report.txt')
 			if os.path.isfile(report_file):
 				os.remove(report_file)
 			# Run getEstimatedCoverage
-			runs['first_Coverage'] = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads)
+			run_successfully_estimatedCoverage, pass_qc, time_taken, failing, estimatedCoverage = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads)
+			runs['first_Coverage'] = [run_successfully_estimatedCoverage, pass_qc, time_taken, failing]
 		else:
 			print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
 			runs['first_Coverage'] = skipped
 
-		# Run first FastQC
-		nts2clip_based_ntsContent = None
-		if not args.skipFastQC:
-			run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
-			runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
-		else:
-			print '--skipFastQC set. Skipping First FastQC analysis'
-			runs['first_FastQC'] = skipped
-
-		# Run Trimmomatic
-		if not args.skipTrimmomatic:
-			run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory)
-			runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing, fileSize]
-
-			if run_successfully and not_empty_fastq:
-				fastq_files = paired_reads
-
-				# Run second Estimated Coverage
-				if not args.skipEstimatedCoverage:
-					runs['second_Coverage'] = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads)
-				else:
-					print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
-					runs['second_Coverage'] = skipped
-
-				# Run second FastQC
-				if not args.skipFastQC:
-					run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
-					runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
-				else:
-					print '--skipFastQC set. Skipping Second FastQC analysis'
-					runs['second_FastQC'] = skipped
+		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
+			# Run first FastQC
+			nts2clip_based_ntsContent = None
+			if not args.skipFastQC:
+				run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
+				runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
 			else:
-				print 'Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated Coverage analysis and FastQC analysis'
+				print '--skipFastQC set. Skipping First FastQC analysis'
+				runs['first_FastQC'] = skipped
+
+			# Run Trimmomatic
+			if not args.skipTrimmomatic:
+				run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory)
+				runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing, fileSize]
+
+				if run_successfully and not_empty_fastq:
+					fastq_files = paired_reads
+
+					# Run second Estimated Coverage
+					if not args.skipEstimatedCoverage:
+						run_successfully_estimatedCoverage, pass_qc, time_taken, failing, estimatedCoverage = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads)
+						runs['second_Coverage'] = [run_successfully_estimatedCoverage, pass_qc, time_taken, failing]
+					else:
+						print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
+						runs['second_Coverage'] = skipped
+
+					if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
+						# Run second FastQC
+						if not args.skipFastQC:
+							run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
+							runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
+						else:
+							print '--skipFastQC set. Skipping Second FastQC analysis'
+							runs['second_FastQC'] = skipped
+					else:
+						print '\n' + 'Estimated coverage is too lower (< ' + str(args.estimatedMinimumCoverage) + 'x). This sample will not proceed with INNUca pipeline'
+						runs['second_FastQC'] = not_run
+						runs['SPAdes'] = not_run
+						runs['Pilon'] = not_run
+						runs['Assembly_Mapping'] = not_run
+						runs['MLST'] = not_run
+				else:
+					print 'Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated Coverage analysis and FastQC analysis'
+					runs['second_Coverage'] = skipped
+					runs['second_FastQC'] = skipped
+
+			else:
+				print '--skipTrimmomatic set. Skipping Trimmomatic, but also Second FastQC analysis and Second Estimated Coverage analysis'
+				runs['Trimmomatic'] = skipped + ['NA']
 				runs['second_Coverage'] = skipped
 				runs['second_FastQC'] = skipped
 
 		else:
-			print '--skipTrimmomatic set. Skipping Trimmomatic, but also Second FastQC analysis and Second Estimated Coverage analysis'
-			runs['Trimmomatic'] = skipped + ['NA']
-			runs['second_Coverage'] = skipped
-			runs['second_FastQC'] = skipped
+			print '\n' + 'Estimated coverage is too lower (< ' + str(args.estimatedMinimumCoverage) + 'x). This sample will not proceed with INNUca pipeline'
+			runs['first_FastQC'] = not_run
+			runs['Trimmomatic'] = not_run + ['NA']
+			runs['second_Coverage'] = not_run
+			runs['second_FastQC'] = not_run
+			runs['SPAdes'] = not_run
+			runs['Pilon'] = not_run
+			runs['Assembly_Mapping'] = not_run
+			runs['MLST'] = not_run
 
-		# Run SPAdes
-		if not args.skipSPAdes:
-			run_successfully, pass_qc, time_taken, failing, contigs_spades = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinCoverageContigs)
-			runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
+		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
+			# Run SPAdes
+			if not args.skipSPAdes:
+				run_successfully, pass_qc, time_taken, failing, contigs_spades = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinKmerCovContigs)
+				runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
-			if run_successfully:
-				# Run Pilon
-				contigs = contigs_spades
+				if run_successfully:
+					# Run Pilon
+					contigs = contigs_spades
 
-				if not args.skipPilon:
-					run_successfully, _, time_taken, failing, assembly_polished, bam_file, pilon_folder = pilon.runPilon(jar_path_pilon, contigs_spades, fastq_files, threads, outdir, jarMaxMemory)
-					runs['Pilon'] = [run_successfully, None, time_taken, failing]
+					if not args.skipPilon:
+						run_successfully, _, time_taken, failing, assembly_polished, bam_file, pilon_folder = pilon.runPilon(jar_path_pilon, contigs_spades, fastq_files, threads, outdir, jarMaxMemory)
+						runs['Pilon'] = [run_successfully, None, time_taken, failing]
 
-					if run_successfully:
-						contigs = assembly_polished
+						if run_successfully:
+							contigs = assembly_polished
 
-					# Run Assembly Mapping check
-					if bam_file is not None:
-						if not args.skipAssemblyMapping:
-							run_successfully, pass_qc, time_taken, failing, assembly_filtered = assembly_mapping.runAssemblyMapping(bam_file, contigs_spades, threads, outdir, args.assemblyMinCoverageContigs, assembly_polished, args.assemblyKeepPilonContigs)
-							runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing]
+						# Run Assembly Mapping check
+						if bam_file is not None:
+							if not args.skipAssemblyMapping:
+								run_successfully, pass_qc, time_taken, failing, assembly_filtered = assembly_mapping.runAssemblyMapping(bam_file, contigs_spades, threads, outdir, args.assemblyMinCoverageContigs, assembly_polished, args.assemblyKeepPilonContigs, genomeSize)
+								runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing]
 
-							if run_successfully:
-								contigs = assembly_filtered
+								if run_successfully:
+									contigs = assembly_filtered
+							else:
+								print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
+								runs['Assembly_Mapping'] = skipped
 						else:
-							print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
+							print 'Pilon did not produce the bam file! Assembly Mapping check'
 							runs['Assembly_Mapping'] = skipped
+
+						if assembly_polished is not None and not args.pilonKeepSPAdesAssembly:
+							os.remove(contigs_spades)
+
+						if not args.pilonKeepFiles:
+							utils.removeDirectory(pilon_folder)
+
 					else:
-						print 'Pilon did not produce the bam file! Assembly Mapping check'
+						print '--skipPilon set. Skipping Pilon correction and Assembly Mapping check'
+						runs['Pilon'] = skipped
 						runs['Assembly_Mapping'] = skipped
 
-					if assembly_polished is not None and not args.pilonKeepSPAdesAssembly:
-						os.remove(contigs_spades)
+					print '\n' + 'Final assembly: ' + contigs
+					with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
+						writer.write(contigs + '\n')
 
-					if not args.pilonKeepFiles:
-						utils.removeDirectory(pilon_folder)
-
+					# Run MLST
+					if not args.skipMLST:
+						runs['MLST'] = mlst.runMlst(contigs, scheme, outdir)
+					else:
+						print '--skipMLST set. Skipping MLST analysis'
+						runs['MLST'] = skipped
 				else:
-					print '--skipPilon set. Skipping Pilon correction and Assembly Mapping check'
+					print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
 					runs['Pilon'] = skipped
 					runs['Assembly_Mapping'] = skipped
-
-				print '\n' + 'Assembly to use: ' + contigs + '\n'
-
-				# Run MLST
-				if not args.skipMLST:
-					runs['MLST'] = mlst.runMlst(contigs, scheme, outdir)
-				else:
-					print '--skipMLST set. Skipping MLST analysis'
 					runs['MLST'] = skipped
+
 			else:
-				print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
+				print '--skipSPAdes set. Skipping SPAdes Pilon correction, Assembly Mapping check and MLST analysis'
+				runs['SPAdes'] = skipped
 				runs['Pilon'] = skipped
 				runs['Assembly_Mapping'] = skipped
 				runs['MLST'] = skipped
-
-		else:
-			print '--skipSPAdes set. Skipping SPAdes Pilon correction, Assembly Mapping check and MLST analysis'
-			runs['SPAdes'] = skipped
-			runs['Pilon'] = skipped
-			runs['Assembly_Mapping'] = skipped
-			runs['MLST'] = skipped
 	else:
 		print 'Moving to the next sample'
 		for step in ('first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST'):
@@ -355,8 +386,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
 
 	pass_fastqIntegrity = runs['FastQ_Integrity'][0]
-	pass_cov = runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'][1])
-	pass_fastqc = runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])
+	pass_cov = (runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'][1])) is not False
+	pass_fastqc = (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False
 	pass_trimmomatic = runs['Trimmomatic'][1] is not False
 	pass_spades = runs['SPAdes'][1] is not False
 	pass_assemblyMapping = runs['Assembly_Mapping'][1] is not False
