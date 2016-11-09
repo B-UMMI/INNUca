@@ -140,7 +140,7 @@ def write_filtered_sequences_and_stats(sequence_dict, spades_report_general, ori
 		report_original.write('#' + '\t'.join(fields) + '\n')
 		if write_only_report_original_True is False:
 			report_filtered.write('\n'.join(['#general', '>contigs', str(spades_report_general['filtered']['contigs']), '>bp', str(spades_report_general['filtered']['bp'])]) + '\n')
-		report_filtered.write('#' + '\t'.join(fields) + '\n')
+			report_filtered.write('#' + '\t'.join(fields) + '\n')
 
 		for i in range(1, len(sequence_dict) + 1):
 			report_original.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
