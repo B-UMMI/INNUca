@@ -284,7 +284,7 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 
 		sequence_dict = get_sequence_information(assembly)
 		sequence_dict, sequence_report_general = determine_sequences_to_filter(sequence_dict, sequences_2_keep, pilon_run_successfuly)
-		failing_sequences_filtered = spades.qc_assembly(sequence_report_general, estimatedGenomeSizeMb)
+		failing_sequences_filtered, minimumBP = spades.qc_assembly(sequence_report_general, estimatedGenomeSizeMb)
 		if failing_sequences_filtered['sample'] is False:
 			write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered)
 			pass_qc_sequences = True
