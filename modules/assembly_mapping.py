@@ -59,6 +59,7 @@ def calculate_genome_coverage(genome_coverage_data_file):
 	return problems_found, position, coverage
 
 
+@utils.trace_unhandled_exceptions
 def get_sequence_coverage(alignment_file, sequence_to_analyse, outdir, counter):
 	problems_found = False
 	position = 0
@@ -285,12 +286,15 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 		sequence_dict = get_sequence_information(assembly)
 		sequence_dict, sequence_report_general = determine_sequences_to_filter(sequence_dict, sequences_2_keep, pilon_run_successfuly)
 		failing_sequences_filtered, minimumBP = spades.qc_assembly(sequence_report_general, estimatedGenomeSizeMb)
-		if failing_sequences_filtered['sample'] is False:
-			write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered)
-			pass_qc_sequences = True
-		else:
+		if failing_sequences_filtered['sample'] is not False and not minimumBP:
 			failing['Sequences_filtered'] = [failing_sequences_filtered['sample']]
 			assembly_filtered = assembly
+		else:
+			write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered)
+			pass_qc_sequences = True
+
+		if failing_sequences_filtered['sample'] is not False:
+			print failing_sequences_filtered
 	else:
 		failing['Coverage'] = ['Did not run']
 

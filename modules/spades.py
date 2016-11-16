@@ -45,7 +45,7 @@ def define_minContigsLength(maximumReadsLength, minContigsLength):
 
 
 def define_memory(maxMemory, threads, available_memory_GB):
-	GB_per_thread = 1024 / 1024.0
+	GB_per_thread = 2048 / 1024.0
 
 	minimum_required_memory_GB = GB_per_thread * threads
 
@@ -110,7 +110,7 @@ def get_SPAdes_sequence_information(spadesContigs):
 	return sequence_dict
 
 
-def determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageContigs):
+def determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageContigs, min_GC_content):
 	for i in sequence_dict:
 		sequence_dict[i]['discard'] = True
 
@@ -120,7 +120,7 @@ def determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageCo
 	spades_report_general['original']['bp'] = sum(sequence_dict[i]['length'] for i in sequence_dict)
 
 	for i in sequence_dict:
-		if sequence_dict[i]['length'] >= minContigsLength and sequence_dict[i]['kmer_cov'] >= minCoverageContigs:
+		if sequence_dict[i]['length'] >= minContigsLength and sequence_dict[i]['kmer_cov'] >= minCoverageContigs and (sequence_dict[i]['GC'] / float(sequence_dict[i]['length']) >= min_GC_content and sequence_dict[i]['GC'] / float(sequence_dict[i]['length']) <= 1 - min_GC_content):
 			sequence_dict[i]['discard'] = False
 			spades_report_general['filtered']['contigs'] += 1
 			spades_report_general['filtered']['bp'] += sequence_dict[i]['length']
@@ -130,29 +130,30 @@ def determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageCo
 
 def write_filtered_sequences_and_stats(sequence_dict, spades_report_general, original_sequence_file, filtered_sequence_file, sampleName, write_only_report_original_True):
 	if write_only_report_original_True is False:
-		report_filtered = open(os.path.join(os.path.dirname(filtered_sequence_file), str('spades_report.filtered.' + os.path.splitext(os.path.basename(filtered_sequence_file))[0]) + '.tab'), 'wt')
-		contigs_filtered = open(filtered_sequence_file, 'wt')
+		report_filtered = open(os.path.join(os.path.dirname(filtered_sequence_file), str('spades_report.filtered.' + os.path.splitext(os.path.basename(filtered_sequence_file))[0].split('.', 1)[1]) + '.tab'), 'wt')
 
-	with open(os.path.join(os.path.dirname(filtered_sequence_file), str('spades_report.original.' + os.path.splitext(os.path.basename(original_sequence_file))[0]) + '.tab'), 'wt') as report_original:
-		fields = ['header', 'length', 'AT', 'GC', 'N', 'kmer_cov']
+	with open(os.path.join(os.path.dirname(filtered_sequence_file), str('spades_report.original.' + os.path.splitext(os.path.basename(original_sequence_file))[0].split('.', 1)[1]) + '.tab'), 'wt') as report_original:
+		with open(filtered_sequence_file, 'wt') as contigs_filtered:
+			fields = ['header', 'length', 'AT', 'GC', 'N', 'kmer_cov']
 
-		report_original.write('\n'.join(['#general', '>contigs', str(spades_report_general['original']['contigs']), '>bp', str(spades_report_general['original']['bp'])]) + '\n')
-		report_original.write('#' + '\t'.join(fields) + '\n')
-		if write_only_report_original_True is False:
-			report_filtered.write('\n'.join(['#general', '>contigs', str(spades_report_general['filtered']['contigs']), '>bp', str(spades_report_general['filtered']['bp'])]) + '\n')
-			report_filtered.write('#' + '\t'.join(fields) + '\n')
-
-		for i in range(1, len(sequence_dict) + 1):
-			report_original.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
+			report_original.write('\n'.join(['#general', '>contigs', str(spades_report_general['original']['contigs']), '>bp', str(spades_report_general['original']['bp'])]) + '\n')
+			report_original.write('#' + '\t'.join(fields) + '\n')
 			if write_only_report_original_True is False:
+				report_filtered.write('\n'.join(['#general', '>contigs', str(spades_report_general['filtered']['contigs']), '>bp', str(spades_report_general['filtered']['bp'])]) + '\n')
+				report_filtered.write('#' + '\t'.join(fields) + '\n')
+
+			for i in range(1, len(sequence_dict) + 1):
+				report_original.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
 				if not sequence_dict[i]['discard']:
-					report_filtered.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
 					contigs_filtered.write('>' + sampleName + '_' + sequence_dict[i]['header'] + '\n' + '\n'.join(sequence_dict[i]['sequence']) + '\n')
+					if write_only_report_original_True is False:
+						report_filtered.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
 
 
 def qc_assembly(spades_report_general, estimatedGenomeSizeMb):
 	failing = {}
 	failing['sample'] = False
+	minimumBP = False
 
 	if spades_report_general['filtered']['bp'] < estimatedGenomeSizeMb * 1000000 * 0.8 or spades_report_general['filtered']['bp'] > estimatedGenomeSizeMb * 1000000 * 1.5:
 		failing['sample'] = 'The number of assembled nucleotides (' + str(spades_report_general['filtered']['bp']) + ') are lower than 80% or higher than 150% of the provided estimated genome size'
@@ -161,38 +162,53 @@ def qc_assembly(spades_report_general, estimatedGenomeSizeMb):
 			failing['sample'] = 'The number of assembled contigs (' + str(spades_report_general['filtered']['contigs']) + ') exceeds ' + str(100 * spades_report_general['filtered']['bp'] / 1500000)
 			print failing['sample']
 
-	return failing
+	if spades_report_general['filtered']['bp'] >= estimatedGenomeSizeMb * 1000000 * 0.8:
+		minimumBP = True
+
+	return failing, minimumBP
 
 
 def decide_filter_parameters(sequence_dict, minContigsLength, minCoverageContigs, estimatedGenomeSizeMb):
 	failing = {}
 	failing['sample'] = False
 
-	filtered_sequences_sufix = 'length_kmerCov'
+	min_GC_content = 0.05
 
-	print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides and a k-mer coverage of ' + str(minCoverageContigs)
-	sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageContigs)
+	filtered_sequences_sufix = 'length_kmerCov_GCcontent'
 
-	failing = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
-	if failing['sample'] is not False:
+	print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides, a k-mer coverage of ' + str(minCoverageContigs) + ' and a CG content between ' + str(min_GC_content * 100) + '% and ' + str((1 - min_GC_content) * 100) + '%'
+	sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageContigs, min_GC_content)
+
+	failing, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
+	if failing['sample'] is not False and not minimumBP:
 		print 'Filtered sequences did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
 
-		filtered_sequences_sufix = 'length'
+		filtered_sequences_sufix = 'length_GCcontent'
 
-		print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides'
-		sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, minContigsLength, 0)
+		print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides and a CG content between ' + str(min_GC_content * 100) + '% and ' + str((1 - min_GC_content) * 100) + '%'
+		sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, minContigsLength, 0, min_GC_content)
 
-		failing = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
-		if failing['sample'] is not False:
+		failing, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
+		if failing['sample'] is not False and not minimumBP:
 			print 'Filtered sequences did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
-			filtered_sequences_sufix = None
 
-			print 'Assessing original SPAdes assembly'
-			sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, 0, 0)
+			filtered_sequences_sufix = 'GCcontent'
 
-			failing = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
-			if failing['sample'] is not False:
-				print 'Original SPAdes assembly also did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
+			print 'Filtering for contigs with a CG content between ' + str(min_GC_content * 100) + '% and ' + str((1 - min_GC_content) * 100) + '%'
+			sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, 0, 0, min_GC_content)
+
+			failing, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
+			if failing['sample'] is not False and not minimumBP:
+				print 'Filtered sequences did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
+
+				filtered_sequences_sufix = None
+
+				print 'Assessing original SPAdes assembly'
+				sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, 0, 0, 0)
+
+				failing, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb)
+				if failing['sample'] is not False:
+					print 'Original SPAdes assembly also did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
 
 	return failing, sequence_dict, filtered_sequences_sufix, spades_report_general
 
@@ -225,8 +241,12 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers)
 
 	if run_successfully:
-		shutil.copyfile(contigs, os.path.join(outdir, str(sampleName + '.contigs.fasta')))
-		contigs = os.path.join(outdir, str(sampleName + '.contigs.fasta'))
+		shutil.copyfile(contigs, os.path.join(outdir, str('SPAdes_original_assembly.contigs.fasta')))
+
+		contigs_link = os.path.join(outdir, str(sampleName + '.contigs.fasta'))
+		os.symlink(contigs, contigs_link)
+
+		contigs = contigs_link
 
 		minContigsLength = define_minContigsLength(maximumReadsLength, minContigsLength)
 
@@ -238,16 +258,22 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 			filtered_sequence_file = os.path.splitext(contigs)[0] + '.' + filtered_sequences_sufix + '.fasta'
 			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, False)
 			contigs = filtered_sequence_file
-			pass_qc = True
-		else:
-			filtered_sequence_file = contigs
-			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, True)
 			if failing['sample'] is False:
 				pass_qc = True
+		else:
+			filtered_sequence_file = os.path.splitext(contigs)[0] + '.original.fasta'
+			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, True)
+			contigs = filtered_sequence_file
+
+		os.remove(contigs_link)
+
 	else:
 		failing['sample'] = 'Did not run'
 		print failing['sample']
 		contigs = None
+
+	if failing['sample'] is False:
+		pass_qc = True
 
 	utils.removeDirectory(spades_folder)
 

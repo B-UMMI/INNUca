@@ -16,14 +16,20 @@ def getScheme(species):
 	scheme = 'unknown'
 
 	with open(mlst_db_path, 'rtU') as reader:
-		pass
+		genus_mlst_scheme = None
 		for line in reader:
 			line = line.splitlines()[0]
 			if len(line) > 0:
 				if not line.startswith('#'):
 					line = line.lower().split('\t')
-					if line[0] == species[0] and line[1] == species[1]:
-						scheme = line[2]
+					line = [line[i].split(' ')[0] for i in range(0, len(line))]
+					if line[0] == species[0]:
+						if line[1] == '':
+							genus_mlst_scheme = line[2]
+						elif line[1] == species[1]:
+							scheme = line[2]
+		if scheme == 'unknown' and genus_mlst_scheme is not None:
+			scheme = genus_mlst_scheme
 
 	print '\n' + 'MLST scheme found for ' + ' '.join(species) + ': ' + scheme
 

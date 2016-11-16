@@ -7,7 +7,8 @@ import shutil
 import shlex
 from threading import Timer
 import pickle
-from functools import wraps
+import functools
+import traceback
 import csv
 
 
@@ -25,9 +26,10 @@ def parseArguments(version):
 	general_options.add_argument('-o', '--outdir', type=str, metavar='/output/directory/', help='Path for output directory', required=False, default='.')
 	general_options.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads', required=False, default=1)
 	general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10', help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be auto or off. When auto is set, 1 Gb per thread will be used up to the free available memory', required=False, default='off')
-	general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes and Samtools that are provided with INNUca.py')
+	general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes, Bowtie2, Samtools and Pilon that are provided with INNUca.py')
 	# general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
 	general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
+	general_options.add_argument('--skipTrueCoverage', action='store_true', help='Tells the programme to not run trueCoverage_ReMatCh analysis')
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
 	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently Pilon correction, Assembly Mapping check and MLST analysis (SPAdes contigs required)')
@@ -42,6 +44,9 @@ def parseArguments(version):
 	estimated_options = parser.add_argument_group('Estimated Coverage options')
 	estimated_options.add_argument('--estimatedMinimumCoverage', type=int, metavar='N', help='Minimum estimated coverage to continue INNUca pipeline', required=False, default=15)
 
+	trueCoverage_options = parser.add_argument_group('trueCoverage_ReMatCh options')
+	trueCoverage_options.add_argument('--trueConfigFile', type=argparse.FileType('r'), metavar='species.config', help='File with trueCoverage_ReMatCh settings. Some species specific config files can be found in INNUca/modules/trueCoverage_rematch/ folder. Use those files as example files. For species with config files in INNUca/modules/trueCoverage_rematch/ folder (not pre releases versions, marked with "pre."), trueCoverage_ReMatCh will run by default, unless --skipTrueCoverage is specified. Do not use together with --skipTrueCoverage option', required=False)
+
 	trimmomatic_options = parser.add_argument_group('Trimmomatic options')
 	trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
 	trimmomatic_options.add_argument('--trimCrop', nargs=1, type=int, metavar='N', help='Cut the specified number of bases to the end of the maximum reads length', required=False)
@@ -55,7 +60,7 @@ def parseArguments(version):
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value (default: maximum reads size or 200 bp)', required=False)
-	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: 1 Gb per thread will be used up to the free available memory)', required=False)
+	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: 2 Gb per thread will be used up to the free available memory)', required=False)
 	spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='10', help='The minimum number of reads to consider an edge in the de Bruijn graph during the assembly. Can also be auto or off', required=False, default=2)
 	spades_options.add_argument('--spadesMinKmerCovContigs', type=int, metavar='N', help='Minimum contigs K-mer coverage. After assembly only keep contigs with reported k-mer coverage equal or above this value', required=False, default=2)
 
@@ -65,16 +70,18 @@ def parseArguments(version):
 
 	pilon_options = parser.add_argument_group('Pilon options')
 	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
-	pilon_options.add_argument('--pilonKeepSPAdesAssembly', action='store_true', help='Tells INNUca.py to not remove the filtered but unpolished SPAdes assembly')
 
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
-	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=2)
+	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=30)
 	assembly_mapping_options.add_argument('--assemblyKeepPilonContigs', action='store_true', help='Tells INNUca.py to not remove the polished Pilon contigs')
 
 	args = parser.parse_args()
 
 	if args.doNotTrimCrops and (args.trimCrop or args.trimHeadCrop):
 		parser.error('Cannot use --doNotTrimCrops option with --trimCrop or --trimHeadCrop')
+
+	if args.skipTrueCoverage and args.trueConfigFile:
+		parser.error('Cannot use --skipTrueCoverage option with --trueConfigFile')
 
 	for number in args.spadesKmers:
 		if number % 2 == 0 or number >= 128:
@@ -460,7 +467,7 @@ def compressionType(file):
 	return None
 
 
-steps = ('FastQ_Integrity', 'first_Coverage', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST')
+steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
 
 
 def sampleReportLine(run_report):
@@ -509,7 +516,7 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
 
 
 def timer(function, name):
-	@wraps(function)
+	@functools.wraps(function)
 	def wrapper(*args, **kwargs):
 		print('\n' + 'RUNNING {0}\n'.format(name))
 		start_time = time.time()
@@ -651,3 +658,14 @@ def get_cpu_information(outdir, time_str):
 		for environment in sorted(os.environ):
 			if environment.startswith('SLURM_'):
 				writer.write('#' + environment + '\n' + os.environ[environment] + '\n')
+
+
+def trace_unhandled_exceptions(func):
+	@functools.wraps(func)
+	def wrapped_func(*args, **kwargs):
+		try:
+			func(*args, **kwargs)
+		except:
+			print 'Exception in ' + func.__name__
+			traceback.print_exc()
+	return wrapped_func

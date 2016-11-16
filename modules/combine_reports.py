@@ -3,12 +3,12 @@
 # -*- coding: utf-8 -*-
 
 """
-getSeqENA.py - Get fastq files from ENA using Run IDs
+combine_reports.py - Combine INNUca reports
 <https://github.com/miguelpmachado/manipulateFasta/>
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: July 22, 2016
+Last modified: November 16, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ import os
 import sys
 import time
 
-version = '0.1'
+version = '0.3'
 
 
 def combine_reports(args):
@@ -56,7 +56,7 @@ def combine_reports(args):
 
 	# files_to_search = ['coverage_report.txt', 'spades_report.txt', 'pilon_report.txt', 'assembly_coverage_report.txt', 'assembly_mapping_report.txt', 'mlst_report.txt']
 
-	fields = ['#samples', 'first_coverage', 'second_Coverage', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'MLST_scheme', 'MLST_ST', 'final_assembly']
+	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'MLST_scheme', 'MLST_ST', 'final_assembly']
 
 	for directory in directories:
 		sample = directory
@@ -105,6 +105,35 @@ def combine_reports(args):
 												results[sample]['first_coverage'] = data[0]
 											elif line[header.index("second_Coverage_runSuccessfully")] == 'True':
 												results[sample]['second_Coverage'] = data[0]
+				elif name_file_found == 'trueCoverage_report.txt':
+					general = absent_genes = multiple_alleles = sample_coverage = False
+					with open(file_found, 'rtU') as reader:
+						for line in reader:
+							line = line.splitlines()[0]
+							if len(line) > 0:
+								if line.startswith('#'):
+									if line.startswith('general', 1):
+										general = True
+									else:
+										general = False
+								elif line.startswith('>') and general:
+									if line.startswith('number_absent_genes', 1):
+										absent_genes = True
+									elif line.startswith('number_genes_multiple_alleles', 1):
+										multiple_alleles = True
+									elif line.startswith('mean_sample_coverage', 1):
+										sample_coverage = True
+								else:
+									if general:
+										if absent_genes:
+											results[sample]['trueCoverage_absent_genes'] = line
+											absent_genes = False
+										elif multiple_alleles:
+											results[sample]['trueCoverage_multiple_alleles'] = line
+											multiple_alleles = False
+										elif sample_coverage:
+											results[sample]['trueCoverage_sample_coverage'] = line
+											sample_coverage = False
 				elif name_file_found.startswith('spades_report.original.'):
 					general = False
 
@@ -280,7 +309,7 @@ def combine_reports(args):
 		sys.exit('No results were found')
 
 	print '\n' + 'Writing results...'
-	with open(os.path.join(outdir, str('combine_samples_report.' + time.strftime("%Y%m%d-%H%M%S") + '.tab')), 'wt') as report:
+	with open(os.path.join(outdir, str('combine_samples_reports.' + time.strftime("%Y%m%d-%H%M%S") + '.tab')), 'wt') as report:
 		report.write('\t'.join(fields) + '\n')
 		for sample in results:
 			sample_data = [results[sample][field] for field in fields]
@@ -296,7 +325,7 @@ def check_create_directory(directory):
 
 def main():
 
-	parser = argparse.ArgumentParser(prog='python combine_reports.py', description="Combine INNUca reports (Coverage, SPAdes, Pilon, MLST)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser = argparse.ArgumentParser(prog='python combine_reports.py', description="Combine INNUca reports (Estimate Coverage, True Coverage, SPAdes, Pilon, Assembly Mapping, MLST)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
 
 	parser_required = parser.add_argument_group('Required options')

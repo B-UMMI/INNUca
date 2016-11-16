@@ -9,7 +9,7 @@ INNUca - Reads Control and Assembly
 Requirements
 ------------
 
- - Illumina paired-end reads (gzip compressed)
+ - Illumina paired-end reads (paired end information: sampleName_R1_001 / sampleName_R2_001 OR sampleName_1 / sampleName_2) (gzip compressed: .fastq.gz or .fq.gz)
  - Expected species name
  - Expected genome size in Mb
 
@@ -45,18 +45,22 @@ Usage
                      -s "Streptococcus agalactiae"
                      -g 2.1
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
-                     [--jarMaxMemory] [--skipEstimatedCoverage] [--skipFastQC]
-                     [--skipTrimmomatic] [--skipSPAdes] [--skipPilon]
-                     [--skipAssemblyMapping] [--skipMLST]
+                     [--jarMaxMemory 10]
+                     [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
+                     [--skipSPAdes] [--skipPilon] [--skipAssemblyMapping]
+                     [--skipMLST]
+                     [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
+                     [--estimatedMinimumCoverage N]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
-                     [--trimSlidingWindow window:meanQuality] [--trimMinLength N]
-                     [--trimLeading N] [--trimTrailing N] [--trimKeepFiles]
+                     [--trimSlidingWindow window:meanQuality] [--trimLeading N]
+                     [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
-                     [--spadesKmers 55 77 | --spadesDefaultKmers]
                      [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
-                     [--spadesMinCoverageContigs N] [--pilonKeepFiles]
-                     [--pilonKeepSPAdesAssembly]
+                     [--spadesMinKmerCovContigs N]
+                     [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
+                     [--pilonKeepFiles] [--assemblyMinCoverageContigs N]
+                     [--assemblyKeepPilonContigs]
 
     INNUca - Reads Control and Assembly
 
@@ -78,29 +82,32 @@ Usage
       -o /output/directory/, --outdir /output/directory/
                             Path for output directory (default: .)
       -j N, --threads N     Number of threads (default: 1)
-      --jarMaxMemory 10     Sets the maximum RAM Gb usage by jar files (Trimmomatic
-                            and Pilon). Can also be auto or off. When auto is set,
-                            1 Gb per thread will be used up to the free available memory
-                            (default: off)
+      --jarMaxMemory 10     Sets the maximum RAM Gb usage by jar files
+                            (Trimmomatic and Pilon). Can also be auto or off. When
+                            auto is set, 1 Gb per thread will be used up to the
+                            free available memory (default: off)
       --doNotUseProvidedSoftware
                             Tells the software to not use FastQC, Trimmomatic,
-                            SPAdes and Samtools that are provided with INNUca.py
-                            (default: False)
+                            SPAdes, Bowtie2, Samtools and Pilon that are provided
+                            with INNUca.py (default: False)
       --skipEstimatedCoverage
                             Tells the programme to not estimate coverage depth
                             based on number of sequenced nucleotides and expected
                             genome size (default: False)
+      --skipTrueCoverage    Tells the programme to not run trueCoverage_ReMatCh
+                            analysis (default: False)
       --skipFastQC          Tells the programme to not run FastQC analysis
                             (default: False)
       --skipTrimmomatic     Tells the programme to not run Trimmomatic (default:
                             False)
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
-                            Pilon correction, Assembly Mapping check and MLST analysis
-                            (SPAdes contigs required) (default: False)
+                            Pilon correction, Assembly Mapping check and MLST
+                            analysis (SPAdes contigs required) (default: False)
       --skipPilon           Tells the programme to not run Pilon correction and
-                            consequently Assembly Mapping check (bam files required)
-                            (default: False)
-      --skipAssemblyMapping Tells the programme to not run Assembly Mapping check')
+                            consequently Assembly Mapping check (bam files
+                            required) (default: False)
+      --skipAssemblyMapping
+                            Tells the programme to not run Assembly Mapping check
                             (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
@@ -118,6 +125,18 @@ Usage
                             Minimum estimated coverage to continue INNUca pipeline
                             (default: 15)
 
+    trueCoverage_ReMatCh options:
+      --trueConfigFile species.config
+                            File with trueCoverage_ReMatCh settings. Some species
+                            specific config files can be found in
+                            INNUca/modules/trueCoverage_rematch/ folder. Use those
+                            files as example files. For species with config files
+                            in INNUca/modules/trueCoverage_rematch/ folder (not
+                            pre releases versions, marked with "pre."),
+                            trueCoverage_ReMatCh will run by default, unless
+                            --skipTrueCoverage is specified. Do not use together
+                            with --skipTrueCoverage option (default: None)
+
     Trimmomatic options:
       --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of
                             reads during Trimmomatic step (unless specified with
@@ -131,14 +150,15 @@ Usage
       --trimSlidingWindow window:meanQuality
                             Trimmomatic: perform a sliding window trimming,
                             cutting once the average quality within the window
-                            falls below a threshold (default: '5:20')
+                            falls below a threshold (default: 5:20)
       --trimLeading N       Trimmomatic: cut bases off the start of a read, if
                             below a threshold quality (default: 3)
       --trimTrailing N      Trimmomatic: cut bases off the end of a read, if below
                             a threshold quality (default: 3)
       --trimMinLength N     Trimmomatic: drop the read if it is below a specified
                             length (default: 55)
-      --trimKeepFiles       Tells INNUca.py to not remove the output of Trimmomatic
+      --trimKeepFiles       Tells INNUca.py to not remove the output of
+                            Trimmomatic (default: False)
 
     SPAdes options:
       --spadesNotUseCareful
@@ -147,45 +167,45 @@ Usage
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: maximum reads size or 200 bp)
-      --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use (default:
-                            1 Gb per thread will be used up to the free available
-                            memory)
+                            (default: None)
+      --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
+                            (default: 2 Gb per thread will be used up to the free
+                            available memory) (default: None)
       --spadesMinCoverageAssembly 10
                             The minimum number of reads to consider an edge in the
                             de Bruijn graph during the assembly. Can also be auto
                             or off (default: 2)
-      --spadesMinCoverageContigs N
-                            Minimum contigs coverage. After assembly only keep contigs
-                            with reported k-mer coverage equal or above this value
-                            (default: 5)
+      --spadesMinKmerCovContigs N
+                            Minimum contigs K-mer coverage. After assembly only
+                            keep contigs with reported k-mer coverage equal or
+                            above this value (default: 2)
+
     SPAdes k-mers options (one of the following):
-      --spadesKmers 55,77   Manually sets SPAdes k-mers lengths (all values must
-                            be odd, less than 128) (default: 55, 77, 99, 113,
-                            127)
+      --spadesKmers 55 77 [55 77 ...]
+                            Manually sets SPAdes k-mers lengths (all values must
+                            be odd, lower than 128) (default: [55, 77, 99, 113,
+                            127])
       --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
                             False)
 
     Pilon options:
       --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
                             (default: False)
-      --pilonKeepSPAdesAssembly
-                            Tells INNUca.py to not remove the filtered but unpolished
-                            SPAdes assembly (default: False)
 
     Assembly Mapping options:
-      --assemblyMinCoverageContigs
+      --assemblyMinCoverageContigs N
                             Minimum contigs average coverage. After mapping reads
                             back to the contigs, only keep contigs with at least
-                            this average coverage (default: 2)
+                            this average coverage (default: 30)
       --assemblyKeepPilonContigs
-                            Tells INNUca.py to not remove the polished Pilon contigs
-                            (default: False)
+                            Tells INNUca.py to not remove the polished Pilon
+                            contigs (default: False)
 
 
 
 Combine INNUca reports
 ----------------------
-In order to combine **INNUca** reports (Coverage, SPAdes, Pilon, MLST), use *combine_reports.py* found in **INNUca** modules folder
+In order to combine **INNUca** reports (Estimate Coverage, True Coverage, SPAdes, Pilon, Assembly Mapping, MLST), use *combine_reports.py* found in **INNUca** modules folder
 
     usage: python combine_reports.py [-h] [--version] -i
                               /path/to/INNUca/output/directory/
@@ -204,6 +224,35 @@ In order to combine **INNUca** reports (Coverage, SPAdes, Pilon, MLST), use *com
     Facultative options:
       -o /path/to/output/directory/, --outdir /path/to/output/directory/
                             Path to where to store the outputs (default: ['.'])
+
+
+
+Combine trueCoverage_ReMatCh module reports
+----------------------
+In order to combine **INNUca** trueCoverage_ReMatCh module reports in respect to gene information, use *combine_trueCoverage_reports.py* found in **INNUca** modules/trueCoverage_rematch folder
+
+    usage: python combine_trueCoverage_reports.py [-h] [--version] -i
+                                                  /path/to/INNUca/output/directory/
+                                                  [-o /path/to/output/directory/]
+                                                  [--minimum_gene_coverage 80]
+
+    Combine trueCoverage_ReMatCh module reports in respect to gene information.
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --version             Version information
+
+    Required options:
+      -i /path/to/INNUca/output/directory/, --innucaOut /path/to/INNUca/output/directory/
+                            Path to INNUca output directory (default: None)
+
+    Facultative options:
+      -o /path/to/output/directory/, --outdir /path/to/output/directory/
+                            Path to where to store the outputs (default: .)
+      --minimum_gene_coverage 80
+                            Minimum percentage of sequence length (with a minimum
+                            of read depth to consider a position to be present) to
+                            determine whether a gene is present. (default: 80)
 
 
 

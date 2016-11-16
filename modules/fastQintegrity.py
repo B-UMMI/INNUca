@@ -4,6 +4,7 @@ import multiprocessing
 from functools import partial
 
 
+@utils.trace_unhandled_exceptions
 def fastQintegrity(fastq, outdir):
 	run_successfully = False
 

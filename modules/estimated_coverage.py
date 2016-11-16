@@ -5,6 +5,7 @@ import multiprocessing
 
 
 # Count sequenced bases
+@utils.trace_unhandled_exceptions
 def countSequencedBases(fastq_file, outdir):
 	run_successfully = False
 	bases = None
