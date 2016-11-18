@@ -73,7 +73,6 @@ def parseArguments(version):
 
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
 	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=30)
-	assembly_mapping_options.add_argument('--assemblyKeepPilonContigs', action='store_true', help='Tells INNUca.py to not remove the polished Pilon contigs')
 
 	args = parser.parse_args()
 

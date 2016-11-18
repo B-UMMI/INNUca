@@ -257,7 +257,7 @@ assemblyMapping_timer = partial(utils.timer, name='Assembly mapping check')
 
 
 @assemblyMapping_timer
-def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCoverageAssembly, assembly_pilon, keep_pilon_assembly, estimatedGenomeSizeMb):
+def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCoverageAssembly, assembly_pilon, estimatedGenomeSizeMb):
 	pass_qc = False
 	pass_qc_coverage = False
 	pass_qc_mapping = False
@@ -297,9 +297,6 @@ def runAssemblyMapping(alignment_file, reference_file, threads, outdir, minCover
 			print failing_sequences_filtered
 	else:
 		failing['Coverage'] = ['Did not run']
-
-	if pilon_run_successfuly and not keep_pilon_assembly:
-		os.remove(assembly_pilon)
 
 	# Save mapping statistics
 	sample_mapping_statistics_no_problems, dict_mapping_statistics = getting_mapping_statistics(alignment_file)

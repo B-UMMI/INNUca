@@ -60,7 +60,6 @@ Usage
                      [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
                      [--pilonKeepFiles] [--assemblyMinCoverageContigs N]
-                     [--assemblyKeepPilonContigs]
 
     INNUca - Reads Control and Assembly
 
@@ -197,9 +196,6 @@ Usage
                             Minimum contigs average coverage. After mapping reads
                             back to the contigs, only keep contigs with at least
                             this average coverage (default: 30)
-      --assemblyKeepPilonContigs
-                            Tells INNUca.py to not remove the polished Pilon
-                            contigs (default: False)
 
 
 

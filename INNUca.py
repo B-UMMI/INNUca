@@ -87,7 +87,7 @@ def main():
 	if (not args.skipTrueCoverage or (not args.skipPilon and not args.skipSPAdes)):
 		programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
 		programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
-	if not (args.skipFastQC and args.skipTrimmomatic and args.skipPilon):
+	if not (args.skipFastQC and args.skipTrimmomatic and (args.skipPilon or args.skipSPAdes)):
 		programs_version_dictionary['java'] = ['-version', '>=', '1.8']
 	if not args.skipFastQC:
 		programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
@@ -131,7 +131,7 @@ def main():
 
 	# Get MLST scheme to use
 	scheme = 'unknown'
-	if not args.skipMLST:
+	if not args.skipMLST and not args.skipSPAdes:
 		scheme = mlst.getScheme(args.speciesExpected)
 
 	# Get path to blastn
@@ -371,7 +371,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 							# Run Assembly Mapping check
 							if bam_file is not None:
 								if not args.skipAssemblyMapping:
-									run_successfully, pass_qc, time_taken, failing, assembly_filtered = assembly_mapping.runAssemblyMapping(bam_file, contigs_spades, threads, outdir, args.assemblyMinCoverageContigs, assembly_polished, args.assemblyKeepPilonContigs, genomeSize)
+									run_successfully, pass_qc, time_taken, failing, assembly_filtered = assembly_mapping.runAssemblyMapping(bam_file, contigs_spades, threads, outdir, args.assemblyMinCoverageContigs, assembly_polished, genomeSize)
 									runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing]
 
 									if run_successfully:
