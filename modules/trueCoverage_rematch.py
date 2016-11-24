@@ -398,7 +398,11 @@ def runTrueCoverage(fastq_files, reference_file, threads, outdir, length_extra_s
 							if sample_data[i]['gene_number_positions_multiple_alleles'] > 0:
 								number_genes_multiple_alleles += 1
 
-					mean_sample_coverage = float(mean_sample_coverage) / float(len(sample_data) - number_absent_genes)
+					if len(sample_data) - number_absent_genes > 0:
+						mean_sample_coverage = float(mean_sample_coverage) / float(len(sample_data) - number_absent_genes)
+					else:
+						mean_sample_coverage = 0
+
 					writer.write('\n'.join(['#general', '>number_absent_genes', str(number_absent_genes), '>number_genes_multiple_alleles', str(number_genes_multiple_alleles), '>mean_sample_coverage', str(round(mean_sample_coverage, 2))]) + '\n')
 
 					print '\n'.join([str('number_absent_genes: ' + str(number_absent_genes)), str('number_genes_multiple_alleles: ' + str(number_genes_multiple_alleles)), str('mean_sample_coverage: ' + str(round(mean_sample_coverage, 2)))])
