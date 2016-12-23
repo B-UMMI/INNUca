@@ -9,7 +9,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: November 16, 2016
+Last modified: December 23, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ import modules.fastQintegrity as fastQintegrity
 import modules.estimated_coverage as coverage
 import modules.fastqc as fastqc
 import modules.trimmomatic as trimmomatic
+import modules.pear as pear
 import modules.spades as spades
 import modules.pilon as pilon
 import modules.mlst as mlst
@@ -41,7 +42,7 @@ import sys
 
 
 def main():
-	version = '2.0'
+	version = '2.1'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -88,11 +89,14 @@ def main():
 		programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
 		programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
 	if not (args.skipFastQC and args.skipTrimmomatic and (args.skipPilon or args.skipSPAdes)):
-		programs_version_dictionary['java'] = ['-version', '>=', '1.8']
+		# programs_version_dictionary['java'] = ['-version', '>=', '1.8']
+		programs_version_dictionary['java'] = [None, '>=', '1.8']  # For OpenJDK compatibility
 	if not args.skipFastQC:
 		programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
 	if not args.skipTrimmomatic:
 		programs_version_dictionary['trimmomatic-0.36.jar'] = ['-version', '==', '0.36']
+	if not args.skipPear or not args.skipSPAdes:
+		programs_version_dictionary['pear'] = ['--version', '>=', '0.9.10']
 	if not args.skipSPAdes:
 		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.9.0']
 	if not args.skipPilon and not args.skipSPAdes:
@@ -246,7 +250,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	runs = {}
 
 	# Run FastQ integrity check
-	not_corruption_found, _, time_taken, failing = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
+	not_corruption_found, _, time_taken, failing, fastq_encoding = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
 	runs['FastQ_Integrity'] = [not_corruption_found, None, time_taken, failing]
 
 	if not_corruption_found:
@@ -266,6 +270,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 		else:
 			print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
 			runs['first_Coverage'] = skipped
+
+		trimmomatic_run_successfully = False
 
 		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
 			if not args.skipTrueCoverage and trueCoverage_config is not None:
@@ -288,8 +294,9 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 				# Run Trimmomatic
 				if not args.skipTrimmomatic:
-					run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory)
+					run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, maximumReadsLength, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding)
 					runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing, fileSize]
+					trimmomatic_run_successfully = run_successfully
 
 					if run_successfully and not_empty_fastq:
 						fastq_files = paired_reads
@@ -333,6 +340,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				runs['Trimmomatic'] = not_run + ['NA']
 				runs['second_Coverage'] = not_run
 				runs['second_FastQC'] = not_run
+				runs['Pear'] = not_run
 				runs['SPAdes'] = not_run
 				runs['Pilon'] = not_run
 				runs['Assembly_Mapping'] = not_run
@@ -345,6 +353,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 			runs['Trimmomatic'] = not_run + ['NA']
 			runs['second_Coverage'] = not_run
 			runs['second_FastQC'] = not_run
+			runs['Pear'] = not_run
 			runs['SPAdes'] = not_run
 			runs['Pilon'] = not_run
 			runs['Assembly_Mapping'] = not_run
@@ -352,9 +361,19 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
 			if args.skipTrueCoverage or trueCoverage_config is None or (run_successfully_trueCoverage and pass_qc_trueCoverage):
+				unassembled_pe_reads = None
+				assembled_se_reads = None
+				# Run Pear
+				if not args.skipPear or not args.skipSPAdes:
+					run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully)
+					runs['Pear'] = [run_successfully, pass_qc, time_taken, failing]
+				else:
+					print '--skipPear or --skipSPAdes set. Skipping Pear'
+					runs['Pear'] = skipped
+
 				# Run SPAdes
 				if not args.skipSPAdes:
-					run_successfully, pass_qc, time_taken, failing, contigs_spades = spades.runSpades(sampleName, outdir, threads, fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinKmerCovContigs)
+					run_successfully, pass_qc, time_taken, failing, contigs_spades = spades.runSpades(sampleName, outdir, threads, unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, maximumReadsLength, args.spadesDefaultKmers, args.spadesMinKmerCovContigs, assembled_se_reads)
 					runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
 					if run_successfully:
@@ -408,25 +427,25 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 						runs['MLST'] = skipped
 
 				else:
-					print '--skipSPAdes set. Skipping SPAdes Pilon correction, Assembly Mapping check and MLST analysis'
+					print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
 					runs['SPAdes'] = skipped
 					runs['Pilon'] = skipped
 					runs['Assembly_Mapping'] = skipped
 					runs['MLST'] = skipped
 	else:
 		print 'Moving to the next sample'
-		for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST'):
+		for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST'):
 			if step == 'Trimmomatic':
 				runs[step] = not_run + ['NA']
 			else:
 				runs[step] = not_run
 
 	# Remove Trimmomatic directory with cleaned reads
-	if not args.trimKeepFiles:
-		try:
-			utils.removeDirectory(trimmomatic_folder)
-		except:
-			print 'It is not possible to remove Trimmomatic directory because Trimmomatic did not run'
+	if not args.trimKeepFiles and 'trimmomatic_folder' in locals():
+		utils.removeDirectory(trimmomatic_folder)
+	# Remove Pear directory
+	if not args.pearKeepFiles and 'pear_folder' in locals():
+		utils.removeDirectory(pear_folder)
 
 	# Check run
 	run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
@@ -436,6 +455,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	pass_trueCov = runs['trueCoverage_ReMatCh'][1] is not False
 	pass_fastqc = (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False
 	pass_trimmomatic = runs['Trimmomatic'][1] is not False
+	pass_spades = runs['Pear'][1] is not False
 	pass_spades = runs['SPAdes'][1] is not False
 	pass_assemblyMapping = runs['Assembly_Mapping'][1] is not False
 	pass_mlst = runs['MLST'][1] is not False

@@ -54,9 +54,7 @@ def combine_reports(args):
 	if len(directories) == 0:
 		sys.exit('No samples found')
 
-	# files_to_search = ['coverage_report.txt', 'spades_report.txt', 'pilon_report.txt', 'assembly_coverage_report.txt', 'assembly_mapping_report.txt', 'mlst_report.txt']
-
-	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'MLST_scheme', 'MLST_ST', 'final_assembly']
+	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'MLST_scheme', 'MLST_ST', 'final_assembly']
 
 	for directory in directories:
 		sample = directory
@@ -106,7 +104,7 @@ def combine_reports(args):
 											elif line[header.index("second_Coverage_runSuccessfully")] == 'True':
 												results[sample]['second_Coverage'] = data[0]
 				elif name_file_found == 'trueCoverage_report.txt':
-					general = absent_genes = multiple_alleles = sample_coverage = False
+					general, absent_genes, multiple_alleles, sample_coverage = False, False, False, False
 					with open(file_found, 'rtU') as reader:
 						for line in reader:
 							line = line.splitlines()[0]
@@ -134,6 +132,29 @@ def combine_reports(args):
 										elif sample_coverage:
 											results[sample]['trueCoverage_sample_coverage'] = line
 											sample_coverage = False
+				elif name_file_found == 'pear_report.txt':
+					assembled, unassembled, discarded = False, False, False
+					with open(file_found, 'rtU') as reader:
+						for line in reader:
+							line = line.splitlines()[0]
+							if len(line) > 0:
+								if line.startswith('#'):
+									if line.startswith('assembled_reads', 1):
+										assembled = True
+									elif line.startswith('unassembled_reads', 1):
+										unassembled = True
+									elif line.startswith('discarded_reads', 1):
+										discarded = True
+								else:
+									if assembled:
+										results[sample]['pear_assembled_reads'] = line
+										assembled = False
+									elif unassembled:
+										results[sample]['pear_unassembled_reads'] = line
+										unassembled = False
+									elif discarded:
+										results[sample]['pear_discarded_reads'] = line
+										discarded = False
 				elif name_file_found.startswith('spades_report.original.'):
 					general = False
 
@@ -325,7 +346,7 @@ def check_create_directory(directory):
 
 def main():
 
-	parser = argparse.ArgumentParser(prog='python combine_reports.py', description="Combine INNUca reports (Estimate Coverage, True Coverage, SPAdes, Pilon, Assembly Mapping, MLST)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser = argparse.ArgumentParser(prog='python combine_reports.py', description="Combine INNUca reports (Estimated Coverage, True Coverage, Pear, SPAdes, Pilon, Assembly Mapping, MLST)", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
 
 	parser_required = parser.add_argument_group('Required options')

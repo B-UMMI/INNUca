@@ -66,22 +66,18 @@ def mapping_reads(fastq_files, reference_file, threads, outdir):
 	reference_link = os.path.join(outdir, os.path.basename(reference_file))
 	os.symlink(reference_file, reference_link)
 
-	# Index assembly using Bowtie2
-	run_successfully = pilon.indexSequenceBowtie2(reference_link, threads)
-
 	bam_file = None
+	# Mapping reads using Bowtie2
+	run_successfully, sam_file = pilon.mappingBowtie2(fastq_files, reference_link, threads, outdir)
+
 	if run_successfully:
-		# Mapping reads using Bowtie2
-		run_successfully, sam_file = pilon.mappingBowtie2(fastq_files, reference_link, threads, outdir)
+		# Convert sam to bam and sort bam
+		run_successfully, bam_file = pilon.sortAlignment(sam_file, str(os.path.splitext(sam_file)[0] + '.bam'), False, threads)
 
 		if run_successfully:
-			# Convert sam to bam and sort bam
-			run_successfully, bam_file = pilon.sortAlignment(sam_file, str(os.path.splitext(sam_file)[0] + '.bam'), False, threads)
-
-			if run_successfully:
-				os.remove(sam_file)
-				# Index bam
-				run_successfully = pilon.indexAlignment(bam_file)
+			os.remove(sam_file)
+			# Index bam
+			run_successfully = pilon.indexAlignment(bam_file)
 
 	return run_successfully, bam_file, reference_link
 
@@ -169,7 +165,7 @@ def determine_variant(variant_position, minimum_depth_presence, minimum_depth_ca
 
 	if int(variant_position['format']['DP'][0]) >= minimum_depth_presence:
 		if int(variant_position['format']['DP'][0]) < minimum_depth_call:
-			alt = 'N'
+			alt = 'N' * len(variant_position['REF'])
 			low_coverage = True
 		else:
 			index_dominant_allele = variant_position['format']['AD'].index(str(max(map(int, variant_position['format']['AD']))))

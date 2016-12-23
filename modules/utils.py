@@ -32,6 +32,7 @@ def parseArguments(version):
 	general_options.add_argument('--skipTrueCoverage', action='store_true', help='Tells the programme to not run trueCoverage_ReMatCh analysis')
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
+	general_options.add_argument('--skipPear', action='store_true', help='Tells the programme to not run Pear')
 	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently Pilon correction, Assembly Mapping check and MLST analysis (SPAdes contigs required)')
 	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction and consequently Assembly Mapping check (bam files required)')
 	general_options.add_argument('--skipAssemblyMapping', action='store_true', help='Tells the programme to not run Assembly Mapping check')
@@ -56,6 +57,9 @@ def parseArguments(version):
 	trimmomatic_options.add_argument('--trimTrailing', type=int, metavar='N', help='Trimmomatic: cut bases off the end of a read, if below a threshold quality', required=False, default=3)
 	trimmomatic_options.add_argument('--trimMinLength', type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=55)
 	trimmomatic_options.add_argument('--trimKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Trimmomatic')
+
+	pear_options = parser.add_argument_group('Pear options')
+	pear_options.add_argument('--pearKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pear')
 
 	spades_options = parser.add_argument_group('SPAdes options')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
@@ -274,12 +278,13 @@ def setPATHvariable(doNotUseProvidedSoftware, script_path):
 	if not doNotUseProvidedSoftware:
 		fastQC = os.path.join(script_folder, 'src', 'fastqc_v0.11.5')
 		trimmomatic = os.path.join(script_folder, 'src', 'Trimmomatic-0.36')
+		pear = os.path.join(script_folder, 'src', 'PEAR_v0.9.10', 'bin')
 		spades = os.path.join(script_folder, 'src', 'SPAdes-3.9.0-Linux', 'bin')
 		bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
 		samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
 		pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')
 
-		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, spades, bowtie2, samtools, pilon, path_variable]))
+		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, pear, spades, bowtie2, samtools, pilon, path_variable]))
 	print '\n' + 'PATH variable:'
 	print os.environ['PATH']
 
@@ -451,13 +456,12 @@ def extractVariableFromPickle(pickleFile):
 	return variable
 
 
-# Extract compression type
-def compressionType(file):
-	magic_dict = {'\x1f\x8b\x08': 'gz', '\x42\x5a\x68': 'bz2'}
+def compressionType(file_to_test):
+	magic_dict = {'\x1f\x8b\x08': ['gzip', 'gunzip'], '\x42\x5a\x68': ['bzip2', 'bunzip2']}
 
 	max_len = max(len(x) for x in magic_dict)
 
-	with open(file, 'r') as reader:
+	with open(file_to_test, 'r') as reader:
 		file_start = reader.read(max_len)
 
 	for magic, filetype in magic_dict.items():
@@ -466,7 +470,7 @@ def compressionType(file):
 	return None
 
 
-steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
+steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
 
 
 def sampleReportLine(run_report):

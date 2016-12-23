@@ -7,10 +7,10 @@ import re
 
 
 # Run Spades
-def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers):
+def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers, assembled_se_reads):
 	contigs = os.path.join(spades_folder, 'contigs.fasta')
 
-	command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory), '--cov-cutoff', str(minCoverageAssembly), '', '-1', fastq_files[0], '-2', fastq_files[1], '-o', spades_folder]
+	command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory), '--cov-cutoff', str(minCoverageAssembly), '', '-1', fastq_files[0], '-2', fastq_files[1], '', '-o', spades_folder]
 
 	if not notUseCareful:
 		command[1] = '--careful'
@@ -18,6 +18,9 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 	if len(kmers) > 0:
 		kmers = ','.join(map(str, kmers))
 		command[9] = str('-k ' + kmers)
+
+	if assembled_se_reads is not None:
+		command[14] = str('-s ' + assembled_se_reads)
 
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
@@ -218,7 +221,7 @@ spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run SPAdes procedure
 @spades_timer
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs):
+def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs, assembled_se_reads):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -238,7 +241,7 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 		else:
 			print 'SPAdes will use the following k-mers: ' + str(kmers)
 
-	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers)
+	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers, assembled_se_reads)
 
 	if run_successfully:
 		shutil.copyfile(contigs, os.path.join(outdir, str('SPAdes_original_assembly.contigs.fasta')))

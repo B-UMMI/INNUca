@@ -17,7 +17,7 @@ Dependencies
 ------------
 **Mandatory**
 
- - *Java JDK* >= v1.8
+ - *Java JDK*
  - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (it is recommended
    to use a mlst version with updated databases)
  - *gzip* >= v1.6 (normally found in Linux OS)
@@ -28,6 +28,7 @@ Dependencies
  - *FastQC* = v0.11.5
  - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
    in your PATH)
+ - *Pear* = v0.9.10
  - *SPAdes* >= v3.9.0
  - *Pilon* = v1.18
  - *Bowtie2* >= v2.2.9
@@ -47,14 +48,15 @@ Usage
                      [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
                      [--jarMaxMemory 10]
                      [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipSPAdes] [--skipPilon] [--skipAssemblyMapping]
-                     [--skipMLST]
+                     [--skipPear] [--skipSPAdes] [--skipPilon]
+                     [--skipAssemblyMapping] [--skipMLST]
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimLeading N]
                      [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
+                     [--pearKeepFiles]
                      [--spadesNotUseCareful] [--spadesMinContigsLength N]
                      [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
                      [--spadesMinKmerCovContigs N]
@@ -99,6 +101,7 @@ Usage
                             (default: False)
       --skipTrimmomatic     Tells the programme to not run Trimmomatic (default:
                             False)
+      --skipPear     Tells the programme to not run Pear (default: False)
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
                             Pilon correction, Assembly Mapping check and MLST
                             analysis (SPAdes contigs required) (default: False)
@@ -159,6 +162,10 @@ Usage
       --trimKeepFiles       Tells INNUca.py to not remove the output of
                             Trimmomatic (default: False)
 
+    Pear options:
+      --pearKeepFiles       Tells INNUca.py to not remove the output of Pear
+                            (default: False)
+
     SPAdes options:
       --spadesNotUseCareful
                             Tells SPAdes to only perform the assembly without the
@@ -201,13 +208,14 @@ Usage
 
 Combine INNUca reports
 ----------------------
-In order to combine **INNUca** reports (Estimate Coverage, True Coverage, SPAdes, Pilon, Assembly Mapping, MLST), use *combine_reports.py* found in **INNUca** modules folder
+In order to combine **INNUca** reports (Estimate Coverage, True Coverage, Pear, SPAdes, Pilon, Assembly Mapping, MLST), use *combine_reports.py* found in **INNUca** modules folder
 
     usage: python combine_reports.py [-h] [--version] -i
                               /path/to/INNUca/output/directory/
                               [-o /path/to/output/directory/]
 
-    Combine INNUca reports (Coverage, SPAdes, Pilon, MLST)
+    Combine INNUca reports (Estimated Coverage, True Coverage, Pear, SPAdes, Pilon,
+    Assembly Mapping, MLST)
 
     optional arguments:
       -h, --help            show this help message and exit

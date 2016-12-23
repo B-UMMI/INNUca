@@ -10,17 +10,10 @@ def countSequencedBases(fastq_file, outdir):
 	run_successfully = False
 	bases = None
 
-	command = ['', '--keep', '--stdout', fastq_file, '|', 'grep', '--after-context=1', '"@"', '|', 'grep', '--invert-match', '"^--$"', '|', 'grep', '--invert-match', '"@"', '|', 'wc', '']
-
 	# Determine compression type
-	filetype = utils.compressionType(fastq_file)
-	if filetype != 'gz' and filetype != 'bz2':
-		utils.saveVariableToPickle([run_successfully, bases], outdir, str('estimate_coverage.' + os.path.basename(fastq_file)))
-	else:
-		if filetype == 'gz':
-			command[0] = 'gunzip'
-		else:
-			command[0] = 'bunzip2'
+	compression_type = utils.compressionType(fastq_file)
+	if compression_type is not None:
+		command = [compression_type[1], '--keep', '--stdout', fastq_file, '|', 'grep', '--after-context=1', '"@"', '|', 'grep', '--invert-match', '"^--$"', '|', 'grep', '--invert-match', '"@"', '|', 'wc', '']
 
 		# Number of characters
 		command[18] = '--chars'
@@ -35,7 +28,7 @@ def countSequencedBases(fastq_file, outdir):
 				lines = int(stdout.splitlines()[0])
 				bases = bases - lines
 
-		utils.saveVariableToPickle([run_successfully, bases], outdir, str('estimate_coverage.' + os.path.basename(fastq_file)))
+	utils.saveVariableToPickle([run_successfully, bases], outdir, str('estimate_coverage.' + os.path.basename(fastq_file)))
 
 
 coverage_timer = partial(utils.timer, name='Estimated Coverage analysis')
