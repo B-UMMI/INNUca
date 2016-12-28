@@ -54,7 +54,7 @@ def combine_reports(args):
 	if len(directories) == 0:
 		sys.exit('No samples found')
 
-	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'MLST_scheme', 'MLST_ST', 'final_assembly']
+	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'MLST_scheme', 'MLST_ST', 'final_assembly']
 
 	for directory in directories:
 		sample = directory
@@ -207,35 +207,6 @@ def combine_reports(args):
 									if bp:
 										results[sample]['SPAdes_filtered_bp'] = line
 										bp = False
-				elif name_file_found == 'pilon_report.txt':
-					general = False
-
-					changes = False
-					contigs = False
-					with open(file_found, 'rtU') as reader:
-						for line in reader:
-							if len(line) > 0:
-								line = line.splitlines()[0]
-								if line != '#by_contigs':
-									if line.startswith('#'):
-										if line.startswith('general', 1):
-											general = True
-										else:
-											general = False
-									elif line.startswith('>') and general:
-										if line.startswith('changes', 1):
-											changes = True
-										elif line.startswith('contigs', 1):
-											contigs = True
-									else:
-										if changes:
-											results[sample]['Pilon_changes'] = line
-											changes = False
-										if contigs:
-											results[sample]['Pilon_contigs_changed'] = line
-											contigs = False
-								else:
-									break
 				elif name_file_found == 'assembly_mapping_report.coverage.txt':
 					coverage = False
 					with open(file_found, 'rtU') as reader:
@@ -300,6 +271,35 @@ def combine_reports(args):
 									if bp:
 										results[sample]['mapping_filtered_bp'] = line
 										bp = False
+				elif name_file_found == 'pilon_report.txt':
+					general = False
+
+					changes = False
+					contigs = False
+					with open(file_found, 'rtU') as reader:
+						for line in reader:
+							if len(line) > 0:
+								line = line.splitlines()[0]
+								if line != '#by_contigs':
+									if line.startswith('#'):
+										if line.startswith('general', 1):
+											general = True
+										else:
+											general = False
+									elif line.startswith('>') and general:
+										if line.startswith('changes', 1):
+											changes = True
+										elif line.startswith('contigs', 1):
+											contigs = True
+									else:
+										if changes:
+											results[sample]['Pilon_changes'] = line
+											changes = False
+										if contigs:
+											results[sample]['Pilon_contigs_changed'] = line
+											contigs = False
+								else:
+									break
 				elif name_file_found == 'mlst_report.txt':
 					species = False
 					st = False

@@ -25,14 +25,14 @@ Dependencies
 **Optional**
 (executables are provided, but user's own executables can be used with `--doNotUseProvidedSoftware` option)
 
+ - *Bowtie2* >= v2.2.9
+ - *Samtools* = v1.3.1
  - *FastQC* = v0.11.5
  - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
    in your PATH)
  - *Pear* = v0.9.10
  - *SPAdes* >= v3.9.0
  - *Pilon* = v1.18
- - *Bowtie2* >= v2.2.9
- - *Samtools* = v1.3.1
 
 Installation
 ------------
@@ -42,14 +42,13 @@ Usage
 -----
 
     usage: INNUca.py [-h] [--version]
-                     -i /path/to/input/directory/
-                     -s "Streptococcus agalactiae"
-                     -g 2.1
-                     [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
-                     [--jarMaxMemory 10]
-                     [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipPear] [--skipSPAdes] [--skipPilon]
-                     [--skipAssemblyMapping] [--skipMLST]
+                     -s "Streptococcus agalactiae" -g 2.1
+                     (-i /path/to/input/directory/ | -f /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz)
+                     [-o /output/directory/] [-j N]
+                     [--jarMaxMemory 10] [--doNotUseProvidedSoftware]
+                     [--skipEstimatedCoverage] [--skipFastQC]
+                     [--skipTrimmomatic] [--skipPear] [--skipSPAdes]
+                     [--skipAssemblyMapping] [--skipPilon] [--skipMLST]
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
@@ -61,7 +60,8 @@ Usage
                      [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
                      [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
-                     [--pilonKeepFiles] [--assemblyMinCoverageContigs N]
+                     [--assemblyMinCoverageContigs N]
+                     [--pilonKeepFiles]
 
     INNUca - Reads Control and Assembly
 
@@ -70,14 +70,18 @@ Usage
       --version             Version information
 
     Required options:
-      -i /path/to/input/directory/, --inputDirectory /path/to/input/directory/
-                            Path to directory containing the fastq files. Can be
-                            organized in separete directories by samples or all
-                            together (default: None)
       -s "Streptococcus agalactiae", --speciesExpected "Streptococcus agalactiae"
                             Expected species name (default: None)
       -g 2.1, --genomeSizeExpectedMb 2.1
                             Expected genome size in Mb (default: None)
+
+    Required INPUT options (one of the following):
+      -i /path/to/input/directory/, --inputDirectory /path/to/input/directory/
+                            Path to directory containing the fastq files. Can be
+                            organized in separete directories by samples or all
+                            together (default: None)
+      -f /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz, --fastq /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz
+                            Path to Pair-End Fastq files (default: None)
 
     General options:
       -o /output/directory/, --outdir /output/directory/
@@ -101,16 +105,16 @@ Usage
                             (default: False)
       --skipTrimmomatic     Tells the programme to not run Trimmomatic (default:
                             False)
-      --skipPear     Tells the programme to not run Pear (default: False)
+      --skipPear            Tells the programme to not run Pear (default: False)
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
                             Pilon correction, Assembly Mapping check and MLST
                             analysis (SPAdes contigs required) (default: False)
-      --skipPilon           Tells the programme to not run Pilon correction and
-                            consequently Assembly Mapping check (bam files
-                            required) (default: False)
       --skipAssemblyMapping
                             Tells the programme to not run Assembly Mapping check
                             (default: False)
+      --skipPilon           Tells the programme to not run Pilon correction and
+                            consequently Assembly Mapping check (bam files
+                            required) (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
 
@@ -194,28 +198,28 @@ Usage
       --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
                             False)
 
-    Pilon options:
-      --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
-                            (default: False)
-
     Assembly Mapping options:
       --assemblyMinCoverageContigs N
                             Minimum contigs average coverage. After mapping reads
                             back to the contigs, only keep contigs with at least
                             this average coverage (default: 30)
 
+    Pilon options:
+      --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
+                            (default: False)
+
 
 
 Combine INNUca reports
 ----------------------
-In order to combine **INNUca** reports (Estimate Coverage, True Coverage, Pear, SPAdes, Pilon, Assembly Mapping, MLST), use *combine_reports.py* found in **INNUca** modules folder
+In order to combine **INNUca** reports (Estimate Coverage, True Coverage, Pear, SPAdes, Assembly Mapping, Pilon, MLST), use *combine_reports.py* found in **INNUca** modules folder
 
     usage: python combine_reports.py [-h] [--version] -i
                               /path/to/INNUca/output/directory/
                               [-o /path/to/output/directory/]
 
-    Combine INNUca reports (Estimated Coverage, True Coverage, Pear, SPAdes, Pilon,
-    Assembly Mapping, MLST)
+    Combine INNUca reports (Estimated Coverage, True Coverage, Pear, SPAdes, Assembly
+    Mapping, Pilon, MLST)
 
     optional arguments:
       -h, --help            show this help message and exit

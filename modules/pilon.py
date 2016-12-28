@@ -22,7 +22,7 @@ def mappingBowtie2(fastq_files, referenceFile, threads, outdir):
 	run_successfully = indexSequenceBowtie2(referenceFile, threads)
 
 	if run_successfully:
-		command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '', '-S', sam_file]
+		command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '', '--no-unal', '-S', sam_file]
 		if len(fastq_files) == 1:
 			command[8] = '-U ' + fastq_files
 		else:
@@ -91,7 +91,7 @@ pilon_timer = partial(utils.timer, name='Pilon')
 
 
 @pilon_timer
-def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir, jarMaxMemory):
+def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir, jarMaxMemory, alignment_file):
 	failing = {}
 	failing['sample'] = False
 
@@ -103,31 +103,34 @@ def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir, jarMaxMemor
 	assembly_link = os.path.join(pilon_folder, os.path.basename(assembly))
 	os.symlink(assembly, assembly_link)
 
-	assembly_polished = None
-	bam_file = None
+	run_successfully = True
 
-	# Index assembly using Bowtie2
-	run_successfully = indexSequenceBowtie2(assembly_link, threads)
-
-	if run_successfully:
-		run_successfully, sam_file = mappingBowtie2(fastq_files, assembly_link, threads, pilon_folder)
+	if alignment_file is None:
+		# Index assembly using Bowtie2
+		run_successfully = indexSequenceBowtie2(assembly_link, threads)
 
 		if run_successfully:
-			bam_file = os.path.splitext(sam_file)[0] + '.bam'
-			run_successfully, bam_file = sortAlignment(sam_file, bam_file, False, threads)
+			run_successfully, sam_file = mappingBowtie2(fastq_files, assembly_link, threads, pilon_folder)
 
 			if run_successfully:
-				os.remove(sam_file)
-				run_successfully = indexAlignment(bam_file)
+				alignment_file = os.path.splitext(sam_file)[0] + '.bam'
+				run_successfully, alignment_file = sortAlignment(sam_file, alignment_file, False, threads)
 
 				if run_successfully:
-					run_successfully, assembly_polished = pilon(jar_path_pilon, assembly_link, bam_file, pilon_folder, jarMaxMemory)
+					os.remove(sam_file)
+					run_successfully = indexAlignment(alignment_file)
 
-					if run_successfully:
-						parsePilonResult(assembly_polished, outdir)
-						shutil.copyfile(assembly_polished, os.path.join(outdir, os.path.basename(assembly_polished)))
-						assembly_polished = os.path.join(outdir, os.path.basename(assembly_polished))
-				else:
-					bam_file = None
+	assembly_polished = None
 
-	return run_successfully, None, failing, assembly_polished, bam_file, pilon_folder
+	if run_successfully:
+		run_successfully, assembly_polished = pilon(jar_path_pilon, assembly_link, alignment_file, pilon_folder, jarMaxMemory)
+
+		if run_successfully:
+			parsePilonResult(assembly_polished, outdir)
+			shutil.copyfile(assembly_polished, os.path.join(outdir, os.path.basename(assembly_polished)))
+			assembly_polished = os.path.join(outdir, os.path.basename(assembly_polished))
+
+	if os.path.isfile(alignment_file):
+		os.remove(alignment_file)
+
+	return run_successfully, None, failing, assembly_polished, pilon_folder

@@ -16,9 +16,12 @@ def parseArguments(version):
 	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 	required_options = parser.add_argument_group('Required options')
-	required_options.add_argument('-i', '--inputDirectory', type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together', required=True)
 	required_options.add_argument('-s', '--speciesExpected', type=str, metavar='"Streptococcus agalactiae"', help='Expected species name', required=True)
 	required_options.add_argument('-g', '--genomeSizeExpectedMb', type=float, metavar='2.1', help='Expected genome size in Mb', required=True)
+
+	input_options = parser.add_mutually_exclusive_group(required=True)
+	input_options.add_argument('-i', '--inputDirectory', type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together')
+	input_options.add_argument('-f', '--fastq', nargs=2, type=argparse.FileType('r'), metavar=('/path/to/input/file_1.fq.gz', '/path/to/input/file_2.fq.gz'), help='Path to Pair-End Fastq files')
 
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
 
@@ -34,8 +37,8 @@ def parseArguments(version):
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
 	general_options.add_argument('--skipPear', action='store_true', help='Tells the programme to not run Pear')
 	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently Pilon correction, Assembly Mapping check and MLST analysis (SPAdes contigs required)')
-	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction and consequently Assembly Mapping check (bam files required)')
 	general_options.add_argument('--skipAssemblyMapping', action='store_true', help='Tells the programme to not run Assembly Mapping check')
+	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction and consequently Assembly Mapping check (bam files required)')
 	general_options.add_argument('--skipMLST', action='store_true', help='Tells the programme to not run MLST analysis')
 
 	adapters_options = parser.add_mutually_exclusive_group()
@@ -72,11 +75,11 @@ def parseArguments(version):
 	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
-	pilon_options = parser.add_argument_group('Pilon options')
-	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
-
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
 	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=30)
+
+	pilon_options = parser.add_argument_group('Pilon options')
+	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
 
 	args = parser.parse_args()
 

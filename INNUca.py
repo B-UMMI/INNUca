@@ -2,6 +2,7 @@
 
 # -*- coding: utf-8 -*-
 
+
 """
 INNUca - Reads Control and Assembly
 INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search
@@ -9,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: December 23, 2016
+Last modified: December 28, 2016
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,9 +33,9 @@ import modules.fastqc as fastqc
 import modules.trimmomatic as trimmomatic
 import modules.pear as pear
 import modules.spades as spades
+import modules.assembly_mapping as assembly_mapping
 import modules.pilon as pilon
 import modules.mlst as mlst
-import modules.assembly_mapping as assembly_mapping
 import modules.trueCoverage_rematch as trueCoverage
 import time
 import os
@@ -42,7 +43,7 @@ import sys
 
 
 def main():
-	version = '2.1'
+	version = '2.2'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -85,7 +86,7 @@ def main():
 	# Check programms
 	programs_version_dictionary = {}
 	programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
-	if (not args.skipTrueCoverage or (not args.skipPilon and not args.skipSPAdes)):
+	if (not args.skipTrueCoverage or ((not args.skipAssemblyMapping or not args.skipPilon) and not args.skipSPAdes)):
 		programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
 		programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
 	if not (args.skipFastQC and args.skipTrimmomatic and (args.skipPilon or args.skipSPAdes)):
@@ -116,12 +117,9 @@ def main():
 	if not args.skipPilon and not args.skipSPAdes:
 		jar_path_pilon = programs_version_dictionary['pilon-1.18.jar'][3]
 
-	# Check if input directory exists with fastq files and store samples name that have fastq files
-	inputDirectory = os.path.abspath(os.path.join(args.inputDirectory, ''))
 	# pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
 	pairEnd_filesSeparation_list = None
-	print ''
-	samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
+	samples, inputDirectory, removeCreatedSamplesDirectories, indir_same_outdir = get_samples(args.inputDirectory, args.fastq, outdir, pairEnd_filesSeparation_list)
 
 	# Start running the analysis
 	print '\n' + 'RUNNING INNUca.py'
@@ -225,6 +223,10 @@ def main():
 		# Save run report
 		utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
 
+	# Remove temporary folder with symlink to fastq files in case of --fastq use
+	if args.inputDirectory is None and args.fastq is not None:
+		utils.removeDirectory(os.path.join(inputDirectory, ''))
+
 	# Run report
 	print '\n' + 'END INNUca.py'
 	print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
@@ -235,6 +237,33 @@ def main():
 	# Check whether INNUca.py run at least one sample successfully
 	if number_samples_successfully == 0:
 		sys.exit('No samples run successfully!')
+
+
+def get_sample_args_fastq(fastq_files_list, outdir, pairEnd_filesSeparation_list):
+	new_indir = os.path.join(outdir, 'reads', '')
+	utils.removeDirectory(new_indir)
+	os.mkdir(new_indir)
+	samples = []
+	for fastq in fastq_files_list:
+		fastq_link = os.path.join(new_indir, os.path.basename(fastq))
+		os.symlink(fastq, fastq_link)
+	samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(new_indir, outdir, pairEnd_filesSeparation_list)
+	return new_indir, samples, removeCreatedSamplesDirectories, indir_same_outdir
+
+
+def get_samples(args_inputDirectory, args_fastq, outdir, pairEnd_filesSeparation_list):
+	if args_fastq is None:
+		# Check if input directory exists with fastq files and store samples name that have fastq files
+		inputDirectory = os.path.abspath(os.path.join(args_inputDirectory, ''))
+		print ''
+		samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
+	elif args_inputDirectory is None:
+		fastq_files = [fastq.name for fastq in args_fastq]
+		if fastq_files[0] == fastq_files[1]:
+			sys.exit('Same fastq file provided twice')
+		inputDirectory, samples, removeCreatedSamplesDirectories, indir_same_outdir = get_sample_args_fastq(fastq_files, outdir, pairEnd_filesSeparation_list)
+
+	return samples, inputDirectory, removeCreatedSamplesDirectories, indir_same_outdir
 
 
 def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config):
@@ -276,7 +305,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
 			if not args.skipTrueCoverage and trueCoverage_config is not None:
 				# Run True Coverage
-				run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], trueCoverage_config['maximum_number_absent_genes'], trueCoverage_config['maximum_number_genes_multiple_alleles'], trueCoverage_config['minimum_read_coverage'])
+				run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], trueCoverage_config['maximum_number_absent_genes'], trueCoverage_config['maximum_number_genes_multiple_alleles'], trueCoverage_config['minimum_read_coverage'], True)
 				runs['trueCoverage_ReMatCh'] = [run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing]
 			else:
 				print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
@@ -321,8 +350,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 							print '\n' + 'Estimated coverage is too lower (< ' + str(args.estimatedMinimumCoverage) + 'x). This sample will not proceed with INNUca pipeline'
 							runs['second_FastQC'] = not_run
 							runs['SPAdes'] = not_run
-							runs['Pilon'] = not_run
 							runs['Assembly_Mapping'] = not_run
+							runs['Pilon'] = not_run
 							runs['MLST'] = not_run
 					else:
 						print 'Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated Coverage analysis and FastQC analysis'
@@ -342,8 +371,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				runs['second_FastQC'] = not_run
 				runs['Pear'] = not_run
 				runs['SPAdes'] = not_run
-				runs['Pilon'] = not_run
 				runs['Assembly_Mapping'] = not_run
+				runs['Pilon'] = not_run
 				runs['MLST'] = not_run
 
 		else:
@@ -355,8 +384,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 			runs['second_FastQC'] = not_run
 			runs['Pear'] = not_run
 			runs['SPAdes'] = not_run
-			runs['Pilon'] = not_run
 			runs['Assembly_Mapping'] = not_run
+			runs['Pilon'] = not_run
 			runs['MLST'] = not_run
 
 		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
@@ -377,38 +406,37 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 					runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
 
 					if run_successfully:
-						# Run Pilon
 						contigs = contigs_spades
 
+						# Run Assembly Mapping check
+						bam_file = None
+						if not args.skipAssemblyMapping:
+							run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, assemblyMapping_folder = assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir, args.assemblyMinCoverageContigs, genomeSize)
+							runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing]
+
+							if run_successfully:
+								contigs = assembly_filtered
+						else:
+							print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
+							runs['Assembly_Mapping'] = skipped
+
+						# Run Pilon
 						if not args.skipPilon:
-							run_successfully, _, time_taken, failing, assembly_polished, bam_file, pilon_folder = pilon.runPilon(jar_path_pilon, contigs_spades, fastq_files, threads, outdir, jarMaxMemory)
+							run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir, jarMaxMemory, bam_file)
 							runs['Pilon'] = [run_successfully, None, time_taken, failing]
 
 							if run_successfully:
 								contigs = assembly_polished
 
-							# Run Assembly Mapping check
-							if bam_file is not None:
-								if not args.skipAssemblyMapping:
-									run_successfully, pass_qc, time_taken, failing, assembly_filtered = assembly_mapping.runAssemblyMapping(bam_file, contigs_spades, threads, outdir, args.assemblyMinCoverageContigs, assembly_polished, genomeSize)
-									runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing]
-
-									if run_successfully:
-										contigs = assembly_filtered
-								else:
-									print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
-									runs['Assembly_Mapping'] = skipped
-							else:
-								print 'Pilon did not produce the bam file! Assembly Mapping check'
-								runs['Assembly_Mapping'] = skipped
-
 							if not args.pilonKeepFiles:
 								utils.removeDirectory(pilon_folder)
 
 						else:
-							print '--skipPilon set. Skipping Pilon correction and Assembly Mapping check'
+							print '--skipPilon set. Skipping Pilon correction'
 							runs['Pilon'] = skipped
-							runs['Assembly_Mapping'] = skipped
+
+						if 'assemblyMapping_folder' in locals():
+							utils.removeDirectory(assemblyMapping_folder)
 
 						print '\n' + 'Final assembly: ' + contigs
 						with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
@@ -422,30 +450,30 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 							runs['MLST'] = skipped
 					else:
 						print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
-						runs['Pilon'] = skipped
 						runs['Assembly_Mapping'] = skipped
+						runs['Pilon'] = skipped
 						runs['MLST'] = skipped
 
 				else:
 					print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
 					runs['SPAdes'] = skipped
-					runs['Pilon'] = skipped
 					runs['Assembly_Mapping'] = skipped
+					runs['Pilon'] = skipped
 					runs['MLST'] = skipped
 	else:
 		print 'Moving to the next sample'
-		for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST'):
+		for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
 			if step == 'Trimmomatic':
 				runs[step] = not_run + ['NA']
 			else:
 				runs[step] = not_run
 
-	# Remove Trimmomatic directory with cleaned reads
-	if not args.trimKeepFiles and 'trimmomatic_folder' in locals():
-		utils.removeDirectory(trimmomatic_folder)
 	# Remove Pear directory
 	if not args.pearKeepFiles and 'pear_folder' in locals():
 		utils.removeDirectory(pear_folder)
+	# Remove Trimmomatic directory with cleaned reads
+	if not args.trimKeepFiles and 'trimmomatic_folder' in locals():
+		utils.removeDirectory(trimmomatic_folder)
 
 	# Check run
 	run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
