@@ -24,7 +24,7 @@ def mappingBowtie2(fastq_files, referenceFile, threads, outdir):
 	if run_successfully:
 		command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '', '--no-unal', '-S', sam_file]
 		if len(fastq_files) == 1:
-			command[8] = '-U ' + fastq_files
+			command[8] = '-U ' + fastq_files[0]
 		else:
 			command[8] = '-1 ' + fastq_files[0] + ' -2 ' + fastq_files[1]
 		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)

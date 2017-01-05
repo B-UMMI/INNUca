@@ -2,6 +2,7 @@ import sys
 import os
 import utils
 from functools import partial
+import time
 
 
 # Prepare adapters fasta file to FastQC (tabular file)
@@ -233,7 +234,7 @@ fastqc_timer = partial(utils.timer, name='FastQC analysis')
 
 # Run FastQC analysis
 @fastqc_timer
-def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
+def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -242,8 +243,7 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
 	nts2clip_based_ntsContent = None
 
 	# Create FastQC output directory
-	fastqc_folder = os.path.join(outdir, 'fastqc', '')
-	utils.removeDirectory(fastqc_folder)
+	fastqc_folder = os.path.join(outdir, str('fastqc' + time.strftime("%H:%M:%S")), '')
 	os.mkdir(fastqc_folder)
 
 	# Run FastQC
@@ -276,6 +276,7 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files):
 		failing['sample'] = 'Did not run'
 		print failing['sample']
 
-	utils.removeDirectory(fastqc_folder)
+	if not keepFiles:
+		utils.removeDirectory(fastqc_folder)
 
 	return run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent

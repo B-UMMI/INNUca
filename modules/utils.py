@@ -51,6 +51,9 @@ def parseArguments(version):
 	trueCoverage_options = parser.add_argument_group('trueCoverage_ReMatCh options')
 	trueCoverage_options.add_argument('--trueConfigFile', type=argparse.FileType('r'), metavar='species.config', help='File with trueCoverage_ReMatCh settings. Some species specific config files can be found in INNUca/modules/trueCoverage_rematch/ folder. Use those files as example files. For species with config files in INNUca/modules/trueCoverage_rematch/ folder (not pre releases versions, marked with "pre."), trueCoverage_ReMatCh will run by default, unless --skipTrueCoverage is specified. Do not use together with --skipTrueCoverage option', required=False)
 
+	fastQC_options = parser.add_argument_group('FastQC options')
+	fastQC_options.add_argument('--fastQCkeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of FastQC')
+
 	trimmomatic_options = parser.add_argument_group('Trimmomatic options')
 	trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
 	trimmomatic_options.add_argument('--trimCrop', nargs=1, type=int, metavar='N', help='Cut the specified number of bases to the end of the maximum reads length', required=False)

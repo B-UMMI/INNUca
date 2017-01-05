@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: December 28, 2016
+Last modified: January 05, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -315,7 +315,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				# Run first FastQC
 				nts2clip_based_ntsContent = None
 				if not args.skipFastQC:
-					run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
+					run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, args.fastQCkeepFiles)
 					runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
 				else:
 					print '--skipFastQC set. Skipping First FastQC analysis'
@@ -341,7 +341,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 						if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
 							# Run second FastQC
 							if not args.skipFastQC:
-								run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files)
+								run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, args.fastQCkeepFiles)
 								runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
 							else:
 								print '--skipFastQC set. Skipping Second FastQC analysis'
