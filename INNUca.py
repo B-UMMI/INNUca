@@ -279,8 +279,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	runs = {}
 
 	# Run FastQ integrity check
-	not_corruption_found, _, time_taken, failing, fastq_encoding = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
-	runs['FastQ_Integrity'] = [not_corruption_found, None, time_taken, failing]
+	not_corruption_found, pass_qc, time_taken, failing, fastq_encoding = fastQintegrity.runFastQintegrity(fastq_files, threads, outdir)
+	runs['FastQ_Integrity'] = [not_corruption_found, pass_qc, time_taken, failing]
 
 	if not_corruption_found:
 		# Run first Estimated Coverage

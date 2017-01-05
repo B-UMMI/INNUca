@@ -145,7 +145,7 @@ Usage
                             with --skipTrueCoverage option (default: None)
 
     FastQC options:
-      --trimKeepFiles       Tells INNUca.py to not remove the output of
+      --fastQCkeepFiles       Tells INNUca.py to not remove the output of
                             FastQC (default: False)
 
     Trimmomatic options:

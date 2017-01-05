@@ -40,6 +40,7 @@ fastq_timer = partial(utils.timer, name='FastQ integrity check')
 
 @fastq_timer
 def runFastQintegrity(fastq_files, threads, outdir):
+	pass_qc = True
 	failing = {}
 	failing['sample'] = False
 	not_corruption_found = True
@@ -69,6 +70,7 @@ def runFastQintegrity(fastq_files, threads, outdir):
 	if len(failing) > 1:
 		failing.pop('sample')
 		not_corruption_found = False
+		pass_qc = False
 
 	if len(encoding) == 0:
 		encoding = None
@@ -84,4 +86,4 @@ def runFastQintegrity(fastq_files, threads, outdir):
 
 	utils.removeDirectory(fastQintegrity_folder)
 
-	return not_corruption_found, None, failing, encoding  # None added for consistency with other steps
+	return not_corruption_found, pass_qc, failing, encoding  # None added for consistency with other steps
