@@ -46,6 +46,7 @@ Usage
                      (-i /path/to/input/directory/ | -f /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz)
                      [-o /output/directory/] [-j N]
                      [--jarMaxMemory 10] [--doNotUseProvidedSoftware]
+                     [--keepIntermediateAssemblies]
                      [--skipEstimatedCoverage] [--skipFastQC]
                      [--skipTrimmomatic] [--skipPear] [--skipSPAdes]
                      [--skipAssemblyMapping] [--skipPilon] [--skipMLST]
@@ -96,6 +97,9 @@ Usage
                             Tells the software to not use FastQC, Trimmomatic,
                             SPAdes, Bowtie2, Samtools and Pilon that are provided
                             with INNUca.py (default: False)
+      --keepIntermediateAssemblies
+                            Tells INNUca to keep all the intermediate assemblies
+                            (default: False)
       --skipEstimatedCoverage
                             Tells the programme to not estimate coverage depth
                             based on number of sequenced nucleotides and expected

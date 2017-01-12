@@ -87,7 +87,7 @@ def mappingBowtie2(fastq_files, referenceFile, threads, outdir, conserved_True):
 		command = ['bowtie2', '-q', '', '--threads', str(threads), '-x', referenceFile, '', '--no-unal', '-S', sam_file]
 
 		if len(fastq_files) == 1:
-			command[7] = '-U ' + fastq_files[0]
+			command[7] = '-U ' + fastq_files
 		elif len(fastq_files) == 2:
 			command[7] = '-1 ' + fastq_files[0] + ' -2 ' + fastq_files[1]
 		else:
@@ -228,35 +228,23 @@ def indel_entry(variant_position):
 def get_alt_noMatter(variant_position, indel_true):
 	# dp = int(variant_position['info']['DP'])
 	dp = sum(map(int, variant_position['format']['AD']))
-	index_alleles_sorted_position = sorted(zip(map(int, variant_position['format']['AD']), range(0, len(variant_position['format']['AD']))), reverse=True)
 	index_dominant_allele = None
 	if not indel_true:
-		ad_idv = index_alleles_sorted_position[0][0]
+		ad_idv = max(map(int, variant_position['format']['AD']))
 
-		if len([x for x in index_alleles_sorted_position if x[0] == ad_idv]) > 1:
-			index_alleles_sorted_position = sorted([x for x in index_alleles_sorted_position if x[0] == ad_idv])
+		index_dominant_allele = variant_position['format']['AD'].index(str(ad_idv))
 
-		index_dominant_allele = index_alleles_sorted_position[0][1]
 		if index_dominant_allele == 0:
 			alt = '.'
 		else:
 			alt = variant_position['ALT'][index_dominant_allele - 1]
-
 	else:
-		ad_idv = variant_position['info']['IDV']
-
-		if float(ad_idv) / float(dp) >= 0.5:
-			if len([x for x in index_alleles_sorted_position if x[0] == index_alleles_sorted_position[0][0]]) > 1:
-				index_alleles_sorted_position = sorted([x for x in index_alleles_sorted_position if x[0] == index_alleles_sorted_position[0][0]])
-
-			index_dominant_allele = index_alleles_sorted_position[0][1]
-			if index_dominant_allele == 0:
-				alt = '.'
-			else:
-				alt = variant_position['ALT'][index_dominant_allele - 1]
+		if float(variant_position['info']['IDV']) / float(dp) > 0.5:
+			alt = variant_position['ALT'][0]
+			ad_idv = int(variant_position['info']['IDV'])
 		else:
-			ad_idv = int(variant_position['format']['AD'][0])
 			alt = '.'
+			ad_idv = max(map(int, variant_position['format']['AD']))
 
 	return alt, dp, ad_idv, index_dominant_allele
 
@@ -277,18 +265,15 @@ def get_alt_correct(variant_position, alt_noMatter, dp, ad_idv, index_dominant_a
 			else:
 				if float(ad_idv) / float(dp) < minimum_depth_frequency_dominant_allele:
 					if index_dominant_allele is not None:
-						variants_coverage = [int(variant_position['format']['AD'][i]) for i in range(0, len(variant_position['ALT']) + 1) if i != index_dominant_allele]
-						if sum(variants_coverage) == 0:
-							alt = alt_noMatter
+						variants_coverage = [int(variant_position['format']['AD'][i]) for i in range(0, len([j for j in variant_position['ALT'] if j != '<*>']) + 1) if i != index_dominant_allele]
+						if float(max(variants_coverage)) / float(sum(variants_coverage)) > 0.5:
+							multiple_alleles = True
+							alt = 'N' * len(variant_position['REF'])
+						elif float(max(variants_coverage)) / float(sum(variants_coverage)) == 0.5 and len(variants_coverage) > 2:
+							multiple_alleles = True
+							alt = 'N' * len(variant_position['REF'])
 						else:
-							if float(max(variants_coverage)) / float(sum(variants_coverage)) > 0.5:
-								multiple_alleles = True
-								alt = 'N' * len(variant_position['REF'])
-							elif float(max(variants_coverage)) / float(sum(variants_coverage)) == 0.5 and len(variants_coverage) > 2:
-								multiple_alleles = True
-								alt = 'N' * len(variant_position['REF'])
-							else:
-								alt = alt_noMatter
+							alt = alt_noMatter
 					else:
 						multiple_alleles = True
 						alt = 'N' * len(variant_position['REF'])
@@ -333,65 +318,34 @@ def determine_variant(variant_position, minimum_depth_presence, minimum_depth_ca
 	return variant_position['REF'], alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment
 
 
-def confirm_nucleotides_indel(ref, alt, variants, position_start_indel, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele):
-	alt = list(alt)
-
-	for i in range(0, len(alt) - 1):
-		if alt[1 + i] == 'N':
-			continue
-
-		if len(alt) < len(ref):
-			new_position = position_start_indel + len(alt) - i
-		else:
-			if i + 1 > len(ref) - 1:
-				break
-			new_position = position_start_indel + 1 + i
-
-		if new_position not in variants:
-			alt[1 + i] = ''
-			continue
-
-		entry_with_indel, entry_with_snp = indel_entry(variants[new_position])
-		new_ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[new_position][entry_with_snp], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, False)
-		if alt_noMatter != '.' and alt[1 + i] != alt_noMatter:
-			alt[1 + i] = alt_noMatter
-
-	return ''.join(alt)
-
-
 def snp_indel(variants, position, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele):
 	entry_with_indel, entry_with_snp = indel_entry(variants[position])
 
 	if len(entry_with_indel) == 0:
 		ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][entry_with_snp], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, False)
 	else:
-		ref_snp, alt_correct_snp, low_coverage_snp, multiple_alleles_snp, alt_noMatter_snp, alt_alignment_snp = determine_variant(variants[position][entry_with_snp], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, False)
-
-		indel_more_likely = entry_with_indel[0]
-		if len(entry_with_indel) > 1:
-			indel_more_likely = get_indel_more_likely(variants[position], entry_with_indel)
-
-		ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][indel_more_likely], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, True)
-
-		if alt_noMatter == '.':
-			ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = ref_snp, alt_correct_snp, low_coverage_snp, multiple_alleles_snp, alt_noMatter_snp, alt_alignment_snp
-		else:
-			if alt_correct is None and alt_correct_snp is not None:
-				alt_correct = alt_correct_snp
-			elif alt_correct is not None and alt_correct_snp is not None:
-				if alt_correct_snp != '.' and alt_correct[0] != alt_correct_snp:
-					alt_correct = alt_correct_snp + alt_correct[1:] if len(alt_correct) > 1 else alt_correct_snp
-			if alt_noMatter_snp != '.' and alt_noMatter[0] != alt_noMatter_snp:
-				alt_noMatter = alt_noMatter_snp + alt_noMatter[1:] if len(alt_noMatter) > 1 else alt_noMatter_snp
-			if alt_alignment_snp != '.' and alt_alignment[0] != alt_alignment_snp:
-				alt_alignment = alt_alignment_snp + alt_alignment[1:] if len(alt_alignment) > 1 else alt_alignment_snp
-
-			if alt_noMatter != '.':
-				alt_noMatter = confirm_nucleotides_indel(ref, alt_noMatter, variants, position, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele)
-			if alt_correct is not None and alt_correct != '.':
-				alt_correct = confirm_nucleotides_indel(ref, alt_correct, variants, position, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele)
-			if alt_alignment != '.':
-				alt_alignment = confirm_nucleotides_indel(ref, alt_alignment, variants, position, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele)
+		ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][entry_with_snp], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, False)
+		if alt_correct is not None and not low_coverage:
+			alt_correct_snp = alt_correct
+			alt_noMatter_snp = alt_noMatter
+			alt_alignment_snp = alt_alignment
+			if len(entry_with_indel) > 1:
+				indel_more_likely = get_indel_more_likely(variants[position], entry_with_indel)
+				ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][entry_with_indel[indel_more_likely]], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, True)
+			else:
+				ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][entry_with_indel[0]], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, True)
+			if alt_correct is not None and not low_coverage:
+				if alt_correct == '.':
+					ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][entry_with_snp], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, False)
+				else:
+					if alt_correct_snp != '.' and alt_correct[0] != alt_correct_snp:
+						alt_correct = alt_correct_snp + alt_correct[1:] if len(alt_correct) > 1 else alt_correct_snp
+					if alt_noMatter_snp != '.' and alt_noMatter[0] != alt_noMatter_snp:
+						alt_noMatter = alt_noMatter_snp + alt_noMatter[1:] if len(alt_noMatter) > 1 else alt_noMatter_snp
+					if alt_alignment_snp != '.' and alt_alignment[0] != alt_alignment_snp:
+						alt_alignment = alt_alignment_snp + alt_alignment[1:] if len(alt_alignment) > 1 else alt_alignment_snp
+			else:
+				ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment = determine_variant(variants[position][entry_with_snp], minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, False)
 
 	return ref, alt_correct, low_coverage, multiple_alleles, alt_noMatter, alt_alignment
 
@@ -413,9 +367,6 @@ def get_true_variants(variants, minimum_depth_presence, minimum_depth_call, mini
 			if alt_alignment != '.':
 				variants_alignment[counter] = {'REF': ref, 'ALT': alt_alignment}
 
-			if alt_noMatter != '.':
-				variants_noMatter[counter] = {'REF': ref, 'ALT': alt_noMatter}
-
 			if alt_correct is None:
 				if counter - len(last_absent_position) in absent_positions:
 					absent_positions[counter - len(last_absent_position)]['REF'] += ref
@@ -423,6 +374,9 @@ def get_true_variants(variants, minimum_depth_presence, minimum_depth_call, mini
 					absent_positions[counter] = {'REF': ref, 'ALT': ''}
 				last_absent_position += ref
 			else:
+				if alt_noMatter != '.':
+					variants_noMatter[counter] = {'REF': ref, 'ALT': alt_noMatter}
+
 				if alt_correct != '.':
 					if len(alt_correct) < len(ref):
 						if len(alt_correct) == 1:
@@ -454,19 +408,17 @@ def get_true_variants(variants, minimum_depth_presence, minimum_depth_call, mini
 	for position in absent_positions:
 		if position == 1:
 			variants_correct[position] = {'REF': absent_positions[position]['REF'], 'ALT': 'N'}
-			if position not in variants:
-				variants_noMatter[position] = {'REF': absent_positions[position]['REF'], 'ALT': 'N'}
+			variants_noMatter[position] = {'REF': absent_positions[position]['REF'], 'ALT': 'N'}
 		else:
 			if position - 1 not in variants_correct:
 				variants_correct[position - 1] = {'REF': sequence[position - 2] + absent_positions[position]['REF'], 'ALT': sequence[position - 2] + absent_positions[position]['ALT']}
 			else:
 				variants_correct[position - 1] = {'REF': variants_correct[position - 1]['REF'] + absent_positions[position]['REF'][len(variants_correct[position - 1]['REF']) - 1:], 'ALT': variants_correct[position - 1]['ALT'] + absent_positions[position]['ALT'][len(variants_correct[position - 1]['ALT']) - 1 if len(variants_correct[position - 1]['ALT']) > 0 else 0:]}
 
-			if position not in variants:
-				if position - 1 not in variants_noMatter:
-					variants_noMatter[position - 1] = {'REF': sequence[position - 2] + absent_positions[position]['REF'], 'ALT': sequence[position - 2] + absent_positions[position]['ALT']}
-				else:
-					variants_noMatter[position - 1] = {'REF': variants_noMatter[position - 1]['REF'] + absent_positions[position]['REF'][len(variants_noMatter[position - 1]['REF']) - 1:], 'ALT': variants_noMatter[position - 1]['ALT'] + absent_positions[position]['ALT'][len(variants_noMatter[position - 1]['ALT']) - 1 if len(variants_noMatter[position - 1]['ALT']) > 0 else 0:]}
+			if position - 1 not in variants_noMatter:
+				variants_noMatter[position - 1] = {'REF': sequence[position - 2] + absent_positions[position]['REF'], 'ALT': sequence[position - 2] + absent_positions[position]['ALT']}
+			else:
+				variants_noMatter[position - 1] = {'REF': variants_noMatter[position - 1]['REF'] + absent_positions[position]['REF'][len(variants_noMatter[position - 1]['REF']) - 1:], 'ALT': variants_noMatter[position - 1]['ALT'] + absent_positions[position]['ALT'][len(variants_noMatter[position - 1]['ALT']) - 1 if len(variants_noMatter[position - 1]['ALT']) > 0 else 0:]}
 
 	return variants_correct, variants_noMatter, variants_alignment, multiple_alleles_found
 
@@ -478,9 +430,9 @@ def clean_variant_in_extra_seq_left(variant_dict, position, length_extra_seq, mu
 
 		temp_variant = variant_dict[position]
 		del variant_dict[position]
-		variant_dict[length_extra_seq] = {}
-		variant_dict[length_extra_seq]['REF'] = temp_variant['REF'][length_extra_seq - position:]
-		variant_dict[length_extra_seq]['ALT'] = temp_variant['ALT'][length_extra_seq - position:] if len(temp_variant['ALT']) > length_extra_seq - position else temp_variant['REF'][length_extra_seq - position]
+		variant_dict[length_extra_seq + 1] = {}
+		variant_dict[length_extra_seq + 1]['REF'] = temp_variant['REF'][length_extra_seq - position + 1:]
+		variant_dict[length_extra_seq + 1]['ALT'] = temp_variant['ALT'][length_extra_seq - position + 1:] if len(temp_variant['ALT']) >= length_extra_seq - position + 1 else 'N'
 	else:
 		del variant_dict[position]
 
@@ -698,7 +650,7 @@ def get_sequence_information(fasta_file):
 
 
 # AQUI
-def sequence_data(sample, reference_file, bam_file, outdir, threads, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, debug_mode_true):
+def sequence_data(sample, reference_file, bam_file, outdir, threads, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele):
 	sequence_data_outdir = os.path.join(outdir, 'sequence_data', '')
 	utils.removeDirectory(sequence_data_outdir)
 	os.mkdir(sequence_data_outdir)
@@ -714,9 +666,9 @@ def sequence_data(sample, reference_file, bam_file, outdir, threads, length_extr
 	pool.close()
 	pool.join()
 
-	run_successfully, sample_data, consensus_files = gather_data_together(sample, sequence_data_outdir, sequences, outdir.rsplit('/', 2)[0], debug_mode_true)
+	run_successfully, sample_data = gather_data_together(sample, sequence_data_outdir, sequences, outdir.rsplit('/', 2)[0])
 
-	return run_successfully, sample_data, consensus_files
+	return run_successfully, sample_data
 
 
 def chunkstring(string, length):
@@ -725,23 +677,18 @@ def chunkstring(string, length):
 
 # # NOT_USED
 # def write_consensus(outdir, sample, consensus_sequence):
-# 	consensus_files = {}
 # 	for consensus_type in ['correct', 'noMatter', 'alignment']:
-# 		consensus_files[consensus_type] = os.path.join(outdir, str(sample + '.' + consensus_type + '.fasta'))
-# 		with open(consensus_files[consensus_type], 'at') as writer:
+# 		with open(os.path.join(outdir, str(sample + '.' + consensus_type + '.fasta')), 'at') as writer:
 # 			writer.write('>' + consensus_sequence[consensus_type]['header'] + '\n')
 # 			fasta_sequence_lines = chunkstring(consensus_sequence[consensus_type]['sequence'], 80)
 # 			for line in fasta_sequence_lines:
 # 				writer.write(line + '\n')
-# 	return consensus_files
 
 
-def gather_data_together(sample, data_directory, sequences_information, outdir, debug_mode_true):
+def gather_data_together(sample, data_directory, sequences_information, outdir):
 	run_successfully = True
 	counter = 0
 	sample_data = {}
-
-	consensus_files = None
 
 	# write_consensus_first_time = True
 
@@ -763,18 +710,17 @@ def gather_data_together(sample, data_directory, sequences_information, outdir, 
 					# 		if os.path.isfile(file_to_remove):
 					# 			os.remove(file_to_remove)
 					# 	write_consensus_first_time = False
-					# consensus_files = write_consensus(outdir, sample, consensus_sequence)
+					# write_consensus(outdir, sample, consensus_sequence)
 
 					sample_data[sequence_counter] = {'header': sequences_information[sequence_counter]['header'], 'gene_coverage': 100 - percentage_absent, 'gene_low_coverage': percentage_lowCoverage, 'gene_number_positions_multiple_alleles': multiple_alleles_found, 'gene_mean_read_coverage': meanCoverage}
 					counter += 1
 
-		if not debug_mode_true:
-			utils.removeDirectory(gene_dir_path)
+		utils.removeDirectory(gene_dir_path)
 
 	if counter != len(sequences_information):
 		run_successfully = False
 
-	return run_successfully, sample_data, consensus_files
+	return run_successfully, sample_data
 
 
 # rematch_timer = functools.partial(utils.timer, name='ReMatCh module')
@@ -782,21 +728,17 @@ trueCoverage_timer = functools.partial(utils.timer, name='True coverage check')
 
 
 # @rematch_timer
-# def runRematchModule(sample, fastq_files, reference_file, threads, outdir, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, minimum_gene_coverage, conserved_True, debug_mode_true):
+# def runTrueCoverage(sample, fastq_files, reference_file, threads, outdir, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, minimum_gene_coverage, conserved_True):
 @trueCoverage_timer
-def runTrueCoverage(sample, fastq_files, reference_file, threads, outdir, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, minimum_gene_coverage, maximum_number_absent_genes, maximum_number_genes_multiple_alleles, minimum_read_coverage, conserved_True, debug_mode_true):
+def runTrueCoverage(sample, fastq_files, reference_file, threads, outdir, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, minimum_gene_coverage, maximum_number_absent_genes, maximum_number_genes_multiple_alleles, minimum_read_coverage, conserved_True):
 	pass_qc = False
 	failing = {}
 
-	# rematch_folder = os.path.join(outdir, 'rematch_module', '')
-	# utils.removeDirectory(rematch_folder)
-	# os.mkdir(rematch_folder)
 	trueCoverage_folder = os.path.join(outdir, 'trueCoverage', '')
 	utils.removeDirectory(trueCoverage_folder)
 	os.mkdir(trueCoverage_folder)
 
 	# Map reads
-	# run_successfully, bam_file, reference_file = mapping_reads(fastq_files, reference_file, threads, rematch_folder, conserved_True)
 	run_successfully, bam_file, reference_file = mapping_reads(fastq_files, reference_file, threads, trueCoverage_folder, conserved_True)
 
 	if run_successfully:
@@ -804,15 +746,13 @@ def runTrueCoverage(sample, fastq_files, reference_file, threads, outdir, length
 		run_successfully, stdout = index_fasta_samtools(reference_file, None, None, True)
 		if run_successfully:
 			print 'Analysing alignment data'
-			# run_successfully, sample_data, consensus_files = sequence_data(sample, reference_file, bam_file, rematch_folder, threads, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, debug_mode_true)
-			run_successfully, sample_data, consensus_files = sequence_data(sample, reference_file, bam_file, trueCoverage_folder, threads, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele, debug_mode_true)
+			run_successfully, sample_data = sequence_data(sample, reference_file, bam_file, trueCoverage_folder, threads, length_extra_seq, minimum_depth_presence, minimum_depth_call, minimum_depth_frequency_dominant_allele)
 
 			if run_successfully:
 				print 'Writing report file'
 				number_absent_genes = 0
 				number_genes_multiple_alleles = 0
 				mean_sample_coverage = 0
-				# with open(os.path.join(outdir, 'rematchModule_report.txt'), 'wt') as writer:
 				with open(os.path.join(outdir, 'trueCoverage_report.txt'), 'wt') as writer:
 					writer.write('\t'.join(['#gene', 'percentage_gene_coverage', 'gene_mean_read_coverage', 'percentage_gene_low_coverage', 'number_positions_multiple_alleles']) + '\n')
 					for i in range(1, len(sample_data) + 1):
@@ -853,10 +793,8 @@ def runTrueCoverage(sample, fastq_files, reference_file, threads, outdir, length
 	else:
 		print failing
 
-	# if not debug_mode_true:
-	# 	utils.removeDirectory(rematch_folder)
-	if not debug_mode_true:
-		utils.removeDirectory(trueCoverage_folder)
+	utils.removeDirectory(trueCoverage_folder)
 
-	# return run_successfully, sample_data if 'sample_data' in locals() else None, {'number_absent_genes': number_absent_genes, 'number_genes_multiple_alleles': number_genes_multiple_alleles, 'mean_sample_coverage': round(mean_sample_coverage, 2)} if 'number_absent_genes' in locals() else None, consensus_files
+	# return run_successfully, sample_data if 'sample_data' in locals() else None, {'number_absent_genes': number_absent_genes, 'number_genes_multiple_alleles': number_genes_multiple_alleles, 'mean_sample_coverage': round(mean_sample_coverage, 2)} if 'number_absent_genes' in locals() else None
+
 	return run_successfully, pass_qc, failing

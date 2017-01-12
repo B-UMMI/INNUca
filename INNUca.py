@@ -305,7 +305,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 		if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
 			if not args.skipTrueCoverage and trueCoverage_config is not None:
 				# Run True Coverage
-				run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], trueCoverage_config['maximum_number_absent_genes'], trueCoverage_config['maximum_number_genes_multiple_alleles'], trueCoverage_config['minimum_read_coverage'], True)
+				run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], trueCoverage_config['maximum_number_absent_genes'], trueCoverage_config['maximum_number_genes_multiple_alleles'], trueCoverage_config['minimum_read_coverage'], True, False)
 				runs['trueCoverage_ReMatCh'] = [run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing]
 			else:
 				print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
@@ -315,7 +315,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				# Run first FastQC
 				nts2clip_based_ntsContent = None
 				if not args.skipFastQC:
-					run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, args.fastQCkeepFiles)
+					run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, args.fastQCkeepFiles, 'first_run')
 					runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
 				else:
 					print '--skipFastQC set. Skipping First FastQC analysis'
@@ -341,7 +341,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 						if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
 							# Run second FastQC
 							if not args.skipFastQC:
-								run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, args.fastQCkeepFiles)
+								run_successfully, pass_qc, time_taken, failing, maximumReadsLength, nts2clip_based_ntsContent = fastqc.runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, args.fastQCkeepFiles, 'second_run')
 								runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing]
 							else:
 								print '--skipFastQC set. Skipping Second FastQC analysis'
@@ -416,6 +416,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 							if run_successfully:
 								contigs = assembly_filtered
+								if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades):
+									os.remove(contigs_spades)
 						else:
 							print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
 							runs['Assembly_Mapping'] = skipped
@@ -427,6 +429,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 							if run_successfully:
 								contigs = assembly_polished
+								if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and os.path.isfile(assembly_filtered):
+									os.remove(assembly_filtered)
 
 							if not args.pilonKeepFiles:
 								utils.removeDirectory(pilon_folder)

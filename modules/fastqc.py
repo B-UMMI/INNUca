@@ -234,7 +234,7 @@ fastqc_timer = partial(utils.timer, name='FastQC analysis')
 
 # Run FastQC analysis
 @fastqc_timer
-def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles):
+def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fastQC_run_name):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -243,7 +243,8 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles):
 	nts2clip_based_ntsContent = None
 
 	# Create FastQC output directory
-	fastqc_folder = os.path.join(outdir, str('fastqc' + time.strftime("%H:%M:%S")), '')
+	fastqc_folder = os.path.join(outdir, str('fastqc_' + fastQC_run_name), '')
+	utils.removeDirectory(fastqc_folder)
 	os.mkdir(fastqc_folder)
 
 	# Run FastQC
