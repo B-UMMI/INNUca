@@ -186,10 +186,9 @@ Usage
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: maximum reads size or 200 bp)
-                            (default: None)
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
                             (default: 2 Gb per thread will be used up to the free
-                            available memory) (default: None)
+                            available memory)
       --spadesMinCoverageAssembly 10
                             The minimum number of reads to consider an edge in the
                             de Bruijn graph during the assembly. Can also be auto
@@ -211,7 +210,9 @@ Usage
       --assemblyMinCoverageContigs N
                             Minimum contigs average coverage. After mapping reads
                             back to the contigs, only keep contigs with at least
-                            this average coverage (default: 30)
+                            this average coverage (default: 1/3 of the assembly
+                            mean coverage or 10x when mean coverage is lower than
+                            30x)
 
     Pilon options:
       --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon

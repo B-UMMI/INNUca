@@ -80,7 +80,7 @@ def parseArguments(version):
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
-	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=30)
+	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage (default: 1/3 of the assembly mean coverage or 10x when mean coverage is lower than 30x)', required=False)
 
 	pilon_options = parser.add_argument_group('Pilon options')
 	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')

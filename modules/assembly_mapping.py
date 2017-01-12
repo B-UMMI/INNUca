@@ -125,13 +125,25 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
 
 	position = 0
 	coverage = 0
+
+	# Gather data to determine assembly mean coverage
+	for sequence in mean_coverage_data:
+		position += mean_coverage_data[sequence]['position']
+		coverage += mean_coverage_data[sequence]['coverage']
+
+	# Specify minCoverageAssembly
+	if minCoverageAssembly is None:
+		if float(coverage) / float(position) / float(3) >= 10:
+			minCoverageAssembly = float(coverage) / float(position) / float(3)
+			print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to one third of the assembly mean coverage (' + str(round((float(coverage) / float(position)), 2)) + 'x): ' + round(minCoverageAssembly, 2) + 'x'
+		else:
+			minCoverageAssembly = 10
+			print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because the assembly mean coverage (' + str(round((float(coverage) / float(position)), 2)) + 'x) was lower than 30x'
+
 	sequences_2_keep = []
 	with open(report_file, 'wt') as writer:
 		writer.write('#by_contigs' + '\n')
 		for sequence in sorted(mean_coverage_data):
-			position += mean_coverage_data[sequence]['position']
-			coverage += mean_coverage_data[sequence]['coverage']
-
 			if mean_coverage_data[sequence]['mean_coverage'] >= minCoverageAssembly:
 				sequences_2_keep.append(sequence)
 
