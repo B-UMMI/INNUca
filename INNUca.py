@@ -96,7 +96,7 @@ def main():
 		programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
 	if not args.skipTrimmomatic:
 		programs_version_dictionary['trimmomatic-0.36.jar'] = ['-version', '==', '0.36']
-	if not args.skipPear or not args.skipSPAdes:
+	if not args.skipPear:
 		programs_version_dictionary['pear'] = ['--version', '>=', '0.9.10']
 	if not args.skipSPAdes:
 		programs_version_dictionary['spades.py'] = ['--version', '>=', '3.9.0']
@@ -393,7 +393,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				unassembled_pe_reads = None
 				assembled_se_reads = None
 				# Run Pear
-				if not args.skipPear or not args.skipSPAdes:
+				if not args.skipPear:
 					run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully)
 					runs['Pear'] = [run_successfully, pass_qc, time_taken, failing]
 				else:
