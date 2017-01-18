@@ -108,11 +108,11 @@ def parse_pearOutput_getAssembled(stdout):
 	return assembled_reads, unassembled_reads, discarded_reads
 
 
-def run_pear(decompressed_reads_list, sample_name, threads, outdir, fastq_encoding, trimmomatic_run_successfully):
+def run_pear(decompressed_reads_list, sample_name, threads, outdir, fastq_encoding, trimmomatic_run_successfully, minimum_overlap_reads):
 	pass_qc = False
 	failing = {}
 
-	command = ['pear', '--forward-fastq', decompressed_reads_list[0], '--reverse-fastq', decompressed_reads_list[1], '--output', os.path.join(outdir, sample_name), '--p-value', str(1.0), '--min-assembly-length', str(33), '--phred-base', '', '--cap', str(0), '--threads', str(threads), '--memory', str(str(threads) + 'G'), '--keep-original']
+	command = ['pear', '--forward-fastq', decompressed_reads_list[0], '--reverse-fastq', decompressed_reads_list[1], '--output', os.path.join(outdir, sample_name), '--p-value', str(1.0), '--min-assembly-length', str(minimum_overlap_reads), '--phred-base', '', '--cap', str(0), '--threads', str(threads), '--memory', str(str(threads) + 'G'), '--keep-original']
 
 	if trimmomatic_run_successfully:
 		command[12] = '33'
@@ -162,11 +162,11 @@ def run_pear(decompressed_reads_list, sample_name, threads, outdir, fastq_encodi
 		for fastq in unassembled_pe_reads_uncompressed:
 			os.remove(fastq)
 
-		if float(assembled_reads) / float(assembled_reads + unassembled_reads) < 0.5:
+		if float(assembled_reads) / float(assembled_reads + unassembled_reads) < 0.75:
 			pass_qc = True
 			failing['sample'] = False
 		else:
-			failing['sample'] = 'Number of overlapping reads is >= 50% of total reads'
+			failing['sample'] = 'Number of overlapping reads is >= 75% of total reads'
 			print failing
 
 	return run_successfully, pass_qc, failing, assembled_se_reads, unassembled_pe_reads, assembled_reads, unassembled_reads, discarded_reads
@@ -192,7 +192,7 @@ pear_timer = functools.partial(utils.timer, name='Pear')
 
 
 @pear_timer
-def runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully):
+def runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, maximumReadsLength, minimum_overlap_reads):
 	pass_qc = False
 	failing = {}
 
@@ -212,7 +212,14 @@ def runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomati
 	unassembled_pe_reads = None
 	if run_successfully:
 		if len(decompressed_reads) == 2:
-			run_successfully, pass_qc, failing, assembled_se_reads, unassembled_pe_reads, assembled_reads, unassembled_reads, discarded_reads = run_pear(decompressed_reads, sampleName, threads, pear_folder, fastq_encoding, trimmomatic_run_successfully)
+			if minimum_overlap_reads is None:
+				if maximumReadsLength is not None:
+					minimum_overlap_reads = int(round(float(maximumReadsLength) / 3 * 2, 0))
+					print 'The minimum reads overlaping for Pear assembly them into only one read is ' + str(minimum_overlap_reads) + ' nts (2/3 of ' + str(maximumReadsLength) + ' maximum reads length)'
+				else:
+					minimum_overlap_reads = 33
+					print 'The minimum reads overlaping for Pear assembly them into only one read was blindly set to ' + str(minimum_overlap_reads) + ' nts'
+			run_successfully, pass_qc, failing, assembled_se_reads, unassembled_pe_reads, assembled_reads, unassembled_reads, discarded_reads = run_pear(decompressed_reads, sampleName, threads, pear_folder, fastq_encoding, trimmomatic_run_successfully, minimum_overlap_reads)
 			if run_successfully:
 				with open(os.path.join(outdir, str('pear_report.txt')), 'wt') as writer:
 					writer.write('#assembled_reads' + '\n' + str(assembled_reads) + '\n')

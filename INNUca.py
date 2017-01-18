@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: January 05, 2017
+Last modified: January 18, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -394,7 +394,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 				assembled_se_reads = None
 				# Run Pear
 				if not args.skipPear:
-					run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully)
+					run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, maximumReadsLength, args.pearMinOverlap)
 					runs['Pear'] = [run_successfully, pass_qc, time_taken, failing]
 				else:
 					print '--skipPear or --skipSPAdes set. Skipping Pear'

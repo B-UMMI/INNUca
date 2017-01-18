@@ -178,6 +178,10 @@ Usage
     Pear options:
       --pearKeepFiles       Tells INNUca.py to not remove the output of Pear
                             (default: False)
+      --pearMinOverlap      Minimum nucleotide overlap between read pairs for Pear
+                            assembly them into only one read (default: 2/3 of maximum
+                            reads length or 33 whenever is was not possible to determine
+                            it with FastQC)
 
     SPAdes options:
       --spadesNotUseCareful
