@@ -54,6 +54,7 @@ def parseFastQC(fastqc_folder, fastq_files):
 	goodReads = []
 	badReads = []
 	failing = {}
+	warning = {}
 	for reads in fastq_files:
 		reads_file = reads.rsplit('.', 2)[0]
 		with open(os.path.join(fastqc_folder, str(reads_file + '_fastqc'), 'summary.txt'), 'rtU') as fastqc_summary:
@@ -67,9 +68,6 @@ def parseFastQC(fastqc_folder, fastq_files):
 			if fastqc.get('Per base sequence quality') != 'PASS':
 				bad_fastq = True
 				failing[reads].append('Bad per base sequence quality')
-			if fastqc.get('Per base sequence content') == 'FAIL':
-				bad_fastq = True
-				failing[reads].append('Bad per base sequence content')
 			if fastqc.get('Per sequence GC content') == 'FAIL':
 				bad_fastq = True
 				failing[reads].append('Bad per sequence GC content')
@@ -86,6 +84,11 @@ def parseFastQC(fastqc_folder, fastq_files):
 				bad_fastq = True
 				failing[reads].append('Found adapters sequences')
 
+			if fastqc.get('Per base sequence content') == 'FAIL':
+				if reads not in warning:
+					warning[reads] = []
+				warning[reads].append('Bad per base sequence content')
+
 			if not bad_fastq:
 				goodReads.append(reads)
 			else:
@@ -95,7 +98,7 @@ def parseFastQC(fastqc_folder, fastq_files):
 		if len(failing[fastq]) == 0:
 			failing[fastq] = False
 
-	return goodReads, badReads, failing
+	return goodReads, badReads, failing, warning
 
 
 # Get reads length data, nucleotide bias status & number of reads
@@ -239,6 +242,8 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fa
 	failing = {}
 	failing['sample'] = False
 
+	warnings = {}
+
 	maximumReadsLength = None
 	nts2clip_based_ntsContent = None
 
@@ -257,7 +262,7 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fa
 			return run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent
 
 		# Check which reads pass FastQC
-		goodReads, badReads, failing = parseFastQC(fastqc_folder, fastq_files)
+		goodReads, badReads, failing, warnings = parseFastQC(fastqc_folder, fastq_files)
 		# Get reads information
 		maximumReadsLength, moreFrequentReadsLength, numberReads, ntsContent_biasStatus = getReadsInformation(fastqc_folder, fastq_files)
 		# Get number nucleotides to clip based on nucleotide content bias
@@ -280,4 +285,4 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fa
 	if not keepFiles:
 		utils.removeDirectory(fastqc_folder)
 
-	return run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent
+	return run_successfully, pass_qc, failing, warnings, maximumReadsLength, nts2clip_based_ntsContent

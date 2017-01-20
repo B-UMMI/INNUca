@@ -207,7 +207,7 @@ def runTime(start_time):
 	hours, rest = divmod(time_taken, 3600)
 	minutes, seconds = divmod(rest, 60)
 	print 'Runtime :' + str(hours) + 'h:' + str(minutes) + 'm:' + str(round(seconds, 2)) + 's'
-	return time_taken
+	return round(time_taken, 2)
 
 
 class Logger(object):
@@ -490,6 +490,9 @@ def sampleReportLine(run_report):
 			pass_qc = 'PASS'
 		elif run_report[step][1] is None:
 			pass_qc = run_report[step][3]['sample']
+
+		if step in ('first_FastQC', 'second_FastQC') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+			pass_qc = 'WARNING'
 
 		if step in ('FastQ_Integrity', 'Pilon'):
 			l = [run_successfully, run_report[step][2]]

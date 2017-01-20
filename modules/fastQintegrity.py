@@ -29,9 +29,15 @@ def fastQintegrity(fastq, outdir):
 
 
 def run_guess_encoding_single_thread(fastq_file, number_reads_access_None_all, outdir):
-	guess_encoding.gess_encoding(fastq_file, number_reads_access_None_all, outdir)
-	encoding_data = guess_encoding.gather_data_together(outdir)
+	outdir_guess_encoding = os.path.join(outdir, os.path.splitext(os.path.basename(fastq_file))[0])
+	utils.removeDirectory(outdir_guess_encoding)
+	os.mkdir(outdir_guess_encoding)
+
+	guess_encoding.gess_encoding(fastq_file, number_reads_access_None_all, outdir_guess_encoding)
+	encoding_data = guess_encoding.gather_data_together(outdir_guess_encoding)
 	final_enconding = guess_encoding.get_final_encoding(encoding_data)
+
+	utils.removeDirectory(outdir_guess_encoding)
 	return final_enconding
 
 
@@ -76,8 +82,8 @@ def runFastQintegrity(fastq_files, threads, outdir):
 		encoding = None
 		print 'It was no possible to determine the FASTQ encodings'
 	else:
-		if len(set([x[0] for x in encoding])) == 1:
-			encoding = encoding[0]
+		if len(set([x[0] for x in encoding if x is not None])) == 1:
+			encoding = [x[0] for x in encoding if x is not None][0]
 			print 'Fastq quality encoding: ' + str(encoding)
 		else:
 			print 'It was no possible to determine the FASTQ encodings'
