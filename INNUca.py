@@ -488,11 +488,11 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	pass_trueCov = runs['trueCoverage_ReMatCh'][1] is not False
 	pass_fastqc = (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False
 	pass_trimmomatic = runs['Trimmomatic'][1] is not False
-	pass_spades = runs['Pear'][1] is not False
+	pass_pear = runs['Pear'][1] is not False
 	pass_spades = runs['SPAdes'][1] is not False
 	pass_assemblyMapping = runs['Assembly_Mapping'][1] is not False
 	pass_mlst = runs['MLST'][1] is not False
-	pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_trimmomatic, pass_spades, pass_assemblyMapping, pass_mlst])
+	pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_trimmomatic, pass_pear, pass_spades, pass_assemblyMapping, pass_mlst])
 
 	return run_successfully, pass_qc, runs
 
