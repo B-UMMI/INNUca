@@ -294,7 +294,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 			if os.path.isfile(report_file):
 				os.remove(report_file)
 			# Run getEstimatedCoverage
-			run_successfully_estimatedCoverage, pass_qc, time_taken, failing, estimatedCoverage = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads)
+			run_successfully_estimatedCoverage, pass_qc, time_taken, failing, estimatedCoverage = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads, args.estimatedMinimumCoverage)
 			runs['first_Coverage'] = [run_successfully_estimatedCoverage, pass_qc, time_taken, failing]
 		else:
 			print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
@@ -332,7 +332,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 						# Run second Estimated Coverage
 						if not args.skipEstimatedCoverage:
-							run_successfully_estimatedCoverage, pass_qc, time_taken, failing, estimatedCoverage = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads)
+							run_successfully_estimatedCoverage, pass_qc, time_taken, failing, estimatedCoverage = coverage.getEstimatedCoverage(fastq_files, genomeSize, outdir, threads, args.estimatedMinimumCoverage)
 							runs['second_Coverage'] = [run_successfully_estimatedCoverage, pass_qc, time_taken, failing]
 						else:
 							print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'

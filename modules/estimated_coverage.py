@@ -36,7 +36,7 @@ coverage_timer = partial(utils.timer, name='Estimated Coverage analysis')
 
 # Get estimated coverage
 @coverage_timer
-def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir, threads):
+def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir, threads, estimatedMinimumCoverage):
 	run_successfully = False
 	pass_qc = False
 	failing = {}
@@ -83,11 +83,11 @@ def getEstimatedCoverage(fastq_files, estimatedGenomeSizeMb, outdir, threads):
 		writer.close()
 
 		report = 'Estimated depth coverage: ' + str(estimatedCoverage) + 'x'
-		if estimatedCoverage >= 30:
+		if estimatedCoverage >= estimatedMinimumCoverage:
 			pass_qc = True
 			print report
 		else:
-			failing['sample'] = report + ' (lower than 30x)'
+			failing['sample'] = report + ' (lower than ' + str(estimatedMinimumCoverage) + 'x)'
 			print failing['sample']
 
 	else:
