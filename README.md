@@ -17,7 +17,7 @@ Dependencies
 ------------
 **Mandatory**
 
- - *Java JDK* >= v1.8
+ - *Java JDK*
  - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (it is recommended
    to use a mlst version with updated databases)
  - *gzip* >= v1.6 (normally found in Linux OS)
@@ -25,13 +25,14 @@ Dependencies
 **Optional**
 (executables are provided, but user's own executables can be used with `--doNotUseProvidedSoftware` option)
 
+ - *Bowtie2* >= v2.2.9
+ - *Samtools* = v1.3.1
  - *FastQC* = v0.11.5
  - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
    in your PATH)
+ - *Pear* = v0.9.10
  - *SPAdes* >= v3.9.0
  - *Pilon* = v1.18
- - *Bowtie2* >= v2.2.9
- - *Samtools* = v1.3.1
 
 Installation
 ------------
@@ -41,25 +42,29 @@ Usage
 -----
 
     usage: INNUca.py [-h] [--version]
-                     -i /path/to/input/directory/
-                     -s "Streptococcus agalactiae"
-                     -g 2.1
-                     [-o /output/directory/] [-j N] [--doNotUseProvidedSoftware]
-                     [--jarMaxMemory 10]
-                     [--skipEstimatedCoverage] [--skipFastQC] [--skipTrimmomatic]
-                     [--skipSPAdes] [--skipPilon] [--skipAssemblyMapping]
-                     [--skipMLST]
+                     -s "Streptococcus agalactiae" -g 2.1
+                     (-i /path/to/input/directory/ | -f /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz)
+                     [-o /output/directory/] [-j N]
+                     [--jarMaxMemory 10] [--doNotUseProvidedSoftware]
+                     [--keepIntermediateAssemblies]
+                     [--skipEstimatedCoverage] [--skipFastQC]
+                     [--skipTrimmomatic] [--skipSPAdes] [--skipAssemblyMapping]
+                     [--skipPilon] [--skipMLST] [--runPear]
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
+                     [--fastQCkeepFiles]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimLeading N]
                      [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
-                     [--spadesNotUseCareful] [--spadesMinContigsLength N]
-                     [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
-                     [--spadesMinKmerCovContigs N]
+                     [--pearKeepFiles] [--pearMinOverlap N]
+                     [--spadesUse_3_9] [--spadesNotUseCareful]
+                     [--spadesMinContigsLength N] [--spadesMaxMemory N]
+                     [--spadesMinCoverageAssembly 10] [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
-                     [--pilonKeepFiles] [--assemblyMinCoverageContigs N]
+                     [--assemblyMinCoverageContigs N]
+                     [--saveExcludedContigs]
+                     [--pilonKeepFiles]
 
     INNUca - Reads Control and Assembly
 
@@ -68,14 +73,18 @@ Usage
       --version             Version information
 
     Required options:
-      -i /path/to/input/directory/, --inputDirectory /path/to/input/directory/
-                            Path to directory containing the fastq files. Can be
-                            organized in separete directories by samples or all
-                            together (default: None)
       -s "Streptococcus agalactiae", --speciesExpected "Streptococcus agalactiae"
                             Expected species name (default: None)
       -g 2.1, --genomeSizeExpectedMb 2.1
                             Expected genome size in Mb (default: None)
+
+    Required INPUT options (one of the following):
+      -i /path/to/input/directory/, --inputDirectory /path/to/input/directory/
+                            Path to directory containing the fastq files. Can be
+                            organized in separete directories by samples or all
+                            together (default: None)
+      -f /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz, --fastq /path/to/input/file_1.fq.gz /path/to/input/file_2.fq.gz
+                            Path to Pair-End Fastq files (default: None)
 
     General options:
       -o /output/directory/, --outdir /output/directory/
@@ -89,6 +98,9 @@ Usage
                             Tells the software to not use FastQC, Trimmomatic,
                             SPAdes, Bowtie2, Samtools and Pilon that are provided
                             with INNUca.py (default: False)
+      --keepIntermediateAssemblies
+                            Tells INNUca to keep all the intermediate assemblies
+                            (default: False)
       --skipEstimatedCoverage
                             Tells the programme to not estimate coverage depth
                             based on number of sequenced nucleotides and expected
@@ -102,14 +114,15 @@ Usage
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
                             Pilon correction, Assembly Mapping check and MLST
                             analysis (SPAdes contigs required) (default: False)
-      --skipPilon           Tells the programme to not run Pilon correction and
-                            consequently Assembly Mapping check (bam files
-                            required) (default: False)
       --skipAssemblyMapping
                             Tells the programme to not run Assembly Mapping check
                             (default: False)
+      --skipPilon           Tells the programme to not run Pilon correction and
+                            consequently Assembly Mapping check (bam files
+                            required) (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
+      --runPear             Tells the programme to run Pear (default: False)
 
     Adapters options (one of the following):
       --adapters adaptersFile.fasta
@@ -136,6 +149,10 @@ Usage
                             --skipTrueCoverage is specified. Do not use together
                             with --skipTrueCoverage option (default: None)
 
+    FastQC options:
+      --fastQCkeepFiles       Tells INNUca.py to not remove the output of
+                            FastQC (default: False)
+
     Trimmomatic options:
       --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of
                             reads during Trimmomatic step (unless specified with
@@ -159,17 +176,26 @@ Usage
       --trimKeepFiles       Tells INNUca.py to not remove the output of
                             Trimmomatic (default: False)
 
+    Pear options:
+      --pearKeepFiles       Tells INNUca.py to not remove the output of Pear
+                            (default: False)
+      --pearMinOverlap      Minimum nucleotide overlap between read pairs for Pear
+                            assembly them into only one read (default: 2/3 of maximum
+                            reads length or 33 whenever is was not possible to determine
+                            it with FastQC)
+
     SPAdes options:
+      --spadesUse_3_9       Tells INNUca.py to use SPAdes v3.9.0 instead of v.3.10.1
+                            (default: False)
       --spadesNotUseCareful
                             Tells SPAdes to only perform the assembly without the
                             --careful option (default: False)
       --spadesMinContigsLength N
                             Filter SPAdes contigs for length greater or equal than
                             this value (default: maximum reads size or 200 bp)
-                            (default: None)
       --spadesMaxMemory N   The maximum amount of RAM Gb for SPAdes to use
                             (default: 2 Gb per thread will be used up to the free
-                            available memory) (default: None)
+                            available memory)
       --spadesMinCoverageAssembly 10
                             The minimum number of reads to consider an edge in the
                             de Bruijn graph during the assembly. Can also be auto
@@ -187,27 +213,33 @@ Usage
       --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
                             False)
 
-    Pilon options:
-      --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
-                            (default: False)
-
     Assembly Mapping options:
       --assemblyMinCoverageContigs N
                             Minimum contigs average coverage. After mapping reads
                             back to the contigs, only keep contigs with at least
-                            this average coverage (default: 30)
+                            this average coverage (default: 1/3 of the assembly
+                            mean coverage or 10x when mean coverage is lower than
+                            30x)
+
+    Assembly options:
+      --saveExcludedContigs Tells INNUca.py to save excluded contigs (default: False)
+
+    Pilon options:
+      --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
+                            (default: False)
 
 
 
 Combine INNUca reports
 ----------------------
-In order to combine **INNUca** reports (Estimate Coverage, True Coverage, SPAdes, Pilon, Assembly Mapping, MLST), use *combine_reports.py* found in **INNUca** modules folder
+In order to combine **INNUca** reports (Estimate Coverage, True Coverage, Pear, SPAdes, Assembly Mapping, Pilon, MLST), use *combine_reports.py* found in **INNUca** modules folder
 
     usage: python combine_reports.py [-h] [--version] -i
                               /path/to/INNUca/output/directory/
                               [-o /path/to/output/directory/]
 
-    Combine INNUca reports (Coverage, SPAdes, Pilon, MLST)
+    Combine INNUca reports (Estimated Coverage, True Coverage, Pear, SPAdes, Assembly
+    Mapping, Pilon, MLST)
 
     optional arguments:
       -h, --help            show this help message and exit

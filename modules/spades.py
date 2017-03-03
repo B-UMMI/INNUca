@@ -7,10 +7,10 @@ import re
 
 
 # Run Spades
-def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers):
+def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers, assembled_se_reads):
 	contigs = os.path.join(spades_folder, 'contigs.fasta')
 
-	command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory), '--cov-cutoff', str(minCoverageAssembly), '', '-1', fastq_files[0], '-2', fastq_files[1], '-o', spades_folder]
+	command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory), '--cov-cutoff', str(minCoverageAssembly), '', '-1', fastq_files[0], '-2', fastq_files[1], '', '-o', spades_folder]
 
 	if not notUseCareful:
 		command[1] = '--careful'
@@ -18,6 +18,9 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 	if len(kmers) > 0:
 		kmers = ','.join(map(str, kmers))
 		command[9] = str('-k ' + kmers)
+
+	if assembled_se_reads is not None:
+		command[14] = str('-s ' + assembled_se_reads)
 
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
@@ -128,10 +131,15 @@ def determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageCo
 	return sequence_dict, spades_report_general
 
 
-def write_filtered_sequences_and_stats(sequence_dict, spades_report_general, original_sequence_file, filtered_sequence_file, sampleName, write_only_report_original_True):
+def write_filtered_sequences_and_stats(sequence_dict, spades_report_general, original_sequence_file, filtered_sequence_file, sampleName, write_only_report_original_True, saveExcludedContigs):
 	if write_only_report_original_True is False:
 		report_filtered = open(os.path.join(os.path.dirname(filtered_sequence_file), str('spades_report.filtered.' + os.path.splitext(os.path.basename(filtered_sequence_file))[0].split('.', 1)[1]) + '.tab'), 'wt')
 
+	if saveExcludedContigs:
+		path_excluded_contigs = os.path.splitext(filtered_sequence_file)[0] + '.excluded_contigs.fasta'
+		excluded_contigs = open(path_excluded_contigs, 'wt')
+
+	found_excluded_contigs = False
 	with open(os.path.join(os.path.dirname(filtered_sequence_file), str('spades_report.original.' + os.path.splitext(os.path.basename(original_sequence_file))[0].split('.', 1)[1]) + '.tab'), 'wt') as report_original:
 		with open(filtered_sequence_file, 'wt') as contigs_filtered:
 			fields = ['header', 'length', 'AT', 'GC', 'N', 'kmer_cov']
@@ -148,6 +156,16 @@ def write_filtered_sequences_and_stats(sequence_dict, spades_report_general, ori
 					contigs_filtered.write('>' + sampleName + '_' + sequence_dict[i]['header'] + '\n' + '\n'.join(sequence_dict[i]['sequence']) + '\n')
 					if write_only_report_original_True is False:
 						report_filtered.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
+				else:
+					if saveExcludedContigs:
+						found_excluded_contigs = True
+						excluded_contigs.write('>' + sampleName + '_' + sequence_dict[i]['header'] + '\n' + '\n'.join(sequence_dict[i]['sequence']) + '\n')
+
+	if saveExcludedContigs:
+		excluded_contigs.flush()
+		excluded_contigs.close()
+		if not found_excluded_contigs:
+			os.remove(path_excluded_contigs)
 
 
 def qc_assembly(spades_report_general, estimatedGenomeSizeMb):
@@ -218,7 +236,7 @@ spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run SPAdes procedure
 @spades_timer
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs):
+def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs, assembled_se_reads, saveExcludedContigs):
 	pass_qc = False
 	failing = {}
 	failing['sample'] = False
@@ -238,7 +256,7 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 		else:
 			print 'SPAdes will use the following k-mers: ' + str(kmers)
 
-	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers)
+	run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers, assembled_se_reads)
 
 	if run_successfully:
 		shutil.copyfile(contigs, os.path.join(outdir, str('SPAdes_original_assembly.contigs.fasta')))
@@ -256,13 +274,13 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 
 		if filtered_sequences_sufix is not None:
 			filtered_sequence_file = os.path.splitext(contigs)[0] + '.' + filtered_sequences_sufix + '.fasta'
-			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, False)
+			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, False, saveExcludedContigs)
 			contigs = filtered_sequence_file
 			if failing['sample'] is False:
 				pass_qc = True
 		else:
 			filtered_sequence_file = os.path.splitext(contigs)[0] + '.original.fasta'
-			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, True)
+			write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, True, False)
 			contigs = filtered_sequence_file
 
 		os.remove(contigs_link)

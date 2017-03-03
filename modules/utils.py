@@ -16,26 +16,32 @@ def parseArguments(version):
 	parser = argparse.ArgumentParser(prog='INNUca.py', description='INNUca - Reads Control and Assembly', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 	required_options = parser.add_argument_group('Required options')
-	required_options.add_argument('-i', '--inputDirectory', type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together', required=True)
 	required_options.add_argument('-s', '--speciesExpected', type=str, metavar='"Streptococcus agalactiae"', help='Expected species name', required=True)
 	required_options.add_argument('-g', '--genomeSizeExpectedMb', type=float, metavar='2.1', help='Expected genome size in Mb', required=True)
+
+	input_options = parser.add_mutually_exclusive_group(required=True)
+	input_options.add_argument('-i', '--inputDirectory', type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together')
+	input_options.add_argument('-f', '--fastq', nargs=2, type=argparse.FileType('r'), metavar=('/path/to/input/file_1.fq.gz', '/path/to/input/file_2.fq.gz'), help='Path to Pair-End Fastq files')
 
 	parser.add_argument('--version', help='Version information', action='version', version=str('%(prog)s v' + version))
 
 	general_options = parser.add_argument_group('General options')
 	general_options.add_argument('-o', '--outdir', type=str, metavar='/output/directory/', help='Path for output directory', required=False, default='.')
 	general_options.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads', required=False, default=1)
+	general_options.add_argument('--json', action='store_true', help='Tells INNUca to save the results also in json format')
 	general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10', help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be auto or off. When auto is set, 1 Gb per thread will be used up to the free available memory', required=False, default='off')
 	general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes, Bowtie2, Samtools and Pilon that are provided with INNUca.py')
 	# general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
+	general_options.add_argument('--keepIntermediateAssemblies', action='store_true', help='Tells INNUca to keep all the intermediate assemblies')
 	general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
 	general_options.add_argument('--skipTrueCoverage', action='store_true', help='Tells the programme to not run trueCoverage_ReMatCh analysis')
 	general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
 	general_options.add_argument('--skipTrimmomatic', action='store_true', help='Tells the programme to not run Trimmomatic')
 	general_options.add_argument('--skipSPAdes', action='store_true', help='Tells the programme to not run SPAdes and consequently Pilon correction, Assembly Mapping check and MLST analysis (SPAdes contigs required)')
-	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction and consequently Assembly Mapping check (bam files required)')
 	general_options.add_argument('--skipAssemblyMapping', action='store_true', help='Tells the programme to not run Assembly Mapping check')
+	general_options.add_argument('--skipPilon', action='store_true', help='Tells the programme to not run Pilon correction and consequently Assembly Mapping check (bam files required)')
 	general_options.add_argument('--skipMLST', action='store_true', help='Tells the programme to not run MLST analysis')
+	general_options.add_argument('--runPear', action='store_true', help='Tells the programme to run Pear')
 
 	adapters_options = parser.add_mutually_exclusive_group()
 	adapters_options.add_argument('--adapters', type=argparse.FileType('r'), metavar='adaptersFile.fasta', help='Fasta file containing adapters sequences to be used in FastQC and Trimmomatic', required=False)
@@ -47,6 +53,9 @@ def parseArguments(version):
 	trueCoverage_options = parser.add_argument_group('trueCoverage_ReMatCh options')
 	trueCoverage_options.add_argument('--trueConfigFile', type=argparse.FileType('r'), metavar='species.config', help='File with trueCoverage_ReMatCh settings. Some species specific config files can be found in INNUca/modules/trueCoverage_rematch/ folder. Use those files as example files. For species with config files in INNUca/modules/trueCoverage_rematch/ folder (not pre releases versions, marked with "pre."), trueCoverage_ReMatCh will run by default, unless --skipTrueCoverage is specified. Do not use together with --skipTrueCoverage option', required=False)
 
+	fastQC_options = parser.add_argument_group('FastQC options')
+	fastQC_options.add_argument('--fastQCkeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of FastQC')
+
 	trimmomatic_options = parser.add_argument_group('Trimmomatic options')
 	trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
 	trimmomatic_options.add_argument('--trimCrop', nargs=1, type=int, metavar='N', help='Cut the specified number of bases to the end of the maximum reads length', required=False)
@@ -57,7 +66,12 @@ def parseArguments(version):
 	trimmomatic_options.add_argument('--trimMinLength', type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=55)
 	trimmomatic_options.add_argument('--trimKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Trimmomatic')
 
+	pear_options = parser.add_argument_group('Pear options')
+	pear_options.add_argument('--pearKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pear')
+	pear_options.add_argument('--pearMinOverlap', type=int, metavar='N', help='Minimum nucleotide overlap between read pairs for Pear assembly them into only one read (default: 2/3 of maximum reads length determine using FastQC, or Trimmomatic minimum reads length if it runs, or 33 nts)', required=False)
+
 	spades_options = parser.add_argument_group('SPAdes options')
+	spades_options.add_argument('--spadesUse_3_9', action='store_true', help='Tells INNUca.py to use SPAdes v3.9.0 instead of v.3.10.1')
 	spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
 	spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value (default: maximum reads size or 200 bp)', required=False)
 	spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: 2 Gb per thread will be used up to the free available memory)', required=False)
@@ -68,11 +82,14 @@ def parseArguments(version):
 	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
+	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
+	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage (default: 1/3 of the assembly mean coverage or 10x when mean coverage is lower than 30x)', required=False)
+
+	assembly_options = parser.add_argument_group('Assembly options')
+	assembly_options.add_argument('--saveExcludedContigs', action='store_true', help='Tells INNUca.py to save excluded contigs')
+
 	pilon_options = parser.add_argument_group('Pilon options')
 	pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
-
-	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
-	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage', required=False, default=30)
 
 	args = parser.parse_args()
 
@@ -154,6 +171,11 @@ def define_jar_max_memory(jar_max_memory, threads, available_memory_GB):
 		return jar_max_memory
 
 
+def kill_subprocess_Popen(subprocess_Popen, command):
+	print 'Command run out of time: ' + str(command)
+	subprocess_Popen.kill()
+
+
 def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_comand_True):
 	run_successfully = False
 	if isinstance(command, basestring):
@@ -169,23 +191,28 @@ def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_coma
 		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	else:
 		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+	not_killed_by_timer = True
 	if timeout_sec_None is None:
 		stdout, stderr = proc.communicate()
 	else:
-		timer = Timer(timeout_sec_None, proc.kill)
+		timer = Timer(timeout_sec_None, kill_subprocess_Popen, args=(proc, command,))
 		timer.start()
 		stdout, stderr = proc.communicate()
 		timer.cancel()
+		not_killed_by_timer = timer.isAlive()
 
 	if proc.returncode == 0:
 		run_successfully = True
 	else:
-		if not print_comand_True:
+		if not print_comand_True and not_killed_by_timer:
 			print 'Running: ' + str(command)
-		print 'STDOUT'
-		print stdout.decode("utf-8")
-		print 'STDERR'
-		print stderr.decode("utf-8")
+		if len(stdout) > 0:
+			print 'STDOUT'
+			print stdout.decode("utf-8")
+		if len(stderr) > 0:
+			print 'STDERR'
+			print stderr.decode("utf-8")
 	return run_successfully, stdout, stderr
 
 
@@ -195,7 +222,7 @@ def runTime(start_time):
 	hours, rest = divmod(time_taken, 3600)
 	minutes, seconds = divmod(rest, 60)
 	print 'Runtime :' + str(hours) + 'h:' + str(minutes) + 'm:' + str(round(seconds, 2)) + 's'
-	return time_taken
+	return round(time_taken, 2)
 
 
 class Logger(object):
@@ -253,33 +280,36 @@ def checkPrograms(programs_version_dictionary):
 				if programs[program][1] == '>=':
 					program_found_version = version_line.split('.')
 					program_version_required = programs[program][2].split('.')
-					if float('.'.join(program_found_version[0:2])) < float('.'.join(program_version_required[0:2])):
-						listMissings.append('It is required ' + program + ' with version ' + programs[program][1] + ' ' + programs[program][2])
-					elif float('.'.join(program_found_version[0:2])) == float('.'.join(program_version_required[0:2])):
-						if len(program_version_required) == 3:
-							if len(program_found_version) == 2:
-								program_found_version.append(0)
-							if program_found_version[2].split('_')[0] < program_version_required[2]:
-								listMissings.append('It is required ' + program + ' with version ' + programs[program][1] + ' ' + programs[program][2])
+					if len(program_version_required) == 3:
+						if len(program_found_version) == 2:
+							program_found_version.append(0)
+						else:
+							program_found_version[2] = program_found_version[2].split('_')[0]
+					for i in range(0, len(program_version_required)):
+						if int(program_found_version[i]) < int(program_version_required[i]):
+							listMissings.append('It is required ' + program + ' with version ' + programs[program][1] + ' ' + programs[program][2])
 				else:
 					if version_line != programs[program][2]:
 						listMissings.append('It is required ' + program + ' with version ' + programs[program][1] + ' ' + programs[program][2])
 	return listMissings, programs
 
 
-def setPATHvariable(doNotUseProvidedSoftware, script_path):
+def setPATHvariable(args, script_path):
 	path_variable = os.environ['PATH']
 	script_folder = os.path.dirname(script_path)
 	# Set path to use provided softwares
-	if not doNotUseProvidedSoftware:
+	if not args.doNotUseProvidedSoftware:
 		fastQC = os.path.join(script_folder, 'src', 'fastqc_v0.11.5')
 		trimmomatic = os.path.join(script_folder, 'src', 'Trimmomatic-0.36')
-		spades = os.path.join(script_folder, 'src', 'SPAdes-3.9.0-Linux', 'bin')
+		pear = os.path.join(script_folder, 'src', 'PEAR_v0.9.10', 'bin')
+		spades = os.path.join(script_folder, 'src', 'SPAdes-3.10.1-Linux', 'bin')
+		if args.spadesUse_3_9:
+			spades = os.path.join(script_folder, 'src', 'SPAdes-3.9.0-Linux', 'bin')
 		bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
 		samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
 		pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')
 
-		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, spades, bowtie2, samtools, pilon, path_variable]))
+		os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, pear, spades, bowtie2, samtools, pilon, path_variable]))
 	print '\n' + 'PATH variable:'
 	print os.environ['PATH']
 
@@ -427,16 +457,18 @@ def removeDirectory(directory):
 # Get script version
 def scriptVersionGit(version, directory, script_path):
 	print 'Version ' + version
-	os.chdir(os.path.dirname(script_path))
-	command = ['git', 'log', '-1', '--date=local', '--pretty=format:"%h (%H) - Commit by %cn, %cd) : %s"']
-	proc = subprocess.Popen(shlex.split(' '.join(command)), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	stdout, stderr = proc.communicate()
-	print stdout
-	command = ['git', 'remote', 'show', 'origin']
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	stdout, stderr = proc.communicate()
-	print stdout
-	os.chdir(directory)
+
+	try:
+		os.chdir(os.path.dirname(script_path))
+		command = ['git', 'log', '-1', '--date=local', '--pretty=format:"%h (%H) - Commit by %cn, %cd) : %s"']
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+		print stdout
+		command = ['git', 'remote', 'show', 'origin']
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+		print stdout
+		os.chdir(directory)
+	except:
+		print 'HARMLESS WARNING: git command possibly not found. The GitHub repository information will not be obtained.'
 
 
 def saveVariableToPickle(variableToStore, outdir, prefix):
@@ -451,13 +483,12 @@ def extractVariableFromPickle(pickleFile):
 	return variable
 
 
-# Extract compression type
-def compressionType(file):
-	magic_dict = {'\x1f\x8b\x08': 'gz', '\x42\x5a\x68': 'bz2'}
+def compressionType(file_to_test):
+	magic_dict = {'\x1f\x8b\x08': ['gzip', 'gunzip'], '\x42\x5a\x68': ['bzip2', 'bunzip2']}
 
 	max_len = max(len(x) for x in magic_dict)
 
-	with open(file, 'r') as reader:
+	with open(file_to_test, 'r') as reader:
 		file_start = reader.read(max_len)
 
 	for magic, filetype in magic_dict.items():
@@ -466,7 +497,7 @@ def compressionType(file):
 	return None
 
 
-steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
+steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
 
 
 def sampleReportLine(run_report):
@@ -478,6 +509,9 @@ def sampleReportLine(run_report):
 			pass_qc = 'PASS'
 		elif run_report[step][1] is None:
 			pass_qc = run_report[step][3]['sample']
+
+		if step in ('first_FastQC', 'second_FastQC') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+			pass_qc = 'WARNING'
 
 		if step in ('FastQ_Integrity', 'Pilon'):
 			l = [run_successfully, run_report[step][2]]
@@ -668,3 +702,47 @@ def trace_unhandled_exceptions(func):
 			print 'Exception in ' + func.__name__
 			traceback.print_exc()
 	return wrapped_func
+
+
+def get_sequence_information(fasta_file, length_extra_seq):
+	sequence_dict = {}
+	headers = []
+
+	with open(fasta_file, 'rtU') as reader:
+		blank_line_found = False
+		sequence_counter = 0
+		temp_sequence_dict = {}
+		for line in reader:
+			line = line.splitlines()[0]
+			if len(line) > 0:
+				if not blank_line_found:
+					if line.startswith('>'):
+						if len(temp_sequence_dict) > 0:
+							if temp_sequence_dict.values()[0]['length'] - 2 * length_extra_seq > 0:
+								sequence_dict[temp_sequence_dict.keys()[0]] = temp_sequence_dict.values()[0]
+								headers.append(temp_sequence_dict.values()[0]['header'])
+							else:
+								print temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0'
+							temp_sequence_dict = {}
+
+						if line[1:] in headers:
+							sys.exit('Found duplicated sequence headers')
+
+						sequence_counter += 1
+						temp_sequence_dict[sequence_counter] = {'header': line[1:], 'sequence': '', 'length': 0}
+					else:
+						temp_sequence_dict[sequence_counter]['sequence'] += line
+						temp_sequence_dict[sequence_counter]['length'] += len(line)
+				else:
+					sys.exit('It was found a blank line between the fasta file above line ' + line)
+			else:
+				blank_line_found = True
+
+		if len(temp_sequence_dict) > 0:
+			if temp_sequence_dict.values()[0]['length'] - 2 * length_extra_seq > 0:
+				sequence_dict[temp_sequence_dict.keys()[0]] = temp_sequence_dict.values()[0]
+				headers.append(temp_sequence_dict.values()[0]['header'])
+			else:
+				print temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0'
+
+	return sequence_dict, headers

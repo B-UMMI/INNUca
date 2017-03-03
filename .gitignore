@@ -1,6 +1,9 @@
 # mpmachado_stuff - file with different mpmachado stuffs
 mpmachado_stuff.*
 
+# trueCoverage_rematch fasta file
+modules/trueCoverage_rematch/*.fai
+
 # Python stuff
 *.py[cod]
 

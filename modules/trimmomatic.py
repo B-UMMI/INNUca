@@ -4,7 +4,7 @@ from functools import partial
 
 
 # Run Trimmomatic
-def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory):
+def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding):
 	fastq = sorted(fastq_files)[0]
 
 	# Run Trimmomatic
@@ -46,9 +46,13 @@ def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, a
 			adaptersFasta = concatenateFastaFiles(adapters_files, trimmomatic_folder, 'concatenated_adaptersFile.fasta')
 			command[13] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
 
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
-
-	if not run_successfully:
+	if fastq_encoding is not None:
+		if fastq_encoding == 33:
+			command[19] = '-phred33'
+		elif fastq_encoding == 64:
+			command[19] = '-phred64'
+		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
+	else:
 		print 'Trimmomatic fail! Trying run with Phred+33 enconding defined...'
 		command[19] = '-phred33'
 		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
@@ -94,15 +98,10 @@ def controlForZeroReads(fastq_files):
 
 	fastq = fastq_files[0]
 
-	command = ['', '--stdout', '--keep', fastq, '|', 'head', '-n', '4']
+	compression_type = utils.compressionType(fastq)
 
-	filetype = utils.compressionType(fastq)
-	if filetype == 'gz':
-		command[0] = 'gunzip'
-	elif filetype == 'bz2':
-		command[0] = 'bunzip2'
-
-	if command[0] != '':
+	if compression_type is not None:
+		command = [compression_type[1], '--stdout', '--keep', fastq, '|', 'head', '-n', '4']
 		run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None, False)
 
 		if run_successfully:
@@ -118,7 +117,7 @@ trim_timer = partial(utils.timer, name='Trimmomatic')
 
 # Run Trimmomatic procedure
 @trim_timer
-def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory):
+def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding):
 	failing = {}
 	failing['sample'] = False
 	not_empty_fastq = False
@@ -131,7 +130,7 @@ def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFa
 	utils.removeDirectory(trimmomatic_folder)
 	os.mkdir(trimmomatic_folder)
 
-	run_successfully = trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory)
+	run_successfully = trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding)
 
 	if run_successfully:
 		paired_reads = getTrimmomaticPairedReads(trimmomatic_folder)
