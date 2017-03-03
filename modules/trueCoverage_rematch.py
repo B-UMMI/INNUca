@@ -677,9 +677,9 @@ def gather_data_together(sample, data_directory, sequences_information, outdir, 
 
 					gene_identity = 0
 					if sequences_information[sequence_counter]['length'] - 2 * length_extra_seq - count_absent > 0:
-						gene_identity = 100 - (float(number_diferences) / (sequences_information[sequence_counter]['length'] - 2 * length_extra_seq - count_absent))
+						gene_identity = 100 - (float(number_diferences) / (sequences_information[sequence_counter]['length'] - 2 * length_extra_seq - count_absent)) * 100
 
-					sample_data[sequence_counter] = {'header': sequences_information[sequence_counter]['header'], 'gene_coverage': 100 - (float(count_absent) / (sequences_information[sequence_counter]['length'] - 2 * length_extra_seq)), 'gene_low_coverage': percentage_lowCoverage, 'gene_number_positions_multiple_alleles': multiple_alleles_found, 'gene_mean_read_coverage': meanCoverage, 'gene_identity': gene_identity}
+					sample_data[sequence_counter] = {'header': sequences_information[sequence_counter]['header'], 'gene_coverage': 100 - (float(count_absent) / (sequences_information[sequence_counter]['length'] - 2 * length_extra_seq)) * 100, 'gene_low_coverage': percentage_lowCoverage, 'gene_number_positions_multiple_alleles': multiple_alleles_found, 'gene_mean_read_coverage': meanCoverage, 'gene_identity': gene_identity}
 					counter += 1
 
 		if not debug_mode_true:
