@@ -188,11 +188,22 @@ def get_pear_output(outdir, sample_name):
 	return unassembled_pe_reads, assembled_se_reads
 
 
+def determine_minimum_overlap(pear_min_overlap, min_reads_legth, max_reads_legth):
+	if pear_min_overlap is None:
+		if max_reads_legth is not None:
+			pear_min_overlap = int(round(float(max_reads_legth) / 4 * 3, 0))
+			print 'The minimum reads overlaping for Pear assembly them into only one read is ' + str(pear_min_overlap) + ' nts (3/4 of ' + str(max_reads_legth) + ' maximum reads length)'
+		else:
+			pear_min_overlap = int(round(float(min_reads_legth) / 4 * 3, 0))
+			print 'The minimum reads overlaping for Pear assembly them into only one read is ' + str(pear_min_overlap) + ' nts (3/4 of ' + str(min_reads_legth) + ' minimum reads length)'
+	return pear_min_overlap
+
+
 pear_timer = functools.partial(utils.timer, name='Pear')
 
 
 @pear_timer
-def runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, maximumReadsLength, minimum_overlap_reads):
+def runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, minimum_overlap_reads):
 	pass_qc = False
 	failing = {}
 
@@ -212,13 +223,6 @@ def runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomati
 	unassembled_pe_reads = None
 	if run_successfully:
 		if len(decompressed_reads) == 2:
-			if minimum_overlap_reads is None:
-				if maximumReadsLength is not None:
-					minimum_overlap_reads = int(round(float(maximumReadsLength) / 3 * 2, 0))
-					print 'The minimum reads overlaping for Pear assembly them into only one read is ' + str(minimum_overlap_reads) + ' nts (2/3 of ' + str(maximumReadsLength) + ' maximum reads length)'
-				else:
-					minimum_overlap_reads = 33
-					print 'The minimum reads overlaping for Pear assembly them into only one read was blindly set to ' + str(minimum_overlap_reads) + ' nts'
 			run_successfully, pass_qc, failing, assembled_se_reads, unassembled_pe_reads, assembled_reads, unassembled_reads, discarded_reads = run_pear(decompressed_reads, sampleName, threads, pear_folder, fastq_encoding, trimmomatic_run_successfully, minimum_overlap_reads)
 			if run_successfully:
 				with open(os.path.join(outdir, str('pear_report.txt')), 'wt') as writer:

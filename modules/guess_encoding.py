@@ -45,20 +45,22 @@ def get_encodings_in_range(rmin, rmax):
 
 
 @utils.trace_unhandled_exceptions
-def gess_encoding(fastq, number_reads_access_None_all, outdir):
+def guess_encoding(fastq, number_reads_access_None_all, outdir):
 	gmin, gmax = 99, 0
 	valid_encodings = None
+	reads_length = []
 	with open(fastq, 'rtU') as reader:
 		for i, line in enumerate(reader):
 			if number_reads_access_None_all is None or (i + 1) / 4 <= number_reads_access_None_all:
 				if (i + 1) % 4 == 0:
 					if len(line) > 0:
+						reads_length.append(len(line.splitlines()[0]))
 						lmin, lmax = get_qual_range(line.splitlines()[0])
 						if lmin < gmin or lmax > gmax:
 							gmin, gmax = min(lmin, gmin), max(lmax, gmax)
 							valid_encodings = get_encodings_in_range(gmin, gmax)
 
-	utils.saveVariableToPickle([fastq, valid_encodings], outdir, 'encoding' + '.' + os.path.splitext(os.path.basename(fastq))[0])
+	utils.saveVariableToPickle([fastq, valid_encodings, min(reads_length) if len(reads_length) > 0 else None, max(reads_length) if len(reads_length) > 0 else None], outdir, 'encoding' + '.' + os.path.splitext(os.path.basename(fastq))[0])
 
 
 def gather_data_together(data_directory):
@@ -69,8 +71,8 @@ def gather_data_together(data_directory):
 		if file_found.startswith('encoding.') and file_found.endswith('.pkl'):
 			file_path = os.path.join(data_directory, file_found)
 
-			fastq, valid_encodings = utils.extractVariableFromPickle(file_path)
-			data[fastq] = valid_encodings
+			fastq, valid_encodings, min_reads_length, max_reads_length = utils.extractVariableFromPickle(file_path)
+			data[fastq] = {'valid_encodings': valid_encodings, 'min_reads_length': min_reads_length, 'max_reads_length': max_reads_length}
 
 			os.remove(file_path)
 
@@ -81,10 +83,10 @@ def get_final_encoding(encoding_data):
 	possible_encoding = {}
 	for fastq in encoding_data:
 		if encoding_data[fastq] is not None:
-			for i in range(0, len(encoding_data[fastq])):
-				if encoding_data[fastq][i][0] not in possible_encoding:
-					possible_encoding[encoding_data[fastq][i][0]] = 0
-				possible_encoding[encoding_data[fastq][i][0]] += 1
+			for i in range(0, len(encoding_data[fastq]['valid_encodings'])):
+				if encoding_data[fastq]['valid_encodings'][i][0] not in possible_encoding:
+					possible_encoding[encoding_data[fastq]['valid_encodings'][i][0]] = 0
+				possible_encoding[encoding_data[fastq]['valid_encodings'][i][0]] += 1
 
 	final_encoding = []
 	if len(possible_encoding) > 0:
@@ -100,10 +102,20 @@ def get_final_encoding(encoding_data):
 	return final_encoding
 
 
+def determine_min_max_reads_length(encoding_data):
+	x = [encoding_data[fastq]['min_reads_length'] for fastq in encoding_data if encoding_data[fastq]['min_reads_length'] is not None]
+	min_reads_length = min(x) if len(x) > 0 else None
+
+	x = [encoding_data[fastq]['max_reads_length'] for fastq in encoding_data if encoding_data[fastq]['max_reads_length'] is not None]
+	max_reads_length = max(x) if len(x) > 0 else None
+
+	return min_reads_length, max_reads_length
+
+
 def fastq_files_enconding(fastq_files_list, number_reads_access_None_all, outdir, threads):
 	pool = multiprocessing.Pool(processes=threads)
 	for fastq in fastq_files_list:
-		pool.apply_async(gess_encoding, args=(fastq, number_reads_access_None_all, outdir,))
+		pool.apply_async(guess_encoding, args=(fastq, number_reads_access_None_all, outdir,))
 	pool.close()
 	pool.join()
 
@@ -111,4 +123,6 @@ def fastq_files_enconding(fastq_files_list, number_reads_access_None_all, outdir
 
 	final_encoding = get_final_encoding(encoding_data)
 
-	return final_encoding
+	min_reads_length, max_reads_length = determine_min_max_reads_length(encoding_data)
+
+	return final_encoding, min_reads_length, max_reads_length

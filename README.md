@@ -48,8 +48,8 @@ Usage
                      [--jarMaxMemory 10] [--doNotUseProvidedSoftware]
                      [--keepIntermediateAssemblies]
                      [--skipEstimatedCoverage] [--skipFastQC]
-                     [--skipTrimmomatic] [--skipPear] [--skipSPAdes]
-                     [--skipAssemblyMapping] [--skipPilon] [--skipMLST]
+                     [--skipTrimmomatic] [--skipSPAdes] [--skipAssemblyMapping]
+                     [--skipPilon] [--skipMLST] [--runPear]
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
@@ -57,12 +57,13 @@ Usage
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimLeading N]
                      [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
-                     [--pearKeepFiles]
-                     [--spadesNotUseCareful] [--spadesMinContigsLength N]
-                     [--spadesMaxMemory N] [--spadesMinCoverageAssembly 10]
-                     [--spadesMinKmerCovContigs N]
+                     [--pearKeepFiles] [--pearMinOverlap N]
+                     [--spadesUse_3_9] [--spadesNotUseCareful]
+                     [--spadesMinContigsLength N] [--spadesMaxMemory N]
+                     [--spadesMinCoverageAssembly 10] [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
                      [--assemblyMinCoverageContigs N]
+                     [--saveExcludedContigs]
                      [--pilonKeepFiles]
 
     INNUca - Reads Control and Assembly
@@ -110,7 +111,6 @@ Usage
                             (default: False)
       --skipTrimmomatic     Tells the programme to not run Trimmomatic (default:
                             False)
-      --skipPear            Tells the programme to not run Pear (default: False)
       --skipSPAdes          Tells the programme to not run SPAdes and consequently
                             Pilon correction, Assembly Mapping check and MLST
                             analysis (SPAdes contigs required) (default: False)
@@ -122,6 +122,7 @@ Usage
                             required) (default: False)
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
+      --runPear             Tells the programme to run Pear (default: False)
 
     Adapters options (one of the following):
       --adapters adaptersFile.fasta
@@ -184,6 +185,8 @@ Usage
                             it with FastQC)
 
     SPAdes options:
+      --spadesUse_3_9       Tells INNUca.py to use SPAdes v3.9.0 instead of v.3.10.1
+                            (default: False)
       --spadesNotUseCareful
                             Tells SPAdes to only perform the assembly without the
                             --careful option (default: False)
@@ -217,6 +220,9 @@ Usage
                             this average coverage (default: 1/3 of the assembly
                             mean coverage or 10x when mean coverage is lower than
                             30x)
+
+    Assembly options:
+      --saveExcludedContigs Tells INNUca.py to save excluded contigs (default: False)
 
     Pilon options:
       --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon

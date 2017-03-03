@@ -29,9 +29,12 @@ import time
 version = '0.3'
 
 
-def combine_reports(args):
-	innucaOut = os.path.abspath(args.innucaOut)
-	outdir = os.path.abspath(args.outdir)
+def combine_reports(innucaOut, outdir, json, time_str):
+	if time_str is None:
+		time_str = time.strftime("%Y%m%d-%H%M%S")
+
+	innucaOut = os.path.abspath(innucaOut)
+	outdir = os.path.abspath(outdir)
 	check_create_directory(outdir)
 
 	files = [f for f in os.listdir(innucaOut) if not f.startswith('.') and os.path.isfile(os.path.join(innucaOut, f))]
@@ -54,18 +57,16 @@ def combine_reports(args):
 	if len(directories) == 0:
 		sys.exit('No samples found')
 
-	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'assembly_coverage', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'MLST_scheme', 'MLST_ST', 'final_assembly']
+	fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'assembly_coverage_initial', 'assembly_coverage_filtered', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'MLST_scheme', 'MLST_ST', 'final_assembly']
 
 	for directory in directories:
 		sample = directory
-		print '\n' + sample
 		directory = os.path.join(os.path.join(innucaOut, directory, ''))
 
 		files = [f for f in os.listdir(directory) if not f.startswith('.') and os.path.isfile(os.path.join(directory, f))]
 		if len(files) == 0:
 			print 'No files found! Continue to the next sample'
 		else:
-			# results[sample] = ['NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA']
 			results[sample] = {}
 			for field in fields:
 				results[sample][field] = 'NA'
@@ -204,21 +205,35 @@ def combine_reports(args):
 									if contigs:
 										results[sample]['SPAdes_filtered_contigs'] = line
 										contigs = False
-									if bp:
+									elif bp:
 										results[sample]['SPAdes_filtered_bp'] = line
 										bp = False
 				elif name_file_found == 'assembly_mapping_report.coverage.txt':
-					coverage = False
+					general = False
+
+					initial = False
+					filtered = False
 					with open(file_found, 'rtU') as reader:
 						for line in reader:
 							line = line.splitlines()[0]
 							if len(line) > 0:
-								if line.startswith('#general'):
-									coverage = True
+								if line.startswith('#'):
+									if line.startswith('general', 1):
+										general = True
+									else:
+										general = False
+								elif line.startswith('>') and general:
+									if line.startswith('initial', 1):
+										initial = True
+									elif line.startswith('filtered', 1):
+										filtered = True
 								else:
-									if coverage:
-										results[sample]['assembly_coverage'] = line
-										coverage = False
+									if initial:
+										results[sample]['assembly_coverage_initial'] = line
+										initial = False
+									elif filtered:
+										results[sample]['assembly_coverage_filtered'] = line
+										filtered = False
 				elif name_file_found == 'assembly_mapping_report.mapping.txt':
 					total = False
 					total_reads = 0
@@ -330,11 +345,16 @@ def combine_reports(args):
 		sys.exit('No results were found')
 
 	print '\n' + 'Writing results...'
-	with open(os.path.join(outdir, str('combine_samples_reports.' + time.strftime("%Y%m%d-%H%M%S") + '.tab')), 'wt') as report:
+	with open(os.path.join(outdir, str('combine_samples_reports.' + time_str + '.tab')), 'wt') as report:
 		report.write('\t'.join(fields) + '\n')
 		for sample in results:
 			sample_data = [results[sample][field] for field in fields]
 			report.write('\t'.join(sample_data) + '\n')
+
+	if json:
+		import json
+		with open(os.path.join(outdir, str('combine_samples_reports.' + time_str + '.json')), 'wt') as writer:
+			json.dump(results, writer)
 
 	print '\n' + 'DONE: ' + str(len(results)) + ' samples analysed.'
 
@@ -354,12 +374,11 @@ def main():
 
 	parser_optional = parser.add_argument_group('Facultative options')
 	parser_optional.add_argument('-o', '--outdir', type=str, metavar='/path/to/output/directory/', help='Path to where to store the outputs', required=False, default='.')
-
-	parser.set_defaults(func=combine_reports)
+	parser_optional.add_argument('--json', action='store_true', help='Also save the results in json format')
 
 	args = parser.parse_args()
 
-	args.func(args)
+	combine_reports(args.innucaOut, args.outdir, args.json, None)
 
 
 if __name__ == "__main__":
