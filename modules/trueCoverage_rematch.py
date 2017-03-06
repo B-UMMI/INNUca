@@ -563,7 +563,7 @@ def get_coverage(gene_coverage):
 
 def get_coverage_report(coverage, sequence_length, minimum_depth_presence, minimum_depth_call, length_extra_seq):
 	if len(coverage) == 0:
-		return 100.0, 100.0, 0.0
+		return sequence_length - 2 * length_extra_seq, 100.0, 0.0
 
 	count_absent = 0
 	count_lowCoverage = 0
