@@ -432,7 +432,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
 							if run_successfully:
 								contigs = assembly_filtered
-								if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades):
+								if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and contigs != contigs_spades:
 									os.remove(contigs_spades)
 						else:
 							print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
