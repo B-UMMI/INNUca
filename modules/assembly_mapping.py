@@ -422,7 +422,7 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
 					else:
 						failing['Mapping'] = ['Did not run']
 
-					if len(sequences_2_keep) > 0:
+					if assembly_filtered is not None and assembly_filtered != reference_file:
 						print 'Producing bam subset for sequences to keep'
 						run_successfully, bam_subset = get_bam_subset(bam_file, sequences_2_keep, threads)
 						if run_successfully:
@@ -444,5 +444,8 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
 
 	if not pass_qc:
 		print 'Sample FAILS Assembly Mapping check with: ' + str(failing)
+
+	if assembly_filtered is None:
+		assembly_filtered = reference_file
 
 	return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assemblyMapping_folder
