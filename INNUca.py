@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: January 18, 2017
+Last modified: March 23, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -43,8 +43,34 @@ import os
 import sys
 
 
+def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, script_path):
+	trueCoverage_config = None
+	if not skipTrueCoverage:
+		trueCoverage_reference = None
+		trueCoverage_config_file = None
+		trueCoverage_config = None
+
+		if trueConfigFile is None:
+			print 'No trueCoverage_ReMatCh config file was provided. Search for default files'
+			trueCoverage_config_file, trueCoverage_reference = trueCoverage.check_existing_default_config(speciesExpected, script_path)
+		else:
+			trueCoverage_config_file = trueConfigFile
+
+		if trueCoverage_config_file is not None:
+			trueCoverage_config = trueCoverage.parse_config(trueCoverage_config_file)
+		if trueConfigFile is None and trueCoverage_config is not None:
+			trueCoverage_config['reference_file'] = trueCoverage_reference
+
+		if trueCoverage_config is not None:
+			print 'The following trueCoverage_ReMatCh config file will be used: ' + trueCoverage_config_file
+			print 'The following trueCoverage_ReMatCh reference file will be used: ' + trueCoverage_config['reference_file'] + '\n'
+		else:
+			print 'No trueCoverage_ReMatCh config file was found'
+	return trueCoverage_config
+
+
 def main():
-	version = '2.3'
+	version = '2.4'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -141,28 +167,7 @@ def main():
 	mlst.getBlastPath()
 
 	# Get trueCoverage_ReMatCh settings
-	trueCoverage_config = None
-	if not args.skipTrueCoverage:
-		trueCoverage_reference = None
-		trueCoverage_config_file = None
-		trueCoverage_config = None
-
-		if args.trueConfigFile is None:
-			print 'No trueCoverage_ReMatCh config file was provided. Search for default files'
-			trueCoverage_config_file, trueCoverage_reference = trueCoverage.check_existing_default_config(args.speciesExpected, script_path)
-		else:
-			trueCoverage_config_file = args.trueConfigFile.name
-
-		if trueCoverage_config_file is not None:
-			trueCoverage_config = trueCoverage.parse_config(trueCoverage_config_file)
-		if args.trueConfigFile is None and trueCoverage_config is not None:
-			trueCoverage_config['reference_file'] = trueCoverage_reference
-
-		if trueCoverage_config is not None:
-			print 'The following trueCoverage_ReMatCh config file will be used: ' + trueCoverage_config_file
-			print 'The following trueCoverage_ReMatCh reference file will be used: ' + trueCoverage_config['reference_file'] + '\n'
-		else:
-			print 'No trueCoverage_ReMatCh config file was found'
+	trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
 
 	# Memory
 	available_memory_GB = utils.get_free_memory() / (1024.0 ** 2)
@@ -504,7 +509,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 	pass_fastqc = (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False
 	pass_trimmomatic = runs['Trimmomatic'][1] is not False
 	pass_pear = runs['Pear'][1] is not False
-	pass_spades = runs['SPAdes'][1] is not False
+	pass_spades = runs['SPAdes'][1] is not False or runs['Assembly_Mapping'][1] is True
 	pass_assemblyMapping = runs['Assembly_Mapping'][1] is not False
 	pass_mlst = runs['MLST'][1] is not False
 	pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_trimmomatic, pass_pear, pass_spades, pass_assemblyMapping, pass_mlst])

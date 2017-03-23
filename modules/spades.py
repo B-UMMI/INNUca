@@ -30,6 +30,11 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 def define_kmers(kmers, maximumReadsLength):
 	kmers_use = []
 	if maximumReadsLength is not None:
+		if kmers is None:
+			if maximumReadsLength >= 175:
+				kmers = [55, 77, 99, 113, 127]
+			else:
+				kmers = [21, 33, 55, 67, 77]
 		for kmer in kmers:
 			if kmer <= maximumReadsLength:
 				kmers_use.append(kmer)

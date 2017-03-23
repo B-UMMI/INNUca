@@ -208,8 +208,9 @@ Usage
     SPAdes k-mers options (one of the following):
       --spadesKmers 55 77 [55 77 ...]
                             Manually sets SPAdes k-mers lengths (all values must
-                            be odd, lower than 128) (default: [55, 77, 99, 113,
-                            127])
+                            be odd, lower than 128) (default values: reads
+                            length >= 175 [55, 77, 99, 113, 127]; reads
+                            length < 175 [21, 33, 55, 67, 77])
       --spadesDefaultKmers  Tells INNUca to use SPAdes default k-mers (default:
                             False)
 
@@ -257,7 +258,7 @@ In order to combine **INNUca** reports (Estimate Coverage, True Coverage, Pear, 
 
 Combine trueCoverage_ReMatCh module reports
 ----------------------
-In order to combine **INNUca** trueCoverage_ReMatCh module reports in respect to gene information, use *combine_trueCoverage_reports.py* found in **INNUca** modules/trueCoverage_rematch folder
+In order to manually combine **INNUca** trueCoverage_ReMatCh module reports in respect to gene information, use *combine_trueCoverage_reports.py* found in **INNUca** modules/trueCoverage_rematch folder
 
     usage: python combine_trueCoverage_reports.py [-h] [--version] -i
                                                   /path/to/INNUca/output/directory/

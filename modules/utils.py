@@ -79,7 +79,7 @@ def parseArguments(version):
 	spades_options.add_argument('--spadesMinKmerCovContigs', type=int, metavar='N', help='Minimum contigs K-mer coverage. After assembly only keep contigs with reported k-mer coverage equal or above this value', required=False, default=2)
 
 	spades_kmers_options = parser.add_mutually_exclusive_group()
-	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128)', required=False, default=[55, 77, 99, 113, 127])
+	spades_kmers_options.add_argument('--spadesKmers', nargs='+', type=int, metavar='55 77', help='Manually sets SPAdes k-mers lengths (all values must be odd, lower than 128) (default values: reads length >= 175 [55, 77, 99, 113, 127]; reads length < 175 [21, 33, 55, 67, 77])', required=False)
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
@@ -99,9 +99,10 @@ def parseArguments(version):
 	if args.skipTrueCoverage and args.trueConfigFile:
 		parser.error('Cannot use --skipTrueCoverage option with --trueConfigFile')
 
-	for number in args.spadesKmers:
-		if number % 2 == 0 or number >= 128:
-			parser.error('All k-mers values must be odd integers, lower than 128')
+	if args.spadesKmers is not None:
+		for number in args.spadesKmers:
+			if number % 2 == 0 or number >= 128:
+				parser.error('All k-mers values must be odd integers, lower than 128')
 
 	if len(args.speciesExpected.split(' ')) != 2:
 		parser.error('Mal-formatted species name. Should be something like "Streptococcus agalactiae"')
@@ -178,10 +179,9 @@ def kill_subprocess_Popen(subprocess_Popen, command):
 
 def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_comand_True):
 	run_successfully = False
-	if isinstance(command, basestring):
-		command = shlex.split(command)
-	else:
-		command = shlex.split(' '.join(command))
+	if not isinstance(command, basestring):
+		command = ' '.join(command)
+	command = shlex.split(command)
 
 	if print_comand_True:
 		print 'Running: ' + ' '.join(command)
@@ -512,6 +512,9 @@ def sampleReportLine(run_report):
 
 		if step in ('first_FastQC', 'second_FastQC') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
 			pass_qc = 'WARNING'
+		elif step == 'SPAdes' and pass_qc == 'PASS' and run_report[step][3]['sample'] is not False:
+			pass_qc = 'WARNING'
+			if run_successfully
 
 		if step in ('FastQ_Integrity', 'Pilon'):
 			l = [run_successfully, run_report[step][2]]
@@ -541,7 +544,13 @@ def start_sample_report_file(samples_report_path):
 
 
 def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, runningTime, fileSize, run_report):
-	line = [sample, run_successfully, 'PASS' if pass_qc else 'FAIL', runningTime, fileSize]
+	line = [sample, '', runningTime, fileSize]
+
+	line[1] = run_successfully, 'PASS' if pass_qc else 'FAIL'
+	if line[1] == 'PASS':
+		if run_report['SPAdes'][1] and run_report['SPAdes'][3]['sample'] is not False:
+			line[1] == 'WARNING'
+
 	line.extend(sampleReportLine(run_report))
 	with open(samples_report_path, 'at') as report:
 		out = csv.writer(report, delimiter='\t')

@@ -2,7 +2,6 @@ import sys
 import os
 import utils
 from functools import partial
-import time
 
 
 # Prepare adapters fasta file to FastQC (tabular file)
