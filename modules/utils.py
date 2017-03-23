@@ -543,12 +543,12 @@ def start_sample_report_file(samples_report_path):
 
 
 def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, runningTime, fileSize, run_report):
-	line = [sample, '', runningTime, fileSize]
+	line = [sample, run_successfully, '', runningTime, fileSize]
 
-	line[1] = run_successfully, 'PASS' if pass_qc else 'FAIL'
-	if line[1] == 'PASS':
+	line[2] = 'PASS' if pass_qc else 'FAIL'
+	if line[2] == 'PASS':
 		if run_report['SPAdes'][1] and run_report['SPAdes'][3]['sample'] is not False:
-			line[1] == 'WARNING'
+			line[2] == 'WARNING'
 
 	line.extend(sampleReportLine(run_report))
 	with open(samples_report_path, 'at') as report:
