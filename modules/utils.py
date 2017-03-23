@@ -514,7 +514,6 @@ def sampleReportLine(run_report):
 			pass_qc = 'WARNING'
 		elif step == 'SPAdes' and pass_qc == 'PASS' and run_report[step][3]['sample'] is not False:
 			pass_qc = 'WARNING'
-			if run_successfully
 
 		if step in ('FastQ_Integrity', 'Pilon'):
 			l = [run_successfully, run_report[step][2]]
