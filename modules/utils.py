@@ -546,14 +546,18 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
 	line = [sample, run_successfully, '', runningTime, fileSize]
 
 	line[2] = 'PASS' if pass_qc else 'FAIL'
+	warning = 0
 	if line[2] == 'PASS':
 		if run_report['SPAdes'][1] and run_report['SPAdes'][3]['sample'] is not False:
 			line[2] == 'WARNING'
+			warning = 1
 
 	line.extend(sampleReportLine(run_report))
 	with open(samples_report_path, 'at') as report:
 		out = csv.writer(report, delimiter='\t')
 		out.writerow(line)
+
+	return warning
 
 
 def timer(function, name):

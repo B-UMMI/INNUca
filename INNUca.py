@@ -157,6 +157,7 @@ def main():
 
 	number_samples_successfully = 0
 	number_samples_pass = 0
+	number_samples_warning = 0
 
 	# Get MLST scheme to use
 	scheme = 'unknown'
@@ -228,8 +229,9 @@ def main():
 		time_taken = utils.runTime(sample_start_time)
 
 		# Save run report
-		utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
-		sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc, 'modules_run_report': run_report}
+		warning = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
+		number_samples_warning += warning
+		sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if warning == 0 else 'warning', 'modules_run_report': run_report}
 
 	# Save combine_samples_reports
 	combine_reports.combine_reports(outdir, outdir, args.json, time_str)
@@ -248,6 +250,7 @@ def main():
 	print '\n' + 'END INNUca.py'
 	print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
 	print '\n' + str(number_samples_pass) + ' samples out of ' + str(number_samples_successfully) + ' (run successfully) PASS INNUca.py analysis'
+	print '\n' + str(number_samples_warning) + ' samples with INNUca.py QA/QC warnings'
 	time_taken = utils.runTime(general_start_time)
 	del time_taken
 
