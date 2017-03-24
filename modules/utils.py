@@ -505,14 +505,14 @@ def sampleReportLine(run_report):
 	for step in steps:
 		run_successfully = str(run_report[step][0])
 		pass_qc = 'FAIL'
-		if run_report[step][1]:
+		if run_report[step][1] is True:
 			pass_qc = 'PASS'
 		elif run_report[step][1] is None:
 			pass_qc = run_report[step][3]['sample']
 
 		if step in ('first_FastQC', 'second_FastQC') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
 			pass_qc = 'WARNING'
-		elif step == 'SPAdes' and pass_qc == 'PASS' and run_report[step][3]['sample'] is not False:
+		elif step == 'SPAdes' and pass_qc == 'FAIL' and run_report['Assembly_Mapping'][1] is True:
 			pass_qc = 'WARNING'
 
 		if step in ('FastQ_Integrity', 'Pilon'):
@@ -548,8 +548,8 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
 	line[2] = 'PASS' if pass_qc else 'FAIL'
 	warning = 0
 	if line[2] == 'PASS':
-		if run_report['SPAdes'][1] and run_report['SPAdes'][3]['sample'] is not False:
-			line[2] == 'WARNING'
+		if run_report['SPAdes'][1] is False:
+			line[2] = 'WARNING'
 			warning = 1
 
 	line.extend(sampleReportLine(run_report))

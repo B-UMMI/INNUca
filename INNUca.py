@@ -250,7 +250,7 @@ def main():
 	print '\n' + 'END INNUca.py'
 	print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
 	print '\n' + str(number_samples_pass) + ' samples out of ' + str(number_samples_successfully) + ' (run successfully) PASS INNUca.py analysis'
-	print '\n' + str(number_samples_warning) + ' samples with INNUca.py QA/QC warnings'
+	print '\n' + str(number_samples_warning) + ' samples with INNUca.py QA/QC warnings' + '\n'
 	time_taken = utils.runTime(general_start_time)
 	del time_taken
 
