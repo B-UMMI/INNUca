@@ -258,7 +258,7 @@ def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fa
 		run_successfully = check_FastQC_runSuccessfully(fastqc_folder, fastq_files)
 		if not run_successfully:
 			failing['sample'] = 'Did not run'
-			return run_successfully, pass_qc, failing, maximumReadsLength, nts2clip_based_ntsContent
+			return run_successfully, pass_qc, failing, warnings, maximumReadsLength, nts2clip_based_ntsContent
 
 		# Check which reads pass FastQC
 		goodReads, badReads, failing, warnings = parseFastQC(fastqc_folder, fastq_files)
