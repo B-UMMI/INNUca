@@ -261,6 +261,8 @@ def save_mapping_statistics(dict_mapping_statistics, outdir):
 	pass_qc = False
 	failing_reason = None
 
+	min_mapping = 0.85
+
 	report_file = os.path.join(outdir, 'assembly_mapping_report.mapping.txt')
 
 	total_reads = 0
@@ -275,11 +277,11 @@ def save_mapping_statistics(dict_mapping_statistics, outdir):
 				total_mapped_reads = dict_mapping_statistics[field]['qc_passed'] + dict_mapping_statistics[field]['qc_failed']
 
 	if total_mapped_reads > 0 and total_reads > 0:
-		if round((float(total_mapped_reads) / float(total_reads)), 2) >= 0.66:
+		if round((float(total_mapped_reads) / float(total_reads)), 2) >= min_mapping:
 			pass_qc = True
 			print 'Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '%'
 		else:
-			failing_reason = 'Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '% (lower than 66%)'
+			failing_reason = 'Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '% (lower than ' + str(min_mapping * 100) + '%)'
 	else:
 		failing_reason = 'No reads were mapped'
 

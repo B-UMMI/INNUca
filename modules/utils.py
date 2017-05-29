@@ -83,7 +83,7 @@ def parseArguments(version):
 	spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
 	assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
-	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage (default: 1/3 of the assembly mean coverage or 10x when mean coverage is lower than 30x)', required=False)
+	assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage (default: 1/3 of the assembly mean coverage or 10x)', required=False)
 
 	assembly_options = parser.add_argument_group('Assembly options')
 	assembly_options.add_argument('--saveExcludedContigs', action='store_true', help='Tells INNUca.py to save excluded contigs')
@@ -461,10 +461,10 @@ def scriptVersionGit(version, directory, script_path):
 	try:
 		os.chdir(os.path.dirname(script_path))
 		command = ['git', 'log', '-1', '--date=local', '--pretty=format:"%h (%H) - Commit by %cn, %cd) : %s"']
-		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, 15, False)
 		print stdout
 		command = ['git', 'remote', 'show', 'origin']
-		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+		run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, 15, False)
 		print stdout
 		os.chdir(directory)
 	except:

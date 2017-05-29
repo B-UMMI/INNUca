@@ -8,7 +8,7 @@ mlst_timer = partial(utils.timer, name='MLST')
 def getScheme(species):
 	command = ['which', 'mlst']
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
-	mlst_folder = stdout.splitlines()[0]
+	mlst_folder = os.path.abspath(os.path.realpath(stdout.splitlines()[0]))
 	mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'species_scheme_map.tab')
 
 	species = species.lower().split(' ')
@@ -55,11 +55,13 @@ def runMlst(contigs, scheme, outdir):
 	if run_successfully:
 		scheme_mlst = stdout.splitlines()[0].split('\t')[1].split('_')[0]
 		st = stdout.splitlines()[0].split('\t')[2]
+		profile = stdout.splitlines()[0].split('\t')[3:]
 
 		report = 'MLST found ST ' + str(st) + ' from scheme ' + scheme_mlst
 		print report
 		with open(os.path.join(outdir, 'mlst_report.txt'), 'wt') as writer:
 			writer.write('#scheme' + '\n' + scheme_mlst + '\n' + '#ST' + '\n' + st + '\n')
+			writer.write('#profile' + '\n' + ' '.join(profile) + '\n')
 			writer.flush()
 
 		if scheme_mlst == scheme:

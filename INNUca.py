@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: March 23, 2017
+Last modified: April 03, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
 
 
 def main():
-	version = '2.4'
+	version = '2.5'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
@@ -201,6 +201,9 @@ def main():
 			print 'Only one fastq file was found: ' + str(fastq_files)
 			print 'Pair-End sequencing is required. Moving to the next sample'
 			continue
+		elif len(fastq_files) == 0:
+			print 'No compressed fastq files were found. Continue to the next sample'
+			continue
 
 		print 'The following files will be used:'
 		print str(fastq_files) + '\n'
@@ -278,7 +281,7 @@ def get_samples(args_inputDirectory, args_fastq, outdir, pairEnd_filesSeparation
 		print ''
 		samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
 	elif args_inputDirectory is None:
-		fastq_files = [fastq.name for fastq in args_fastq]
+		fastq_files = [os.path.abspath(fastq.name) for fastq in args_fastq]
 		if fastq_files[0] == fastq_files[1]:
 			sys.exit('Same fastq file provided twice')
 		inputDirectory, samples, removeCreatedSamplesDirectories, indir_same_outdir = get_sample_args_fastq(fastq_files, outdir, pairEnd_filesSeparation_list)

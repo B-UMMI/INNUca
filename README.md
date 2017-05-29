@@ -219,8 +219,7 @@ Usage
                             Minimum contigs average coverage. After mapping reads
                             back to the contigs, only keep contigs with at least
                             this average coverage (default: 1/3 of the assembly
-                            mean coverage or 10x when mean coverage is lower than
-                            30x)
+                            mean coverage or 10x)
 
     Assembly options:
       --saveExcludedContigs Tells INNUca.py to save excluded contigs (default: False)

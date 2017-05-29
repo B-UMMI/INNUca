@@ -56,6 +56,8 @@ def define_memory(maxMemory, threads, available_memory_GB):
 	GB_per_thread = 2048 / 1024.0
 
 	minimum_required_memory_GB = GB_per_thread * threads
+	if minimum_required_memory_GB < 4:
+		minimum_required_memory_GB = 4
 
 	if available_memory_GB == 0:
 		print 'WARNING: it was not possible to determine the free available memory!'

@@ -40,7 +40,13 @@ def get_encodings_in_range(rmin, rmax):
 	valid_encodings = []
 	for encoding_type, [phred, (emin, emax)] in encoding.items():
 		if rmin >= emin and rmax <= emax:
-			valid_encodings.append([encoding_type, phred])
+			if encoding_type == 'Illumina-1.8':
+				if rmax == emax:
+					valid_encodings.append(['Illumina-1.8', 33])
+				else:
+					valid_encodings.append(['Sanger', 33])
+			else:
+				valid_encodings.append([encoding_type, phred])
 	return valid_encodings if len(valid_encodings) > 0 else None
 
 
@@ -82,7 +88,7 @@ def gather_data_together(data_directory):
 def get_final_encoding(encoding_data):
 	possible_encoding = {}
 	for fastq in encoding_data:
-		if encoding_data[fastq] is not None:
+		if encoding_data[fastq] is not None and encoding_data[fastq]['valid_encodings'] is not None:
 			for i in range(0, len(encoding_data[fastq]['valid_encodings'])):
 				if encoding_data[fastq]['valid_encodings'][i][0] not in possible_encoding:
 					possible_encoding[encoding_data[fastq]['valid_encodings'][i][0]] = 0
