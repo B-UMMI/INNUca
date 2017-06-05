@@ -9,7 +9,7 @@ def getScheme(species):
 	command = ['which', 'mlst']
 	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
 	mlst_folder = os.path.abspath(os.path.realpath(stdout.splitlines()[0]))
-	mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'species_scheme_map.tab')
+	mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'scheme_species_map.tab')
 
 	species = species.lower().split(' ')
 
