@@ -8,9 +8,9 @@ INNUca - Reads Control and Assembly
 INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search
 <https://github.com/B-UMMI/INNUca>
 
-Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
+Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: April 03, 2017
+Last modified: June 05, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
 
 
 def main():
-	version = '2.5'
+	version = '2.6'
 	args = utils.parseArguments(version)
 
 	general_start_time = time.time()
