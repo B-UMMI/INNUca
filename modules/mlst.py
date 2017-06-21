@@ -1,18 +1,38 @@
 import utils
 import os
 from functools import partial
+import sys
+
 
 mlst_timer = partial(utils.timer, name='MLST')
 
 
-def getScheme(species):
-	command = ['which', 'mlst']
-	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
-	mlst_folder = os.path.abspath(os.path.realpath(stdout.splitlines()[0]))
+def get_species_scheme_map_version(mlst_folder):
+	species_scheme_map_version = 1
+
 	mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'species_scheme_map.tab')
+	if not os.path.isfile(mlst_db_path):
+		mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'scheme_species_map.tab')
+		if not os.path.isfile(mlst_db_path):
+			sys.exit('ERROR: species_scheme_map not found. Contact the developers. In the meantime try running INNUca with --skipMLST option')
+		else:
+			species_scheme_map_version = 2
+	return mlst_db_path, species_scheme_map_version
 
-	species = species.lower().split(' ')
 
+def set_species_scheme_map_variables(list_values, species_scheme_map_version):
+	if species_scheme_map_version == 1:
+		val_genus = list_values[0]
+		val_species = list_values[1]
+		val_scheme = list_values[2]
+	elif species_scheme_map_version == 2:
+		val_genus = list_values[1]
+		val_species = list_values[2]
+		val_scheme = list_values[0]
+	return val_genus, val_species, val_scheme
+
+
+def parse_species_scheme_map(species_splited, mlst_db_path, species_scheme_map_version):
 	scheme = 'unknown'
 
 	with open(mlst_db_path, 'rtU') as reader:
@@ -23,15 +43,27 @@ def getScheme(species):
 				if not line.startswith('#'):
 					line = line.lower().split('\t')
 					line = [line[i].split(' ')[0] for i in range(0, len(line))]
-					if line[0] == species[0]:
-						if line[1] == '':
-							genus_mlst_scheme = line[2]
-						elif line[1] == species[1]:
-							scheme = line[2]
+					val_genus, val_species, val_scheme = set_species_scheme_map_variables(line, species_scheme_map_version)
+					if val_genus == species_splited[0]:
+						if val_species == '':
+							genus_mlst_scheme = val_scheme
+						elif val_species == species_splited[1]:
+							scheme = val_scheme
 		if scheme == 'unknown' and genus_mlst_scheme is not None:
 			scheme = genus_mlst_scheme
+	return scheme
 
-	print '\n' + 'MLST scheme found for ' + ' '.join(species) + ': ' + scheme
+
+def getScheme(species):
+	command = ['which', 'mlst']
+	run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
+	mlst_folder = os.path.abspath(os.path.realpath(stdout.splitlines()[0]))
+
+	mlst_db_path, species_scheme_map_new = get_species_scheme_map_version(mlst_folder)
+
+	scheme = parse_species_scheme_map(species.lower().split(' '), mlst_db_path, species_scheme_map_new)
+
+	print '\n' + 'MLST scheme found for {species}: {scheme}'.format(species=species, scheme=scheme)
 
 	return scheme
 
