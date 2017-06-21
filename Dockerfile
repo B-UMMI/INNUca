@@ -21,7 +21,7 @@ RUN git clone https://github.com/tseemann/mlst.git
 ENV PATH="/NGStools/mlst/bin:${PATH}"
 
 # --- INNUca ---
-RUN git clone https://github.com/B-UMMI/INNUca.git -b v2_6
+RUN git clone https://github.com/B-UMMI/INNUca.git
 
 ENV PATH="/NGStools/INNUca:${PATH}"
 #RUN INNUca.py --help
