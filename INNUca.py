@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: June 05, 2017
+Last modified: June 21, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -163,9 +163,8 @@ def main():
 	scheme = 'unknown'
 	if not args.skipMLST and not args.skipSPAdes:
 		scheme = mlst.getScheme(args.speciesExpected)
-
-	# Get path to blastn
-	mlst.getBlastPath()
+		# Print path to blastn
+		mlst.getBlastPath()
 
 	# Get trueCoverage_ReMatCh settings
 	trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
@@ -260,6 +259,9 @@ def main():
 	# Check whether INNUca.py run at least one sample successfully
 	if number_samples_successfully == 0:
 		sys.exit('No samples run successfully!')
+	else:
+		if number_samples_pass < number_samples_successfully:
+			sys.stderr.write('{fail_samples} samples FAIL INNUca.py analysis'.format(fail_samples=(number_samples_successfully - number_samples_pass)))
 
 
 def get_sample_args_fastq(fastq_files_list, outdir, pairEnd_filesSeparation_list):
