@@ -25,5 +25,6 @@ ENV PATH="/NGStools/mlst/bin:${PATH}"
 RUN git clone https://github.com/cimendes/INNUca.git
 
 ENV PATH="/NGStools/INNUca:${PATH}"
+RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh
 #RUN INNUca.py --help
 
