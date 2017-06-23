@@ -32,7 +32,7 @@ this terminal you can load this docker image as follows:
 1) `docker pull cimendes/innuca`
 2) `docker run -it cimendes/innuca bash`
 
-####Build this docker on your local machine
+#### Build this docker on your local machine
 
 For this, docker needs to be installed on your machine. Instructions for this can be found [here](https://docs.docker.com/engine/installation/).
 
