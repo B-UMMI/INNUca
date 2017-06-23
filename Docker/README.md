@@ -6,11 +6,23 @@ INNUca - Reads Control and Assembly
 
 <https://github.com/B-UMMI/INNUca>
 
-## Dockerfile for INNUca
 
 This is a dockerfile for using INNUca, with all dependencies already installed.
 
-#### Using play-with-docker
+Within this container you can find:
+- ubuntu:16.04
+- git
+- python-dev (version 2.x)
+- wget
+- openjdk-8-jre
+- ncbi-blast version 2.6.0
+- libmoo-perl liblist-moreutils-perl
+- [mlst](https://github.com/tseemann/mlst)
+- INNUca
+
+
+
+### Using play-with-docker
 [![Try in PWD](https://cdn.rawgit.com/play-with-docker/stacks/cff22438/assets/images/button.png)](http://labs.play-with-docker.com/)
 
 Within [play-with-docker](http://labs.play-with-docker.com/) webpage click on **create session**. Then, another page
@@ -20,7 +32,7 @@ this terminal you can load this docker image as follows:
 1) `docker pull cimendes/innuca`
 2) `docker run -it cimendes/innuca bash`
 
-#### Build this docker on your local machine
+####Build this docker on your local machine
 
 For this, docker needs to be installed on your machine. Instructions for this can be found [here](https://docs.docker.com/engine/installation/).
 
@@ -39,6 +51,14 @@ To run, do
 To run, do
 3) `docker run -it INNUca bash`
 
+
+### Updating the mlst database in docker instance
+
+After you've built the docker image, you can still update the mlst database. For this, the `update_mlst_db.sh` script is provided. Simply run in after initiating the instance with:
+
+`./update_mlst_db.sh`
+
+For more information on this please consult the [provided information](https://github.com/tseemann/mlst#updating-the-database) in the [mlst page](https://github.com/tseemann/mlst).
 
 Contact
 -------
