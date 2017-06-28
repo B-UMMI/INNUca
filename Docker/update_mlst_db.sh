@@ -2,12 +2,8 @@
 
 #script to update the mlst database
 
-currentDir=$(pwd)
+/NGStools/mlst/scripts/mlst-download_pub_mlst | bash
+rm -r /NGStools/mlst/db/pubmlst/
+mv /NGStools/mlst/scripts/pubmlst /NGStools/mlst/db/
+/NGStools/mlst/scripts/mlst-make_blast_db
 
-cd /NGStools/mlst/scripts/
-./mlst-download_pub_mlst | bash
-mv ../db/pubmlst ../db/pubmlst.old
-mv ./pubmlst ../db/
-./mlst-make_blast_db
-
-cd $currentDir
