@@ -25,6 +25,9 @@ ENV PATH="/NGStools/mlst/bin:${PATH}"
 RUN git clone https://github.com/cimendes/INNUca.git
 
 ENV PATH="/NGStools/INNUca:${PATH}"
-RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh
+
+#fixing permissions
+RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+w /NGStools/mlst/scripts/ && chmod -R o+w /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
+
 #RUN INNUca.py --help
 
