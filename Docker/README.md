@@ -56,7 +56,7 @@ To run, do
 
 After you've built the docker image, you can still update the mlst database. For this, the `update_mlst_db.sh` script is provided. Simply run in after initiating the instance with:
 
-`/NGStools/mlst/scripts/mlst-download_pub_mlst`
+`/NGStools/INNUca/Docker/update_mlst_db.sh`
 
 For more information on this please consult the [provided information](https://github.com/tseemann/mlst#updating-the-database) in the [mlst page](https://github.com/tseemann/mlst).
 
