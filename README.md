@@ -18,8 +18,7 @@ Dependencies
 **Mandatory**
 
  - *Java JDK*
- - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (it is recommended
-   to use a mlst version with updated databases)
+ - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* should run) (it is recommended to use a mlst version with updated databases)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
 **Optional**
@@ -49,7 +48,7 @@ Usage
                      [--keepIntermediateAssemblies]
                      [--skipEstimatedCoverage] [--skipFastQC]
                      [--skipTrimmomatic] [--skipSPAdes] [--skipAssemblyMapping]
-                     [--skipPilon] [--skipMLST] [--runPear]
+                     [--skipPilon] [--skipMLST] [--runPear] [--noLog] [--noGitInfo]
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
@@ -63,7 +62,7 @@ Usage
                      [--spadesMinCoverageAssembly 10] [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
                      [--assemblyMinCoverageContigs N]
-                     [--saveExcludedContigs]
+                     [--maxNumberContigs N] [--saveExcludedContigs]
                      [--pilonKeepFiles]
 
     INNUca - Reads Control and Assembly
@@ -123,6 +122,9 @@ Usage
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
       --runPear             Tells the programme to run Pear (default: False)
+      --noLog               Do not create a log file (default: False)
+      --noGitInfo           Do not retreive GitHub repository information
+                            (default: False)
 
     Adapters options (one of the following):
       --adapters adaptersFile.fasta
@@ -222,6 +224,8 @@ Usage
                             mean coverage or 10x)
 
     Assembly options:
+      --maxNumberContigs N  Maximum number of contigs per 1.5 Mb of expected
+                            genome size (default: 100)
       --saveExcludedContigs Tells INNUca.py to save excluded contigs (default: False)
 
     Pilon options:
