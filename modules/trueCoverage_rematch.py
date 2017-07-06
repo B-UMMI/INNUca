@@ -87,7 +87,7 @@ def runTrueCoverage(sample, fastq, reference, threads, outdir, extraSeq, minCovP
 
     # Run ReMatCh
     reference_file, gene_list_reference, reference_dict = clean_headers_reference_file(reference, trueCoverage_folder, extraSeq, rematch_module)
-    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = rematch_module.runRematchModule(sample, fastq, reference_file, threads, trueCoverage_folder, extraSeq, minCovPresence, minCovCall, minFrequencyDominantAllele, minGeneCoverage, True, debug, 1, minGeneIdentity, 'first', 7, 'none', reference_dict, 'X', None, gene_list_reference)
+    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = rematch_module.runRematchModule(sample, fastq, reference_file, threads, trueCoverage_folder, extraSeq, minCovPresence, minCovCall, minFrequencyDominantAllele, minGeneCoverage, True, debug, 1, minGeneIdentity, 'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
 
     if run_successfully:
         print 'Writing report file'
