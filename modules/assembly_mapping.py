@@ -355,12 +355,12 @@ assemblyMapping_timer = partial(utils.timer, name='Assembly mapping check')
 
 @assemblyMapping_timer
 def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverageAssembly, estimatedGenomeSizeMb, saveExcludedContigs, maxNumberContigs):
-    pass_qc = False
+    pass_qc = True
     pass_qc_coverage = False
     pass_qc_mapping = False
-    pass_qc_sequences = False
 
     failing = {}
+    warnings = {}
 
     assemblyMapping_folder = os.path.join(outdir, 'assemblyMapping', '')
     utils.removeDirectory(assemblyMapping_folder)
@@ -395,7 +395,7 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                     if sample_coverage_no_problems:
                         pass_qc_coverage, failing_reason, sequences_2_keep = save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembly)
                         if not pass_qc_coverage:
-                            failing['Coverage'] = [failing_reason]
+                            warnings['Coverage'] = [failing_reason]
 
                         assembly_filtered = os.path.splitext(reference_file)[0] + '.mappingCov.fasta'
 
@@ -403,14 +403,13 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                         sequence_dict, sequence_report_general = determine_sequences_to_filter(sequence_dict, sequences_2_keep, False)
                         failing_sequences_filtered, minimumBP = spades.qc_assembly(sequence_report_general, estimatedGenomeSizeMb, maxNumberContigs)
                         if failing_sequences_filtered['sample'] is not False:
-                            failing['Sequences_filtered'] = [failing_sequences_filtered['sample']]
+                            warnings['Sequences_filtered'] = [failing_sequences_filtered['sample']]
                             if not minimumBP:
                                 assembly_filtered = reference_file
                             else:
                                 write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered, saveExcludedContigs)
                         else:
                             write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered, saveExcludedContigs)
-                            pass_qc_sequences = True
                     else:
                         failing['Coverage'] = ['Did not run']
 
@@ -420,7 +419,7 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                         pass_qc_mapping, failing_reason = save_mapping_statistics(dict_mapping_statistics, outdir)
 
                         if not pass_qc_mapping:
-                            failing['Mapping'] = [failing_reason]
+                            warnings['Mapping'] = [failing_reason]
                     else:
                         failing['Mapping'] = ['Did not run']
 
@@ -442,9 +441,11 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
         print 'Failing:', failing
 
     run_successfully = sample_coverage_no_problems and sample_mapping_statistics_no_problems
-    pass_qc = all([pass_qc_coverage, pass_qc_mapping, pass_qc_sequences])
+
+    if not run_successfully:
+        pass_qc = False
 
     if not pass_qc:
         print 'Sample FAILS Assembly Mapping check with: ' + str(failing)
 
-    return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assemblyMapping_folder
+    return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assemblyMapping_folder, warnings

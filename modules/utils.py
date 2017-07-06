@@ -259,12 +259,12 @@ def checkPrograms(programs_version_dictionary):
             listMissings.append(program + ' not found in PATH.')
         else:
             print stdout.splitlines()[0]
+            programs[program].append(stdout.splitlines()[0])
             if programs[program][0] is None:
                 print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
             else:
                 if program.endswith('.jar'):
                     check_version = ['java', '-jar', stdout.splitlines()[0], programs[program][0]]
-                    programs[program].append(stdout.splitlines()[0])
                 else:
                     check_version = [stdout.splitlines()[0], programs[program][0]]
                 run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None, False)
@@ -506,6 +506,7 @@ steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_Fas
 
 def sampleReportLine(run_report):
     line = []
+    warnings = 0
     for step in steps:
         run_successfully = str(run_report[step][0])
         pass_qc = 'FAIL'
@@ -514,10 +515,9 @@ def sampleReportLine(run_report):
         elif run_report[step][1] is None:
             pass_qc = run_report[step][3]['sample']
 
-        if step in ('first_FastQC', 'second_FastQC') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+        if step in ('first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
-        elif step == 'SPAdes' and pass_qc == 'FAIL' and run_report['Assembly_Mapping'][1] is True:
-            pass_qc = 'WARNING'
+            warnings += 1
 
         if step in ('FastQ_Integrity', 'Pilon'):
             l = [run_successfully, run_report[step][2]]
@@ -526,7 +526,7 @@ def sampleReportLine(run_report):
         else:
             l = [run_successfully, pass_qc, run_report[step][2]]
         line.extend(l)
-    return line
+    return line, warnings
 
 
 def start_sample_report_file(samples_report_path):
@@ -550,18 +550,16 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
     line = [sample, run_successfully, '', runningTime, fileSize]
 
     line[2] = 'PASS' if pass_qc else 'FAIL'
-    warning = 0
-    if line[2] == 'PASS':
-        if run_report['SPAdes'][1] is False:
-            line[2] = 'WARNING'
-            warning = 1
 
-    line.extend(sampleReportLine(run_report))
+    modules_line, warnings = sampleReportLine(run_report)
+    if warnings > 0:
+        line[2] = 'WARNING'
+    line.extend(modules_line)
     with open(samples_report_path, 'at') as report:
         out = csv.writer(report, delimiter='\t')
         out.writerow(line)
 
-    return warning
+    return warnings
 
 
 def timer(function, name):
