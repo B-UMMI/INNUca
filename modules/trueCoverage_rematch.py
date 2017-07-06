@@ -57,12 +57,7 @@ def clean_headers_reference_file(reference_file, outdir, extraSeq, rematch_modul
     print 'Checking if reference sequences contain ' + str(problematic_characters) + '\n'
     headers_changed = False
     new_reference_file = reference_file
-    sequences, genes = rematch_module.get_sequence_information(reference_file, extraSeq)
-    for i in sequences:
-        if any(x in sequences[i]['header'] for x in problematic_characters):
-            for x in problematic_characters:
-                sequences[i]['header'] = sequences[i]['header'].replace(x, '_')
-            headers_changed = True
+    sequences, genes, headers_changed = rematch_module.get_sequence_information(reference_file, extraSeq)
     if headers_changed:
         print 'At least one of the those characters was found. Replacing those with _' + '\n'
         new_reference_file = os.path.join(outdir, os.path.splitext(os.path.basename(reference_file))[0] + '.headers_renamed.fasta')
