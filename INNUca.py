@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: July 06, 2017
+Last modified: July 07, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
 
 
 def main():
-    version = '2.8'
+    version = '3.0'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
@@ -243,7 +243,7 @@ def main():
         warning = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
         if warning:
             number_samples_warning += 1
-        sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if warning == 0 else 'warning', 'modules_run_report': run_report}
+        sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if not warning else 'warning', 'modules_run_report': run_report}
 
     # Save combine_samples_reports
     combine_reports.combine_reports(outdir, outdir, args.json, time_str, len(samples))
@@ -339,7 +339,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
         if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
             if not args.skipTrueCoverage and trueCoverage_config is not None:
                 # Run True Coverage
-                run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], True, False, 1, trueCoverage_config['minimum_gene_identity'], trueCoverage_config, rematch_script)
+                run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], False, False, 1, trueCoverage_config['minimum_gene_identity'], trueCoverage_config, rematch_script)
                 runs['trueCoverage_ReMatCh'] = [run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing]
             else:
                 print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
