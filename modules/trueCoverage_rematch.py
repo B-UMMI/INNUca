@@ -56,7 +56,7 @@ def clean_headers_reference_file(reference_file, outdir, extraSeq, rematch_modul
     problematic_characters = ["|", " ", ",", ".", "(", ")", "'", "/", ":"]
     print 'Checking if reference sequences contain ' + str(problematic_characters) + '\n'
     headers_changed = False
-    new_reference_file = reference_file
+    new_reference_file = str(reference_file)
     sequences, genes, headers_changed = rematch_module.get_sequence_information(reference_file, extraSeq)
     if headers_changed:
         print 'At least one of the those characters was found. Replacing those with _' + '\n'

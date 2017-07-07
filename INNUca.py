@@ -117,6 +117,7 @@ def main():
     programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
     if not args.skipTrueCoverage:
         programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
+        programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
     if (not args.skipTrueCoverage or ((not args.skipAssemblyMapping or not args.skipPilon) and not args.skipSPAdes)):
         programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
         programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
