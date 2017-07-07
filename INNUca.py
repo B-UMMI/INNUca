@@ -238,12 +238,6 @@ def main():
         fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
         utils.write_fail_report(fail_report_path, run_report)
 
-        # Save runs statistics
-        if run_successfully:
-            number_samples_successfully += 1
-        if pass_qc:
-            number_samples_pass += 1
-
         # Get raw reads files size
         fileSize = sum(os.path.getsize(fastq) for fastq in fastq_files)
 
@@ -256,6 +250,13 @@ def main():
 
         # Save run report
         warning = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
+
+        # Save runs statistics
+        if run_successfully:
+            number_samples_successfully += 1
+        if pass_qc and not warning:
+            number_samples_pass += 1
+
         if warning:
             number_samples_warning += 1
         sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if not warning else 'warning', 'modules_run_report': run_report}
@@ -284,9 +285,6 @@ def main():
     # Check whether INNUca.py run at least one sample successfully
     if number_samples_successfully == 0:
         sys.exit('No samples run successfully!')
-    else:
-        if number_samples_pass < number_samples_successfully:
-            sys.stderr.write('{fail_samples} samples FAIL INNUca.py analysis'.format(fail_samples=(number_samples_successfully - number_samples_pass)))
 
 
 def get_sample_args_fastq(fastq_files_list, outdir, pairEnd_filesSeparation_list):
