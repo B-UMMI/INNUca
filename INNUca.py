@@ -69,6 +69,18 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
     return trueCoverage_config
 
 
+def include_rematch_dependencies_path(doNotUseProvidedSoftware):
+    command = ['which', 'rematch.py']
+    run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
+    if run_successfully:
+        rematch = stdout.splitlines()[0]
+        path_variable = os.environ['PATH']
+        script_folder = os.path.dirname(rematch)
+        if not doNotUseProvidedSoftware:
+            bcftools = os.path.join(script_folder, 'src', 'bcftools-1.3.1', 'bin')
+            os.environ['PATH'] = str(':'.join([bcftools, path_variable]))
+
+
 def main():
     version = '3.0'
     args = utils.parseArguments(version)
@@ -109,13 +121,15 @@ def main():
     # Get CPU information
     utils.get_cpu_information(outdir, time_str)
 
-    # Set and print PATH variable
-    utils.setPATHvariable(args, script_path)
+    # Get trueCoverage_ReMatCh settings
+    trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
 
     # Check programms
     programs_version_dictionary = {}
     programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
-    if not args.skipTrueCoverage:
+    if not args.skipTrueCoverage or trueCoverage_config is not None:
+        include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
+
         programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
         programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
     if (not args.skipTrueCoverage or ((not args.skipAssemblyMapping or not args.skipPilon) and not args.skipSPAdes)):
@@ -136,6 +150,10 @@ def main():
         programs_version_dictionary['pilon-1.18.jar'] = ['--version', '==', '1.18']
     if not args.skipMLST and not args.skipSPAdes:
         programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
+
+    # Set and print PATH variable
+    utils.setPATHvariable(args, script_path)
+
     missingPrograms, programs_version_dictionary = utils.checkPrograms(programs_version_dictionary)
     if len(missingPrograms) > 0:
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
@@ -174,9 +192,6 @@ def main():
         scheme = mlst.getScheme(args.speciesExpected)
         # Print path to blastn
         mlst.getBlastPath()
-
-    # Get trueCoverage_ReMatCh settings
-    trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
 
     # Memory
     available_memory_GB = utils.get_free_memory() / (1024.0 ** 2)
