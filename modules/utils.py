@@ -506,7 +506,7 @@ steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_Fas
 
 def sampleReportLine(run_report):
     line = []
-    warnings = 0
+    warnings = False
     for step in steps:
         run_successfully = str(run_report[step][0])
         pass_qc = 'FAIL'
@@ -517,7 +517,7 @@ def sampleReportLine(run_report):
 
         if step in ('first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
-            warnings += 1
+            warnings = True
 
         if step in ('FastQ_Integrity', 'Pilon'):
             l = [run_successfully, run_report[step][2]]
@@ -552,7 +552,7 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
     line[2] = 'PASS' if pass_qc else 'FAIL'
 
     modules_line, warnings = sampleReportLine(run_report)
-    if warnings > 0:
+    if warnings:
         line[2] = 'WARNING'
     line.extend(modules_line)
     with open(samples_report_path, 'at') as report:

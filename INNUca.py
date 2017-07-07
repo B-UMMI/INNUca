@@ -241,7 +241,8 @@ def main():
 
         # Save run report
         warning = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
-        number_samples_warning += warning
+        if warning:
+            number_samples_warning += 1
         sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if warning == 0 else 'warning', 'modules_run_report': run_report}
 
     # Save combine_samples_reports
