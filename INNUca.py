@@ -249,17 +249,17 @@ def main():
         time_taken = utils.runTime(sample_start_time)
 
         # Save run report
-        warning = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
+        warning, json_pass_qc = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
 
         # Save runs statistics
         if run_successfully:
             number_samples_successfully += 1
         if pass_qc and not warning:
             number_samples_pass += 1
-
         if warning:
             number_samples_warning += 1
-        sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if not warning else 'warning', 'modules_run_report': run_report}
+
+        sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': json_pass_qc, 'modules_run_report': run_report}
 
     # Save combine_samples_reports
     combine_reports.combine_reports(outdir, outdir, args.json, time_str, len(samples))

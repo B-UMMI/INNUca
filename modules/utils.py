@@ -552,14 +552,14 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
     line[2] = 'PASS' if pass_qc else 'FAIL'
 
     modules_line, warnings = sampleReportLine(run_report)
-    if warnings:
+    if pass_qc and warnings:
         line[2] = 'WARNING'
     line.extend(modules_line)
     with open(samples_report_path, 'at') as report:
         out = csv.writer(report, delimiter='\t')
         out.writerow(line)
 
-    return warnings
+    return warnings, line[2]
 
 
 def timer(function, name):
