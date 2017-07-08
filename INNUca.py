@@ -277,7 +277,7 @@ def main():
 
     # Run report
     print '\n' + 'END INNUca.py'
-    print '\n' + 'Pipeline problems: {not_run_successfully} samples'.format(number_samples_pass=(len(samples) - number_samples_successfully))
+    print '\n' + 'Pipeline problems: {not_run_successfully} samples'.format(not_run_successfully=(len(samples) - number_samples_successfully))
     print '\n' + 'FAIL: {number_samples_fail} samples'.format(number_samples_fail=(len(samples) - number_samples_pass - number_samples_warning))
     print '\n' + 'WARNING: {number_samples_warning} samples'.format(number_samples_warning=number_samples_warning)
     print '\n' + 'PASS: {number_samples_pass} samples'.format(number_samples_pass=number_samples_pass)
