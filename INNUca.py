@@ -254,10 +254,11 @@ def main():
         # Save runs statistics
         if run_successfully:
             number_samples_successfully += 1
-        if pass_qc and not warning:
-            number_samples_pass += 1
-        if warning:
-            number_samples_warning += 1
+        if pass_qc:
+            if warning:
+                number_samples_warning += 1
+            else:
+                number_samples_pass += 1
 
         sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': json_pass_qc, 'modules_run_report': run_report}
 
@@ -276,9 +277,10 @@ def main():
 
     # Run report
     print '\n' + 'END INNUca.py'
-    print '\n' + 'PASS: {number_samples_pass} samples'.format(number_samples_pass=number_samples_pass)
-    print '\n' + 'WARNING: {number_samples_warning} samples'.format(number_samples_warning=number_samples_warning)
+    print '\n' + 'Pipeline problems: {not_run_successfully} samples'.format(number_samples_pass=(len(samples) - number_samples_successfully))
     print '\n' + 'FAIL: {number_samples_fail} samples'.format(number_samples_fail=(len(samples) - number_samples_pass - number_samples_warning))
+    print '\n' + 'WARNING: {number_samples_warning} samples'.format(number_samples_warning=number_samples_warning)
+    print '\n' + 'PASS: {number_samples_pass} samples'.format(number_samples_pass=number_samples_pass)
     time_taken = utils.runTime(general_start_time)
     del time_taken
 
