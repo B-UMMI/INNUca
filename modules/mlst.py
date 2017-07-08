@@ -34,9 +34,9 @@ def set_species_scheme_map_variables(list_values, species_scheme_map_version):
 
 def parse_species_scheme_map(species_splited, mlst_db_path, species_scheme_map_version):
     scheme = 'unknown'
+    genus_mlst_scheme = None
 
     with open(mlst_db_path, 'rtU') as reader:
-        genus_mlst_scheme = None
         for line in reader:
             line = line.splitlines()[0]
             if len(line) > 0:
@@ -51,7 +51,7 @@ def parse_species_scheme_map(species_splited, mlst_db_path, species_scheme_map_v
                             scheme = val_scheme
         if scheme == 'unknown' and genus_mlst_scheme is not None:
             scheme = genus_mlst_scheme
-    return scheme
+    return scheme, genus_mlst_scheme
 
 
 def getScheme(species):
@@ -61,11 +61,11 @@ def getScheme(species):
 
     mlst_db_path, species_scheme_map_new = get_species_scheme_map_version(mlst_folder)
 
-    scheme = parse_species_scheme_map(species.lower().split(' '), mlst_db_path, species_scheme_map_new)
+    scheme, genus_mlst_scheme = parse_species_scheme_map(species.lower().split(' '), mlst_db_path, species_scheme_map_new)
 
     print '\n' + 'MLST scheme found for {species}: {scheme}'.format(species=species, scheme=scheme)
 
-    return scheme
+    return scheme, species.lower().split(' ')[0], genus_mlst_scheme
 
 
 def getBlastPath():
@@ -76,10 +76,11 @@ def getBlastPath():
 
 
 @mlst_timer
-def runMlst(contigs, scheme, outdir):
+def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
     pass_qc = False
     failing = {}
     failing['sample'] = False
+    warnings = {}
 
     command = ['mlst', contigs]
     run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
@@ -99,10 +100,21 @@ def runMlst(contigs, scheme, outdir):
         if scheme_mlst.split('_', 1)[0] == scheme.split('_', 1)[0]:
             pass_qc = True
         else:
-            failing['sample'] = 'MLST scheme found (' + scheme_mlst + ') and provided (' + scheme + ') are not the same'
-            print failing['sample']
+            if scheme == 'unknown' and scheme_mlst != '-':
+                pass_qc = True
+                warnings['sample'] = 'Found {scheme_mlst} scheme for a species with unknown scheme'.format(scheme_mlst=scheme_mlst)
+            elif scheme == 'unknown' and scheme_mlst == '-':
+                pass_qc = True
+            elif species_genus == 'yersinia' and mlst_scheme_genus == 'yersinia':
+                pass_qc = True
+                warnings['sample'] = 'Found a Yersinia scheme ({scheme_mlst}), but it is different from what it was expected({scheme})'.format(scheme_mlst=scheme_mlst, scheme=scheme)
+            else:
+                failing['sample'] = 'MLST scheme found (' + scheme_mlst + ') and provided (' + scheme + ') are not the same'
+                print failing['sample']
     else:
-        failing['sample'] = 'Did not run;'
-        print failing['sample']
+        warnings['sample'] = 'Did not run;'
 
-    return run_successfully, pass_qc, failing
+    if len(warnings) > 0:
+        print warnings['sample']
+
+    return run_successfully, pass_qc, failing, warnings

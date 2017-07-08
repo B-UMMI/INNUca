@@ -376,6 +376,7 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
     # Index assembly using Bowtie2
     run_successfully = indexSequenceBowtie2(assembly_link, threads)
 
+    sample_coverage_no_problems = False
     sample_mapping_statistics_no_problems = False
     if run_successfully:
         run_successfully, sam_file = mappingBowtie2(fastq_files, assembly_link, threads, assemblyMapping_folder)
@@ -395,7 +396,7 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                     if sample_coverage_no_problems:
                         pass_qc_coverage, failing_reason, sequences_2_keep = save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembly)
                         if not pass_qc_coverage:
-                            warnings['Coverage'] = [failing_reason]
+                            failing['Coverage'] = [failing_reason]
 
                         assembly_filtered = os.path.splitext(reference_file)[0] + '.mappingCov.fasta'
 
@@ -421,7 +422,7 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                         if not pass_qc_mapping:
                             warnings['Mapping'] = [failing_reason]
                     else:
-                        failing['Mapping'] = ['Did not run']
+                        warnings['Mapping'] = ['Did not run']
 
                     if assembly_filtered is not None and assembly_filtered != reference_file and len(sequences_2_keep) > 0:
                         print 'Producing bam subset for sequences to keep'
@@ -433,19 +434,14 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                             run_successfully = indexAlignment(bam_file, False)
 
     if not run_successfully:
-        failing['Coverage'] = ['Did not run']
+        failing['sample'] = ['Did not run']
+
+    run_successfully = all([run_successfully, sample_coverage_no_problems])
 
     if len(failing) == 0:
         failing = {'sample': False}
     else:
         print 'Failing:', failing
-
-    run_successfully = sample_coverage_no_problems and sample_mapping_statistics_no_problems
-
-    if not run_successfully:
         pass_qc = False
-
-    if not pass_qc:
-        print 'Sample FAILS Assembly Mapping check with: ' + str(failing)
 
     return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assemblyMapping_folder, warnings

@@ -189,7 +189,7 @@ def main():
     # Get MLST scheme to use
     scheme = 'unknown'
     if not args.skipMLST and not args.skipSPAdes:
-        scheme = mlst.getScheme(args.speciesExpected)
+        scheme, species_genus, mlst_scheme_genus = mlst.getScheme(args.speciesExpected)
         # Print path to blastn
         mlst.getBlastPath()
 
@@ -232,7 +232,7 @@ def main():
         print str(fastq_files) + '\n'
 
         # Run INNUca.py analysis
-        run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script)
+        run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script, species_genus, mlst_scheme_genus)
 
         # Save sample fail report
         fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
@@ -314,7 +314,7 @@ def get_samples(args_inputDirectory, args_fastq, outdir, pairEnd_filesSeparation
     return samples, inputDirectory, removeCreatedSamplesDirectories, indir_same_outdir
 
 
-def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script):
+def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script, species_genus, mlst_scheme_genus):
     threads = args.threads
     adaptersFasta = args.adapters
     if adaptersFasta is not None:
@@ -403,7 +403,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                             runs['SPAdes'] = not_run + ['NA']
                             runs['Assembly_Mapping'] = not_run + ['NA']
                             runs['Pilon'] = not_run
-                            runs['MLST'] = not_run
+                            runs['MLST'] = not_run + ['NA']
                     else:
                         print 'Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated Coverage analysis and FastQC analysis'
                         runs['second_Coverage'] = skipped
@@ -424,7 +424,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                 runs['SPAdes'] = not_run + ['NA']
                 runs['Assembly_Mapping'] = not_run + ['NA']
                 runs['Pilon'] = not_run
-                runs['MLST'] = not_run
+                runs['MLST'] = not_run + ['NA']
 
         else:
             print '\n' + 'Estimated coverage is too lower (< ' + str(args.estimatedMinimumCoverage) + 'x). This sample will not proceed with INNUca pipeline'
@@ -437,7 +437,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
             runs['SPAdes'] = not_run + ['NA']
             runs['Assembly_Mapping'] = not_run + ['NA']
             runs['Pilon'] = not_run
-            runs['MLST'] = not_run
+            runs['MLST'] = not_run + ['NA']
 
         if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
             if args.skipTrueCoverage or trueCoverage_config is None or (run_successfully_trueCoverage and pass_qc_trueCoverage):
@@ -500,26 +500,27 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
                         # Run MLST
                         if not args.skipMLST:
-                            runs['MLST'] = mlst.runMlst(contigs, scheme, outdir)
+                            run_successfully, pass_qc, time_taken, failing, warning = mlst.runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus)
+                            runs['MLST'] = [run_successfully, pass_qc, time_taken, failing, warning]
                         else:
                             print '--skipMLST set. Skipping MLST analysis'
-                            runs['MLST'] = skipped
+                            runs['MLST'] = skipped + ['NA']
                     else:
                         print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
                         runs['Assembly_Mapping'] = skipped + ['NA']
                         runs['Pilon'] = skipped
-                        runs['MLST'] = skipped
+                        runs['MLST'] = skipped + ['NA']
 
                 else:
                     print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
                     runs['SPAdes'] = skipped + ['NA']
                     runs['Assembly_Mapping'] = skipped + ['NA']
                     runs['Pilon'] = skipped
-                    runs['MLST'] = skipped
+                    runs['MLST'] = skipped + ['NA']
     else:
         print 'Moving to the next sample'
         for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
-            if step in ('Trimmomatic', 'first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping'):
+            if step in ('Trimmomatic', 'first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping', 'MLST'):
                 runs[step] = not_run + ['NA']
             else:
                 runs[step] = not_run
@@ -542,8 +543,9 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
     pass_pear = runs['Pear'][1] is not False
     pass_spades = runs['SPAdes'][1] is not False or runs['Assembly_Mapping'][1] is True
     pass_assemblyMapping = runs['Assembly_Mapping'][1] is not False
+    pass_pilon = runs['Pilon'][0] is not False
     pass_mlst = runs['MLST'][1] is not False
-    pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_trimmomatic, pass_pear, pass_spades, pass_assemblyMapping, pass_mlst])
+    pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_trimmomatic, pass_pear, pass_spades, pass_assemblyMapping, pass_pilon, pass_mlst])
 
     return run_successfully, pass_qc, runs
 

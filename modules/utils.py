@@ -515,7 +515,7 @@ def sampleReportLine(run_report):
         elif run_report[step][1] is None:
             pass_qc = run_report[step][3]['sample']
 
-        if step in ('first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+        if step in ('first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping', 'MLST') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
             warnings = True
 
