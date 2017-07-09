@@ -73,6 +73,15 @@ def parseFastQC(fastqc_folder, fastq_files):
                         warning[reads] = []
                     warning[reads].append('Bad per base sequence quality')
 
+            if fastqc.get('Overrepresented sequences') == 'FAIL':
+                bad_fastq = True
+                failing[reads].append('Overrepresented sequences')
+            else:
+                if fastqc.get('Overrepresented sequences') != 'PASS':
+                    if reads not in warning:
+                        warning[reads] = []
+                    warning[reads].append('Overrepresented sequences')
+
             if fastqc.get('Per sequence GC content') == 'FAIL':
                 bad_fastq = True
                 failing[reads].append('Bad per sequence GC content')
@@ -82,9 +91,6 @@ def parseFastQC(fastqc_folder, fastq_files):
             if fastqc.get('Sequence Length Distribution') == 'FAIL':
                 bad_fastq = True
                 failing[reads].append('Bad sequence length distribution')
-            if fastqc.get('Overrepresented sequences') != 'PASS':
-                bad_fastq = True
-                failing[reads].append('Overrepresented sequences')
             if fastqc.get('Adapter Content') != 'PASS':
                 bad_fastq = True
                 failing[reads].append('Found adapters sequences')
@@ -197,8 +203,8 @@ def nts2clip(dict_fastqs_ntsBiased_status):
     for fastq in dict_fastqs_ntsBiased_status:
         nts2clip_based_ntsContent[fastq] = [0, 0]
         nt_content = dict_fastqs_ntsBiased_status[fastq]
-        five_end = False
         reads_range = list(range(0, len(nt_content) - 1))
+        five_end = False
         for i in reads_range:
             if nt_content[i] == 'biased':
                 if i <= len(nt_content) / 2:
@@ -206,19 +212,23 @@ def nts2clip(dict_fastqs_ntsBiased_status):
                         if nt_content[i + 1] == 'unbiased' and nt_content[i + 2] == 'unbiased':
                             nts2clip_based_ntsContent[fastq][0] = i + 1
                             five_end = True
-                else:
-                    if i + 1 not in reads_range:
-                            nts2clip_based_ntsContent[fastq][1] = len(nt_content) - i
-                            break
-                    elif i + 2 not in reads_range:
-                            nts2clip_based_ntsContent[fastq][1] = len(nt_content) - i
-                            break
                     else:
-                        if nt_content[i + 1] == 'unbiased' and nt_content[i + 2] == 'unbiased':
-                            continue
-                        else:
+                        break
+                else:
+                    break
+        reads_range = sorted(range(0, len(nt_content)), reverse=True)
+        three_end = False
+        for i in reads_range:
+            if nt_content[i] == 'biased':
+                if i > len(nt_content) / 2:
+                    if not three_end:
+                        if nt_content[i - 1] == 'unbiased' and nt_content[i - 2] == 'unbiased':
                             nts2clip_based_ntsContent[fastq][1] = len(nt_content) - i
-                            break
+                            three_end = True
+                    else:
+                        break
+                else:
+                    break
 
     nts2clip_based_ntsContent = [max(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][0], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][0]), min(nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[0]][1], nts2clip_based_ntsContent[nts2clip_based_ntsContent.keys()[1]][1])]
 
