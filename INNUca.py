@@ -167,6 +167,7 @@ def main():
     if not args.skipPilon and not args.skipSPAdes:
         jar_path_pilon = programs_version_dictionary['pilon-1.18.jar'][3]
 
+    rematch_script = None
     # ReMatCh path
     if not args.skipTrueCoverage:
         rematch_script = programs_version_dictionary['rematch.py'][3]
@@ -188,6 +189,7 @@ def main():
 
     # Get MLST scheme to use
     scheme = 'unknown'
+    species_genus, mlst_scheme_genus = None, None
     if not args.skipMLST and not args.skipSPAdes:
         scheme, species_genus, mlst_scheme_genus = mlst.getScheme(args.speciesExpected)
         # Print path to blastn
