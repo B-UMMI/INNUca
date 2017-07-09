@@ -517,8 +517,9 @@ def sampleReportLine(run_report):
 
         if step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
-            if step == 'first_FastQC' and (run_report['second_FastQC'][1] is None or run_report['second_FastQC'][1] is False):
-                warnings = True
+            if step == 'first_FastQC':
+                if run_report['second_FastQC'][1] is None or run_report['second_FastQC'][1] is False:
+                    warnings = True
             else:
                 warnings = True
 
