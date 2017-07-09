@@ -64,9 +64,15 @@ def parseFastQC(fastqc_folder, fastq_files):
             bad_fastq = False
             failing[reads] = []
 
-            if fastqc.get('Per base sequence quality') != 'PASS':
+            if fastqc.get('Per base sequence quality') == 'FAIL':
                 bad_fastq = True
                 failing[reads].append('Bad per base sequence quality')
+            else:
+                if fastqc.get('Per base sequence quality') != 'PASS':
+                    if reads not in warning:
+                        warning[reads] = []
+                    warning[reads].append('Bad per base sequence quality')
+
             if fastqc.get('Per sequence GC content') == 'FAIL':
                 bad_fastq = True
                 failing[reads].append('Bad per sequence GC content')

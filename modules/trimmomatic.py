@@ -146,6 +146,5 @@ def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFa
     else:
         failing['sample'] = 'Did not run'
         print failing['sample']
-        not_empty_fastq = True
 
     return run_successfully, not_empty_fastq, failing, paired_reads, trimmomatic_folder, fileSize

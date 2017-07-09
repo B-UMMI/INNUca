@@ -113,6 +113,7 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
                 print failing['sample']
     else:
         warnings['sample'] = 'Did not run;'
+        pass_qc = True
 
     if len(warnings) > 0:
         print warnings['sample']

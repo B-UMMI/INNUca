@@ -515,14 +515,14 @@ def sampleReportLine(run_report):
         elif run_report[step][1] is None:
             pass_qc = run_report[step][3]['sample']
 
-        if step in ('first_FastQC', 'second_FastQC', 'SPAdes', 'Assembly_Mapping', 'MLST') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+        if step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
             warnings = True
 
         if step in ('FastQ_Integrity', 'Pilon'):
             l = [run_successfully, run_report[step][2]]
         elif step == 'Trimmomatic':
-            l = [run_successfully, pass_qc, run_report[step][2], run_report[step][4]]
+            l = [run_successfully, run_report[step][2], run_report[step][4]]
         else:
             l = [run_successfully, pass_qc, run_report[step][2]]
         line.extend(l)
@@ -535,7 +535,7 @@ def start_sample_report_file(samples_report_path):
         if step == 'FastQ_Integrity':
             l = [step + '_filesOK', step + '_runningTime']
         elif step == 'Trimmomatic':
-            l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime', step + '_fileSize']
+            l = [step + '_runSuccessfully', step + '_runningTime', step + '_fileSize']
         elif step == 'Pilon':
             l = [step + '_runSuccessfully', step + '_runningTime']
         else:
