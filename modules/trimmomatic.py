@@ -7,8 +7,8 @@ from functools import partial
 def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding):
     trimmomatic_out_files = []
     for fastq in fastq_files:
-        trimmomatic_out_files.append(os.path.join(trimmomatic_folder, str(os.path.splitext(os.path.splitext(fastq)[0])[0] + 'P.fastq.gz')))
-        trimmomatic_out_files.append(os.path.join(trimmomatic_folder, str(os.path.splitext(os.path.splitext(fastq)[0])[0] + 'U.fastq.gz')))
+        trimmomatic_out_files.append(os.path.join(trimmomatic_folder, str(os.path.splitext(os.path.splitext(os.path.basename(fastq))[0])[0] + 'P.fastq.gz')))
+        trimmomatic_out_files.append(os.path.join(trimmomatic_folder, str(os.path.splitext(os.path.splitext(os.path.basename(fastq))[0])[0] + 'U.fastq.gz')))
     # Run Trimmomatic
     command = ['java', '', '-jar', jar_path_trimmomatic, 'PE', '-threads', str(threads), '', ' '.join(fastq_files), ' '.join(trimmomatic_out_files), '', '', '', str('SLIDINGWINDOW:' + slidingWindow), str('LEADING:' + str(leading)), str('TRAILING:' + str(trailing)), str('MINLEN:' + str(minLength)), 'TOPHRED33']
 
