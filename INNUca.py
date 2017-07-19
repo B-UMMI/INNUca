@@ -237,8 +237,10 @@ def main():
         run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script, species_genus, mlst_scheme_genus)
 
         # Save sample fail report
-        fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
-        utils.write_fail_report(fail_report_path, run_report)
+        utils.write_fail_report(os.path.join(sample_outdir, 'fail_report.txt'), run_report)
+
+        # Save warning report
+        write_warning_report(os.path.join(sample_outdir, 'warning_report.txt'), run_report)
 
         # Get raw reads files size
         fileSize = sum(os.path.getsize(fastq) for fastq in fastq_files)
@@ -289,6 +291,22 @@ def main():
     # Check whether INNUca.py run at least one sample successfully
     if number_samples_successfully == 0:
         sys.exit('No samples run successfully!')
+
+
+def write_warning_report(warning_report_path, run_report):
+    with open(warning_report_path, 'wt') as writer_warningReport:
+        warnings = []
+        for step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
+            if len(run_report[step][4]) > 0:
+                warnings.append('#' + step)
+                for key, warning_reasons in run_report[step][4].items():
+                    warnings.append('>' + str(key))
+                    if isinstance(warning_reasons, (list, tuple)):
+                        for reasons in warning_reasons:
+                            warnings.append(str(reasons))
+                    else:
+                        warnings.append(str(warning_reasons))
+        writer_warningReport.write('\n'.join(warnings))
 
 
 def get_sample_args_fastq(fastq_files_list, outdir, pairEnd_filesSeparation_list):
@@ -418,6 +436,14 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                     runs['Trimmomatic'] = skipped + ['NA']
                     runs['second_Coverage'] = skipped
                     runs['second_FastQC'] = skipped + ['NA']
+
+                if not args.skipFastQC and (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is False and not args.fastQCproceed:
+                    print '\n' + 'This sample does not pass FastQC module QA/QC. It will not proceed with INNUca pipeline'
+                    runs['Pear'] = not_run + ['NA']
+                    runs['SPAdes'] = not_run + ['NA']
+                    runs['Assembly_Mapping'] = not_run + ['NA']
+                    runs['Pilon'] = not_run
+                    runs['MLST'] = not_run + ['NA']
             else:
                 print '\n' + 'This sample does not pass True Coverage module QA/QC. This sample will not proceed with INNUca pipeline'
                 runs['first_FastQC'] = not_run + ['NA']
@@ -445,82 +471,83 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
         if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
             if args.skipTrueCoverage or trueCoverage_config is None or (run_successfully_trueCoverage and pass_qc_trueCoverage):
-                unassembled_pe_reads = None
-                assembled_se_reads = None
-                # Run Pear
-                if args.runPear:
-                    print '--runPear set. Running Pear'
-                    pearMinOverlap = pear.determine_minimum_overlap(args.pearMinOverlap, min_reads_length, max_reads_length)
-                    run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder, warning = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, pearMinOverlap)
-                    runs['Pear'] = [run_successfully, pass_qc, time_taken, failing, warning]
-                else:
-                    runs['Pear'] = not_run + ['NA']
-
-                # Run SPAdes
-                if not args.skipSPAdes:
-                    run_successfully, pass_qc, time_taken, failing, contigs_spades, warning = spades.runSpades(sampleName, outdir, threads, unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, max_reads_length, args.spadesDefaultKmers, args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs, args.maxNumberContigs)
-                    runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning]
-
-                    if run_successfully:
-                        contigs = contigs_spades
-
-                        # Run Assembly Mapping check
-                        bam_file = None
-                        if not args.skipAssemblyMapping:
-                            run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, assemblyMapping_folder, warning = assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir, args.assemblyMinCoverageContigs, genomeSize, args.saveExcludedContigs, args.maxNumberContigs)
-                            runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing, warning]
-
-                            if run_successfully:
-                                contigs = assembly_filtered
-                                if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and contigs != contigs_spades:
-                                    os.remove(contigs_spades)
-                        else:
-                            print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
-                            runs['Assembly_Mapping'] = skipped + ['NA']
-
-                        # Run Pilon
-                        if not args.skipPilon:
-                            run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir, jarMaxMemory, bam_file)
-                            runs['Pilon'] = [run_successfully, None, time_taken, failing]
-
-                            if run_successfully:
-                                contigs = assembly_polished
-                                if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and os.path.isfile(assembly_filtered):
-                                    os.remove(assembly_filtered)
-
-                            if not args.pilonKeepFiles:
-                                utils.removeDirectory(pilon_folder)
-
-                        else:
-                            print '--skipPilon set. Skipping Pilon correction'
-                            runs['Pilon'] = skipped
-
-                        if 'assemblyMapping_folder' in locals():
-                            utils.removeDirectory(assemblyMapping_folder)
-
-                        print '\n' + 'Final assembly: ' + contigs
-                        with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
-                            writer.write(contigs + '\n')
-
-                        # Run MLST
-                        if not args.skipMLST:
-                            run_successfully, pass_qc, time_taken, failing, warning = mlst.runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus)
-                            runs['MLST'] = [run_successfully, pass_qc, time_taken, failing, warning]
-                        else:
-                            print '--skipMLST set. Skipping MLST analysis'
-                            runs['MLST'] = skipped + ['NA']
+                if args.skipFastQC or (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False or args.fastQCproceed:
+                    unassembled_pe_reads = None
+                    assembled_se_reads = None
+                    # Run Pear
+                    if args.runPear:
+                        print '--runPear set. Running Pear'
+                        pearMinOverlap = pear.determine_minimum_overlap(args.pearMinOverlap, min_reads_length, max_reads_length)
+                        run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder, warning = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, pearMinOverlap)
+                        runs['Pear'] = [run_successfully, pass_qc, time_taken, failing, warning]
                     else:
-                        print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
+                        runs['Pear'] = not_run + ['NA']
+
+                    # Run SPAdes
+                    if not args.skipSPAdes:
+                        run_successfully, pass_qc, time_taken, failing, contigs_spades, warning = spades.runSpades(sampleName, outdir, threads, unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, max_reads_length, args.spadesDefaultKmers, args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs, args.maxNumberContigs)
+                        runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning]
+
+                        if run_successfully:
+                            contigs = contigs_spades
+
+                            # Run Assembly Mapping check
+                            bam_file = None
+                            if not args.skipAssemblyMapping:
+                                run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, assemblyMapping_folder, warning = assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir, args.assemblyMinCoverageContigs, genomeSize, args.saveExcludedContigs, args.maxNumberContigs)
+                                runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing, warning]
+
+                                if run_successfully:
+                                    contigs = assembly_filtered
+                                    if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and contigs != contigs_spades:
+                                        os.remove(contigs_spades)
+                            else:
+                                print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
+                                runs['Assembly_Mapping'] = skipped + ['NA']
+
+                            # Run Pilon
+                            if not args.skipPilon:
+                                run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir, jarMaxMemory, bam_file)
+                                runs['Pilon'] = [run_successfully, None, time_taken, failing]
+
+                                if run_successfully:
+                                    contigs = assembly_polished
+                                    if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and os.path.isfile(assembly_filtered):
+                                        os.remove(assembly_filtered)
+
+                                if not args.pilonKeepFiles:
+                                    utils.removeDirectory(pilon_folder)
+
+                            else:
+                                print '--skipPilon set. Skipping Pilon correction'
+                                runs['Pilon'] = skipped
+
+                            if 'assemblyMapping_folder' in locals():
+                                utils.removeDirectory(assemblyMapping_folder)
+
+                            print '\n' + 'Final assembly: ' + contigs
+                            with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
+                                writer.write(contigs + '\n')
+
+                            # Run MLST
+                            if not args.skipMLST:
+                                run_successfully, pass_qc, time_taken, failing, warning = mlst.runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus)
+                                runs['MLST'] = [run_successfully, pass_qc, time_taken, failing, warning]
+                            else:
+                                print '--skipMLST set. Skipping MLST analysis'
+                                runs['MLST'] = skipped + ['NA']
+                        else:
+                            print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
+                            runs['Assembly_Mapping'] = skipped + ['NA']
+                            runs['Pilon'] = skipped
+                            runs['MLST'] = skipped + ['NA']
+
+                    else:
+                        print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
+                        runs['SPAdes'] = skipped + ['NA']
                         runs['Assembly_Mapping'] = skipped + ['NA']
                         runs['Pilon'] = skipped
                         runs['MLST'] = skipped + ['NA']
-
-                else:
-                    print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
-                    runs['SPAdes'] = skipped + ['NA']
-                    runs['Assembly_Mapping'] = skipped + ['NA']
-                    runs['Pilon'] = skipped
-                    runs['MLST'] = skipped + ['NA']
     else:
         print 'Moving to the next sample'
         for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):

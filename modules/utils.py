@@ -57,6 +57,7 @@ def parseArguments(version):
 
     fastQC_options = parser.add_argument_group('FastQC options')
     fastQC_options.add_argument('--fastQCkeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of FastQC')
+    fastQC_options.add_argument('--fastQCproceed', action='store_true', help='Do not stop INNUca.py if sample fails FastQC')
 
     trimmomatic_options = parser.add_argument_group('Trimmomatic options')
     trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
