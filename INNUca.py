@@ -298,14 +298,17 @@ def write_warning_report(warning_report_path, run_report):
         warnings = []
         for step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
             if len(run_report[step][4]) > 0:
-                warnings.append('#' + step)
-                for key, warning_reasons in run_report[step][4].items():
-                    warnings.append('>' + str(key))
-                    if isinstance(warning_reasons, (list, tuple)):
-                        for reasons in warning_reasons:
-                            warnings.append(str(reasons))
-                    else:
-                        warnings.append(str(warning_reasons))
+                if isinstance(run_report[step][4], str) and run_report[step][4] == 'NA':
+                    continue
+                else:
+                    warnings.append('#' + step)
+                    for key, warning_reasons in run_report[step][4].items():
+                        warnings.append('>' + str(key))
+                        if isinstance(warning_reasons, (list, tuple)):
+                            for reasons in warning_reasons:
+                                warnings.append(str(reasons))
+                        else:
+                            warnings.append(str(warning_reasons))
         writer_warningReport.write('\n'.join(warnings))
 
 
