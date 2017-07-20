@@ -23,7 +23,7 @@ ENV PATH="/NGStools/mlst/bin:${PATH}"
 
 # --- ReMatCh ---
 RUN git clone https://github.com/B-UMMI/ReMatCh.git -b base_quality_filter
-ENV PATH="/NGStoolsReMatCh:${PATH}"
+ENV PATH="/NGStools/ReMatCh:${PATH}"
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git -b v2.8
