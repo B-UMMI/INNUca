@@ -38,7 +38,7 @@ For this, docker needs to be installed on your machine. Instructions for this ca
 
 ##### Using DockerHub
 
-1) `docker pull cimendes/innuca`
+1) `docker pull ummidock/snippy_tseemann:3.0`
 
 To run, do
 2) `docker run -it cimendes/innuca bash`
@@ -48,8 +48,9 @@ To run, do
 1) `git clone https://github.com/cimendes/INNUca.git`
 2) `docker build . INNUca`
 
-To run, do
-3) `docker run -it INNUca bash`
+### Run
+    docker run --rm -u $(id -u):$(id -g) -it -v /local/folder/fastq_data:/data/ ummidock/innuca:3.0 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
+
 
 
 ### Updating the mlst database in docker instance
