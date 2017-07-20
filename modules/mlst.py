@@ -8,7 +8,6 @@ mlst_timer = partial(utils.timer, name='MLST')
 
 
 def get_species_scheme_map_version(mlst_folder):
-
     species_scheme_map_version = 1
 
     mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'species_scheme_map.tab')
@@ -68,7 +67,7 @@ def getScheme(species):
 
     return scheme, species.lower().split(' ')[0], genus_mlst_scheme
 
-  
+
 def getBlastPath():
     print '\n' + 'The following blastn will be used'
     command = ['which', 'blastn']
@@ -78,7 +77,6 @@ def getBlastPath():
 
 @mlst_timer
 def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
-
     pass_qc = False
     failing = {}
     failing['sample'] = False
@@ -121,4 +119,3 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
         print warnings['sample']
 
     return run_successfully, pass_qc, failing, warnings
-

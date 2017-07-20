@@ -275,6 +275,8 @@ def checkPrograms(programs_version_dictionary):
                     version_line = stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
                 elif program == 'pilon-1.18.jar':
                     version_line = stdout.splitlines()[0].split(' ', 3)[2]
+                elif program == 'mlst':
+                    version_line = stdout.splitlines()[0].split(' ')[-1].split('-', 1)[0]
                 else:
                     version_line = stdout.splitlines()[0].split(' ')[-1]
                 replace_characters = ['"', 'v', 'V', '+']

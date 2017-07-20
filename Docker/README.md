@@ -28,26 +28,22 @@ Within [play-with-docker](http://labs.play-with-docker.com/) webpage click on **
 will open with a big counter on the upper left corner. Click on **+ add new instance** and a terminal like instance should be generated on the right. On
 this terminal you can load this docker image as follows:
 
-1) `docker pull cimendes/innuca`
-2) `docker run -it cimendes/innuca bash`
+`docker pull ummidock/innuca:3.0`
 
 #### Build this docker on your local machine
 
 For this, docker needs to be installed on your machine. Instructions for this can be found [here](https://docs.docker.com/engine/installation/).
 
-##### Using DockerHub
+##### Using DockerHub (automated build image)
 
-1) `docker pull ummidock/snippy_tseemann:3.0`
+`docker pull ummidock/innuca:3.0`
 
-To run, do
-2) `docker run -it cimendes/innuca bash`
+##### Using GitHub (build docker image)
 
-##### Using GitHub
+1) `git clone https://github.com/B-UMMI/INNUca.git -b v2.8`  
+2) `docker build -t innuca:3.0 ./INNUca/Docker/`
 
-1) `git clone https://github.com/cimendes/INNUca.git`
-2) `docker build . INNUca`
-
-### Run
+### Run (using automated build image)
     docker run --rm -u $(id -u):$(id -g) -it -v /local/folder/fastq_data:/data/ ummidock/innuca:3.0 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
 
 
