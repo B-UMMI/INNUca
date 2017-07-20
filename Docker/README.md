@@ -63,9 +63,6 @@ For more information on this please consult the [provided information](https://g
 
 Contact
 -------
+Miguel Machado <mpmachado@medicina.ulisboa.pt>  
 Catarina Mendes
 <cimendes@medicina.ulisboa.pt>
-
-
-
-> Written with [StackEdit](https://stackedit.io/).
