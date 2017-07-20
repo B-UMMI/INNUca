@@ -12,13 +12,12 @@ This is a dockerfile for using INNUca, with all dependencies already installed.
 Within this container you can find:
 - ubuntu:16.04
 - git
-- python-dev (version 2.x)
-- wget
-- openjdk-8-jre
-- ncbi-blast version 2.6.0
-- libmoo-perl liblist-moreutils-perl
+- Python v2.7
+- Java-JRE
+- [Blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi) v2.6.0
 - [mlst](https://github.com/tseemann/mlst)
-- INNUca
+- [ReMatCh](https://github.com/B-UMMI/ReMatCh) v3.2
+- [INNUca](https://github.com/B-UMMI/INNUca) v3.0
 
 
 
