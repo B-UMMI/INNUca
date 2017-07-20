@@ -176,26 +176,26 @@ def write_filtered_sequences_and_stats(sequence_dict, spades_report_general, ori
 
 
 def qc_assembly(spades_report_general, estimatedGenomeSizeMb, maxNumberContigs):
-    failing = {}
-    failing['sample'] = False
+    warnings = {}
+    warnings['sample'] = False
     minimumBP = False
 
     if spades_report_general['filtered']['bp'] < estimatedGenomeSizeMb * 1000000 * 0.8 or spades_report_general['filtered']['bp'] > estimatedGenomeSizeMb * 1000000 * 1.5:
-        failing['sample'] = 'The number of assembled nucleotides (' + str(spades_report_general['filtered']['bp']) + ') are lower than 80% or higher than 150% of the provided estimated genome size'
+        warnings['sample'] = 'The number of assembled nucleotides (' + str(spades_report_general['filtered']['bp']) + ') are lower than 80% or higher than 150% of the provided estimated genome size'
     else:
         if spades_report_general['filtered']['contigs'] > maxNumberContigs * spades_report_general['filtered']['bp'] / 1500000:
-            failing['sample'] = 'The number of assembled contigs (' + str(spades_report_general['filtered']['contigs']) + ') exceeds ' + str(maxNumberContigs * spades_report_general['filtered']['bp'] / 1500000)
-            print failing['sample']
+            warnings['sample'] = 'The number of assembled contigs (' + str(spades_report_general['filtered']['contigs']) + ') exceeds ' + str(maxNumberContigs * spades_report_general['filtered']['bp'] / 1500000)
+            print warnings['sample']
 
     if spades_report_general['filtered']['bp'] >= estimatedGenomeSizeMb * 1000000 * 0.8:
         minimumBP = True
 
-    return failing, minimumBP
+    return warnings, minimumBP
 
 
 def decide_filter_parameters(sequence_dict, minContigsLength, minCoverageContigs, estimatedGenomeSizeMb, maxNumberContigs):
-    failing = {}
-    failing['sample'] = False
+    warnings = {}
+    warnings['sample'] = False
 
     min_GC_content = 0.05
 
@@ -204,20 +204,23 @@ def decide_filter_parameters(sequence_dict, minContigsLength, minCoverageContigs
     print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides, a k-mer coverage of ' + str(minCoverageContigs) + ' and a CG content between ' + str(min_GC_content * 100) + '% and ' + str((1 - min_GC_content) * 100) + '%'
     sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, minContigsLength, minCoverageContigs, min_GC_content)
 
-    failing, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb, maxNumberContigs)
-    if failing['sample'] is not False and not minimumBP:
-        print 'Filtered sequences did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
+    warnings, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb, maxNumberContigs)
+    if warnings['sample'] is not False and not minimumBP:
+        print 'WARNING: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
 
         filtered_sequences_sufix = 'length_GCcontent'
 
         print 'Filtering for contigs with at least ' + str(minContigsLength) + ' nucleotides and a CG content between ' + str(min_GC_content * 100) + '% and ' + str((1 - min_GC_content) * 100) + '%'
         sequence_dict, spades_report_general = determine_sequences_to_filter(sequence_dict, minContigsLength, 0, min_GC_content)
 
-        failing, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb, maxNumberContigs)
-        if failing['sample'] is not False and not minimumBP:
-            print 'Filtered sequences did not pass INNUca QC: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
+        warnings, minimumBP = qc_assembly(spades_report_general, estimatedGenomeSizeMb, maxNumberContigs)
+        if warnings['sample'] is not False and not minimumBP:
+            print 'WARNING: ' + str(spades_report_general['filtered']['bp']) + ' assembled nucleotides in ' + str(spades_report_general['filtered']['contigs']) + ' contigs'
 
-    return failing, sequence_dict, filtered_sequences_sufix, spades_report_general
+    if warnings['sample'] is False:
+        warnings = {}
+
+    return warnings, sequence_dict, filtered_sequences_sufix, spades_report_general
 
 
 spades_timer = partial(utils.timer, name='SPAdes')
@@ -226,9 +229,10 @@ spades_timer = partial(utils.timer, name='SPAdes')
 # Run SPAdes procedure
 @spades_timer
 def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs, assembled_se_reads, saveExcludedContigs, maxNumberContigs):
-    pass_qc = False
+    pass_qc = True
     failing = {}
     failing['sample'] = False
+    warnings = {}
 
     # Create SPAdes output directory
     spades_folder = os.path.join(outdir, 'spades', '')
@@ -259,14 +263,12 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
 
         sequence_dict = get_SPAdes_sequence_information(contigs)
 
-        failing, sequence_dict, filtered_sequences_sufix, spades_report_general = decide_filter_parameters(sequence_dict, minContigsLength, minCoverageContigs, estimatedGenomeSizeMb, maxNumberContigs)
+        warnings, sequence_dict, filtered_sequences_sufix, spades_report_general = decide_filter_parameters(sequence_dict, minContigsLength, minCoverageContigs, estimatedGenomeSizeMb, maxNumberContigs)
 
         if filtered_sequences_sufix is not None:
             filtered_sequence_file = os.path.splitext(contigs)[0] + '.' + filtered_sequences_sufix + '.fasta'
             write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, False, saveExcludedContigs)
             contigs = filtered_sequence_file
-            if failing['sample'] is False:
-                pass_qc = True
         else:
             filtered_sequence_file = os.path.splitext(contigs)[0] + '.original.fasta'
             write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs, filtered_sequence_file, sampleName, True, False)
@@ -278,10 +280,11 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
         failing['sample'] = 'Did not run'
         print failing['sample']
         contigs = None
+        pass_qc = False
 
-    if failing['sample'] is False:
-        pass_qc = True
+    if not run_successfully:
+        pass_qc = False
 
     utils.removeDirectory(spades_folder)
 
-    return run_successfully, pass_qc, failing, contigs
+    return run_successfully, pass_qc, failing, contigs, warnings

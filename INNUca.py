@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: July 05, 2017
+Last modified: July 07, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -69,8 +69,20 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
     return trueCoverage_config
 
 
+def include_rematch_dependencies_path(doNotUseProvidedSoftware):
+    command = ['which', 'rematch.py']
+    run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
+    if run_successfully:
+        rematch = stdout.splitlines()[0]
+        path_variable = os.environ['PATH']
+        script_folder = os.path.dirname(rematch)
+        if not doNotUseProvidedSoftware:
+            bcftools = os.path.join(script_folder, 'src', 'bcftools-1.3.1', 'bin')
+            os.environ['PATH'] = str(':'.join([bcftools, path_variable]))
+
+
 def main():
-    version = '2.7'
+    version = '3.0'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
@@ -109,12 +121,17 @@ def main():
     # Get CPU information
     utils.get_cpu_information(outdir, time_str)
 
-    # Set and print PATH variable
-    utils.setPATHvariable(args, script_path)
+    # Get trueCoverage_ReMatCh settings
+    trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
 
     # Check programms
     programs_version_dictionary = {}
     programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
+    if not args.skipTrueCoverage or trueCoverage_config is not None:
+        include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
+
+        programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
+        programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
     if (not args.skipTrueCoverage or ((not args.skipAssemblyMapping or not args.skipPilon) and not args.skipSPAdes)):
         programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
         programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
@@ -133,6 +150,10 @@ def main():
         programs_version_dictionary['pilon-1.18.jar'] = ['--version', '==', '1.18']
     if not args.skipMLST and not args.skipSPAdes:
         programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
+
+    # Set and print PATH variable
+    utils.setPATHvariable(args, script_path)
+
     missingPrograms, programs_version_dictionary = utils.checkPrograms(programs_version_dictionary)
     if len(missingPrograms) > 0:
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
@@ -145,6 +166,11 @@ def main():
     jar_path_pilon = None
     if not args.skipPilon and not args.skipSPAdes:
         jar_path_pilon = programs_version_dictionary['pilon-1.18.jar'][3]
+
+    rematch_script = None
+    # ReMatCh path
+    if not args.skipTrueCoverage:
+        rematch_script = programs_version_dictionary['rematch.py'][3]
 
     # pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
     pairEnd_filesSeparation_list = None
@@ -163,13 +189,11 @@ def main():
 
     # Get MLST scheme to use
     scheme = 'unknown'
+    species_genus, mlst_scheme_genus = None, None
     if not args.skipMLST and not args.skipSPAdes:
-        scheme = mlst.getScheme(args.speciesExpected)
+        scheme, species_genus, mlst_scheme_genus = mlst.getScheme(args.speciesExpected)
         # Print path to blastn
         mlst.getBlastPath()
-
-    # Get trueCoverage_ReMatCh settings
-    trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
 
     # Memory
     available_memory_GB = utils.get_free_memory() / (1024.0 ** 2)
@@ -210,17 +234,13 @@ def main():
         print str(fastq_files) + '\n'
 
         # Run INNUca.py analysis
-        run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config)
+        run_successfully, pass_qc, run_report = run_INNUca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script, species_genus, mlst_scheme_genus)
 
         # Save sample fail report
-        fail_report_path = os.path.join(sample_outdir, 'fail_report.txt')
-        utils.write_fail_report(fail_report_path, run_report)
+        utils.write_fail_report(os.path.join(sample_outdir, 'fail_report.txt'), run_report)
 
-        # Save runs statistics
-        if run_successfully:
-            number_samples_successfully += 1
-        if pass_qc:
-            number_samples_pass += 1
+        # Save warning report
+        write_warning_report(os.path.join(sample_outdir, 'warning_report.txt'), run_report)
 
         # Get raw reads files size
         fileSize = sum(os.path.getsize(fastq) for fastq in fastq_files)
@@ -233,12 +253,21 @@ def main():
         time_taken = utils.runTime(sample_start_time)
 
         # Save run report
-        warning = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
-        number_samples_warning += warning
-        sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': pass_qc if warning == 0 else 'warning', 'modules_run_report': run_report}
+        warning, json_pass_qc = utils.write_sample_report(samples_report_path, sample, run_successfully, pass_qc, time_taken, fileSize, run_report)
+
+        # Save runs statistics
+        if run_successfully:
+            number_samples_successfully += 1
+        if pass_qc:
+            if warning:
+                number_samples_warning += 1
+            else:
+                number_samples_pass += 1
+
+        sample_report_json[sample] = {'run_successfully': run_successfully, 'pass_qc': json_pass_qc, 'modules_run_report': run_report}
 
     # Save combine_samples_reports
-    combine_reports.combine_reports(outdir, outdir, args.json, time_str)
+    combine_reports.combine_reports(outdir, outdir, args.json, time_str, len(samples))
 
     # Save sample_report in json
     if args.json:
@@ -252,18 +281,35 @@ def main():
 
     # Run report
     print '\n' + 'END INNUca.py'
-    print '\n' + str(number_samples_successfully) + ' samples out of ' + str(len(samples)) + ' run successfully'
-    print '\n' + str(number_samples_pass) + ' samples out of ' + str(number_samples_successfully) + ' (run successfully) PASS INNUca.py analysis'
-    print '\n' + str(number_samples_warning) + ' samples with INNUca.py QA/QC warnings' + '\n'
+    print '\n' + 'Pipeline problems: {not_run_successfully} samples'.format(not_run_successfully=(len(samples) - number_samples_successfully))
+    print '\n' + 'FAIL: {number_samples_fail} samples'.format(number_samples_fail=(len(samples) - number_samples_pass - number_samples_warning))
+    print '\n' + 'WARNING: {number_samples_warning} samples'.format(number_samples_warning=number_samples_warning)
+    print '\n' + 'PASS: {number_samples_pass} samples'.format(number_samples_pass=number_samples_pass)
     time_taken = utils.runTime(general_start_time)
     del time_taken
 
     # Check whether INNUca.py run at least one sample successfully
     if number_samples_successfully == 0:
         sys.exit('No samples run successfully!')
-    else:
-        if number_samples_pass < number_samples_successfully:
-            sys.stderr.write('{fail_samples} samples FAIL INNUca.py analysis'.format(fail_samples=(number_samples_successfully - number_samples_pass)))
+
+
+def write_warning_report(warning_report_path, run_report):
+    with open(warning_report_path, 'wt') as writer_warningReport:
+        warnings = []
+        for step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
+            if len(run_report[step][4]) > 0:
+                if isinstance(run_report[step][4], str) and run_report[step][4] == 'NA':
+                    continue
+                else:
+                    warnings.append('#' + step)
+                    for key, warning_reasons in run_report[step][4].items():
+                        warnings.append('>' + str(key))
+                        if isinstance(warning_reasons, (list, tuple)):
+                            for reasons in warning_reasons:
+                                warnings.append(str(reasons))
+                        else:
+                            warnings.append(str(warning_reasons))
+        writer_warningReport.write('\n'.join(warnings))
 
 
 def get_sample_args_fastq(fastq_files_list, outdir, pairEnd_filesSeparation_list):
@@ -293,7 +339,7 @@ def get_samples(args_inputDirectory, args_fastq, outdir, pairEnd_filesSeparation
     return samples, inputDirectory, removeCreatedSamplesDirectories, indir_same_outdir
 
 
-def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config):
+def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script, species_genus, mlst_scheme_genus):
     threads = args.threads
     adaptersFasta = args.adapters
     if adaptersFasta is not None:
@@ -331,7 +377,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
         if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
             if not args.skipTrueCoverage and trueCoverage_config is not None:
                 # Run True Coverage
-                run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], True, False, 1, trueCoverage_config['minimum_gene_identity'], trueCoverage_config)
+                run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], False, False, 1, trueCoverage_config['minimum_gene_identity'], trueCoverage_config, rematch_script)
                 runs['trueCoverage_ReMatCh'] = [run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing]
             else:
                 print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
@@ -350,7 +396,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                 # Run Trimmomatic
                 if not args.skipTrimmomatic:
                     run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, max_reads_length, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding)
-                    runs['Trimmomatic'] = [run_successfully, not_empty_fastq, time_taken, failing, fileSize]
+                    runs['Trimmomatic'] = [run_successfully, None, time_taken, failing, fileSize]
                     trimmomatic_run_successfully = run_successfully
 
                     if run_successfully and not_empty_fastq:
@@ -378,11 +424,11 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                         else:
                             print '\n' + 'Estimated coverage is too lower (< ' + str(args.estimatedMinimumCoverage) + 'x). This sample will not proceed with INNUca pipeline'
                             runs['second_FastQC'] = not_run + ['NA']
-                            runs['Pear'] = not_run
-                            runs['SPAdes'] = not_run
-                            runs['Assembly_Mapping'] = not_run
+                            runs['Pear'] = not_run + ['NA']
+                            runs['SPAdes'] = not_run + ['NA']
+                            runs['Assembly_Mapping'] = not_run + ['NA']
                             runs['Pilon'] = not_run
-                            runs['MLST'] = not_run
+                            runs['MLST'] = not_run + ['NA']
                     else:
                         print 'Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated Coverage analysis and FastQC analysis'
                         runs['second_Coverage'] = skipped
@@ -393,17 +439,25 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                     runs['Trimmomatic'] = skipped + ['NA']
                     runs['second_Coverage'] = skipped
                     runs['second_FastQC'] = skipped + ['NA']
+
+                if not args.skipFastQC and (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is False and not args.fastQCproceed:
+                    print '\n' + 'This sample does not pass FastQC module QA/QC. It will not proceed with INNUca pipeline'
+                    runs['Pear'] = not_run + ['NA']
+                    runs['SPAdes'] = not_run + ['NA']
+                    runs['Assembly_Mapping'] = not_run + ['NA']
+                    runs['Pilon'] = not_run
+                    runs['MLST'] = not_run + ['NA']
             else:
                 print '\n' + 'This sample does not pass True Coverage module QA/QC. This sample will not proceed with INNUca pipeline'
                 runs['first_FastQC'] = not_run + ['NA']
                 runs['Trimmomatic'] = not_run + ['NA']
                 runs['second_Coverage'] = not_run
                 runs['second_FastQC'] = not_run + ['NA']
-                runs['Pear'] = not_run
-                runs['SPAdes'] = not_run
-                runs['Assembly_Mapping'] = not_run
+                runs['Pear'] = not_run + ['NA']
+                runs['SPAdes'] = not_run + ['NA']
+                runs['Assembly_Mapping'] = not_run + ['NA']
                 runs['Pilon'] = not_run
-                runs['MLST'] = not_run
+                runs['MLST'] = not_run + ['NA']
 
         else:
             print '\n' + 'Estimated coverage is too lower (< ' + str(args.estimatedMinimumCoverage) + 'x). This sample will not proceed with INNUca pipeline'
@@ -412,93 +466,95 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
             runs['Trimmomatic'] = not_run + ['NA']
             runs['second_Coverage'] = not_run
             runs['second_FastQC'] = not_run + ['NA']
-            runs['Pear'] = not_run
-            runs['SPAdes'] = not_run
-            runs['Assembly_Mapping'] = not_run
+            runs['Pear'] = not_run + ['NA']
+            runs['SPAdes'] = not_run + ['NA']
+            runs['Assembly_Mapping'] = not_run + ['NA']
             runs['Pilon'] = not_run
-            runs['MLST'] = not_run
+            runs['MLST'] = not_run + ['NA']
 
         if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
             if args.skipTrueCoverage or trueCoverage_config is None or (run_successfully_trueCoverage and pass_qc_trueCoverage):
-                unassembled_pe_reads = None
-                assembled_se_reads = None
-                # Run Pear
-                if args.runPear:
-                    print '--runPear set. Running Pear'
-                    pearMinOverlap = pear.determine_minimum_overlap(args.pearMinOverlap, min_reads_length, max_reads_length)
-                    run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, pearMinOverlap)
-                    runs['Pear'] = [run_successfully, pass_qc, time_taken, failing]
-                else:
-                    runs['Pear'] = not_run
-
-                # Run SPAdes
-                if not args.skipSPAdes:
-                    run_successfully, pass_qc, time_taken, failing, contigs_spades = spades.runSpades(sampleName, outdir, threads, unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, max_reads_length, args.spadesDefaultKmers, args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs, args.maxNumberContigs)
-                    runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing]
-
-                    if run_successfully:
-                        contigs = contigs_spades
-
-                        # Run Assembly Mapping check
-                        bam_file = None
-                        if not args.skipAssemblyMapping:
-                            run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, assemblyMapping_folder = assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir, args.assemblyMinCoverageContigs, genomeSize, args.saveExcludedContigs, args.maxNumberContigs)
-                            runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing]
-
-                            if run_successfully:
-                                contigs = assembly_filtered
-                                if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and contigs != contigs_spades:
-                                    os.remove(contigs_spades)
-                        else:
-                            print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
-                            runs['Assembly_Mapping'] = skipped
-
-                        # Run Pilon
-                        if not args.skipPilon:
-                            run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir, jarMaxMemory, bam_file)
-                            runs['Pilon'] = [run_successfully, None, time_taken, failing]
-
-                            if run_successfully:
-                                contigs = assembly_polished
-                                if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and os.path.isfile(assembly_filtered):
-                                    os.remove(assembly_filtered)
-
-                            if not args.pilonKeepFiles:
-                                utils.removeDirectory(pilon_folder)
-
-                        else:
-                            print '--skipPilon set. Skipping Pilon correction'
-                            runs['Pilon'] = skipped
-
-                        if 'assemblyMapping_folder' in locals():
-                            utils.removeDirectory(assemblyMapping_folder)
-
-                        print '\n' + 'Final assembly: ' + contigs
-                        with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
-                            writer.write(contigs + '\n')
-
-                        # Run MLST
-                        if not args.skipMLST:
-                            runs['MLST'] = mlst.runMlst(contigs, scheme, outdir)
-                        else:
-                            print '--skipMLST set. Skipping MLST analysis'
-                            runs['MLST'] = skipped
+                if args.skipFastQC or (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False or args.fastQCproceed:
+                    unassembled_pe_reads = None
+                    assembled_se_reads = None
+                    # Run Pear
+                    if args.runPear:
+                        print '--runPear set. Running Pear'
+                        pearMinOverlap = pear.determine_minimum_overlap(args.pearMinOverlap, min_reads_length, max_reads_length)
+                        run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, pear_folder, warning = pear.runPear(fastq_files, threads, outdir, sampleName, fastq_encoding, trimmomatic_run_successfully, pearMinOverlap)
+                        runs['Pear'] = [run_successfully, pass_qc, time_taken, failing, warning]
                     else:
-                        print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
-                        runs['Assembly_Mapping'] = skipped
-                        runs['Pilon'] = skipped
-                        runs['MLST'] = skipped
+                        runs['Pear'] = not_run + ['NA']
 
-                else:
-                    print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
-                    runs['SPAdes'] = skipped
-                    runs['Assembly_Mapping'] = skipped
-                    runs['Pilon'] = skipped
-                    runs['MLST'] = skipped
+                    # Run SPAdes
+                    if not args.skipSPAdes:
+                        run_successfully, pass_qc, time_taken, failing, contigs_spades, warning = spades.runSpades(sampleName, outdir, threads, unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files, args.spadesNotUseCareful, spadesMaxMemory, args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genomeSize, args.spadesKmers, max_reads_length, args.spadesDefaultKmers, args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs, args.maxNumberContigs)
+                        runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning]
+
+                        if run_successfully:
+                            contigs = contigs_spades
+
+                            # Run Assembly Mapping check
+                            bam_file = None
+                            if not args.skipAssemblyMapping:
+                                run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, assemblyMapping_folder, warning = assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir, args.assemblyMinCoverageContigs, genomeSize, args.saveExcludedContigs, args.maxNumberContigs)
+                                runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing, warning]
+
+                                if run_successfully:
+                                    contigs = assembly_filtered
+                                    if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and contigs != contigs_spades:
+                                        os.remove(contigs_spades)
+                            else:
+                                print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
+                                runs['Assembly_Mapping'] = skipped + ['NA']
+
+                            # Run Pilon
+                            if not args.skipPilon:
+                                run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir, jarMaxMemory, bam_file)
+                                runs['Pilon'] = [run_successfully, None, time_taken, failing]
+
+                                if run_successfully:
+                                    contigs = assembly_polished
+                                    if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and os.path.isfile(assembly_filtered):
+                                        os.remove(assembly_filtered)
+
+                                if not args.pilonKeepFiles:
+                                    utils.removeDirectory(pilon_folder)
+
+                            else:
+                                print '--skipPilon set. Skipping Pilon correction'
+                                runs['Pilon'] = skipped
+
+                            if 'assemblyMapping_folder' in locals():
+                                utils.removeDirectory(assemblyMapping_folder)
+
+                            print '\n' + 'Final assembly: ' + contigs
+                            with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
+                                writer.write(contigs + '\n')
+
+                            # Run MLST
+                            if not args.skipMLST:
+                                run_successfully, pass_qc, time_taken, failing, warning = mlst.runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus)
+                                runs['MLST'] = [run_successfully, pass_qc, time_taken, failing, warning]
+                            else:
+                                print '--skipMLST set. Skipping MLST analysis'
+                                runs['MLST'] = skipped + ['NA']
+                        else:
+                            print 'SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check and MLST analysis'
+                            runs['Assembly_Mapping'] = skipped + ['NA']
+                            runs['Pilon'] = skipped
+                            runs['MLST'] = skipped + ['NA']
+
+                    else:
+                        print '--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST analysis'
+                        runs['SPAdes'] = skipped + ['NA']
+                        runs['Assembly_Mapping'] = skipped + ['NA']
+                        runs['Pilon'] = skipped
+                        runs['MLST'] = skipped + ['NA']
     else:
         print 'Moving to the next sample'
         for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
-            if step in ('Trimmomatic', 'first_FastQC', 'second_FastQC'):
+            if step in ('Trimmomatic', 'first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
                 runs[step] = not_run + ['NA']
             else:
                 runs[step] = not_run
@@ -517,12 +573,14 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
     pass_cov = (runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and runs['first_Coverage'][1])) is not False
     pass_trueCov = runs['trueCoverage_ReMatCh'][1] is not False
     pass_fastqc = (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is not False
-    pass_trimmomatic = runs['Trimmomatic'][1] is not False
-    pass_pear = runs['Pear'][1] is not False
-    pass_spades = runs['SPAdes'][1] is not False or runs['Assembly_Mapping'][1] is True
+    # pass_trimmomatic = runs['Trimmomatic'][1] is not False
+    # pass_pear = runs['Pear'][1] is not False
+    # pass_spades = runs['SPAdes'][1] is not False or runs['Assembly_Mapping'][1] is True
+    pass_spades = runs['SPAdes'][1] is not False
     pass_assemblyMapping = runs['Assembly_Mapping'][1] is not False
+    pass_pilon = runs['Pilon'][0] is not False
     pass_mlst = runs['MLST'][1] is not False
-    pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_trimmomatic, pass_pear, pass_spades, pass_assemblyMapping, pass_mlst])
+    pass_qc = all([pass_fastqIntegrity, pass_cov, pass_trueCov, pass_fastqc, pass_spades, pass_assemblyMapping, pass_pilon, pass_mlst])
 
     return run_successfully, pass_qc, runs
 

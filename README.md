@@ -18,7 +18,8 @@ Dependencies
 **Mandatory**
 
  - *Java JDK*
- - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* should run) (it is recommended to use a mlst version with updated databases)
+ - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* module should run) (it is recommended to use a mlst version with updated databases)
+ - *ReMatCh* (https://github.com/B-UMMI/ReMatCh) >= v3.2 (whenever *true coverage* module should run)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
 **Optional**
@@ -52,7 +53,7 @@ Usage
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
-                     [--fastQCkeepFiles]
+                     [--fastQCkeepFiles] [--fastQCproceed]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimLeading N]
                      [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
@@ -152,8 +153,10 @@ Usage
                             with --skipTrueCoverage option (default: None)
 
     FastQC options:
-      --fastQCkeepFiles       Tells INNUca.py to not remove the output of
+      --fastQCkeepFiles     Tells INNUca.py to not remove the output of
                             FastQC (default: False)
+      --fastQCproceed       Do not stop INNUca.py if sample fails FastQC (default:
+                            False)
 
     Trimmomatic options:
       --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of

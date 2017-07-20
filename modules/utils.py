@@ -57,6 +57,7 @@ def parseArguments(version):
 
     fastQC_options = parser.add_argument_group('FastQC options')
     fastQC_options.add_argument('--fastQCkeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of FastQC')
+    fastQC_options.add_argument('--fastQCproceed', action='store_true', help='Do not stop INNUca.py if sample fails FastQC')
 
     trimmomatic_options = parser.add_argument_group('Trimmomatic options')
     trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true', help='Tells INNUca.py to not cut the beginning and end of reads during Trimmomatic step (unless specified with --trimCrop or --trimHeadCrop, INNUca.py will search for nucleotide content bias at both ends and will cut by there)')
@@ -259,12 +260,12 @@ def checkPrograms(programs_version_dictionary):
             listMissings.append(program + ' not found in PATH.')
         else:
             print stdout.splitlines()[0]
+            programs[program].append(stdout.splitlines()[0])
             if programs[program][0] is None:
                 print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
             else:
                 if program.endswith('.jar'):
                     check_version = ['java', '-jar', stdout.splitlines()[0], programs[program][0]]
-                    programs[program].append(stdout.splitlines()[0])
                 else:
                     check_version = [stdout.splitlines()[0], programs[program][0]]
                 run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None, False)
@@ -506,6 +507,7 @@ steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_Fas
 
 def sampleReportLine(run_report):
     line = []
+    warnings = False
     for step in steps:
         run_successfully = str(run_report[step][0])
         pass_qc = 'FAIL'
@@ -514,19 +516,22 @@ def sampleReportLine(run_report):
         elif run_report[step][1] is None:
             pass_qc = run_report[step][3]['sample']
 
-        if step in ('first_FastQC', 'second_FastQC') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+        if step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
-        elif step == 'SPAdes' and pass_qc == 'FAIL' and run_report['Assembly_Mapping'][1] is True:
-            pass_qc = 'WARNING'
+            if step == 'first_FastQC':
+                if run_report['second_FastQC'][1] is None or run_report['second_FastQC'][1] is False:
+                    warnings = True
+            else:
+                warnings = True
 
         if step in ('FastQ_Integrity', 'Pilon'):
             l = [run_successfully, run_report[step][2]]
         elif step == 'Trimmomatic':
-            l = [run_successfully, pass_qc, run_report[step][2], run_report[step][4]]
+            l = [run_successfully, run_report[step][2], run_report[step][4]]
         else:
             l = [run_successfully, pass_qc, run_report[step][2]]
         line.extend(l)
-    return line
+    return line, warnings
 
 
 def start_sample_report_file(samples_report_path):
@@ -535,7 +540,7 @@ def start_sample_report_file(samples_report_path):
         if step == 'FastQ_Integrity':
             l = [step + '_filesOK', step + '_runningTime']
         elif step == 'Trimmomatic':
-            l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime', step + '_fileSize']
+            l = [step + '_runSuccessfully', step + '_runningTime', step + '_fileSize']
         elif step == 'Pilon':
             l = [step + '_runSuccessfully', step + '_runningTime']
         else:
@@ -550,18 +555,16 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
     line = [sample, run_successfully, '', runningTime, fileSize]
 
     line[2] = 'PASS' if pass_qc else 'FAIL'
-    warning = 0
-    if line[2] == 'PASS':
-        if run_report['SPAdes'][1] is False:
-            line[2] = 'WARNING'
-            warning = 1
 
-    line.extend(sampleReportLine(run_report))
+    modules_line, warnings = sampleReportLine(run_report)
+    if pass_qc and warnings:
+        line[2] = 'WARNING'
+    line.extend(modules_line)
     with open(samples_report_path, 'at') as report:
         out = csv.writer(report, delimiter='\t')
         out.writerow(line)
 
-    return warning
+    return warnings, line[2]
 
 
 def timer(function, name):
