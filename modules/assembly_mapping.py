@@ -261,7 +261,7 @@ def save_mapping_statistics(dict_mapping_statistics, outdir):
     pass_qc = False
     failing_reason = None
 
-    min_mapping = 0.85
+    min_mapping = 0.95
 
     report_file = os.path.join(outdir, 'assembly_mapping_report.mapping.txt')
 

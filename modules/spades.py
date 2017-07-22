@@ -183,8 +183,9 @@ def qc_assembly(spades_report_general, estimatedGenomeSizeMb, maxNumberContigs):
     if spades_report_general['filtered']['bp'] < estimatedGenomeSizeMb * 1000000 * 0.8 or spades_report_general['filtered']['bp'] > estimatedGenomeSizeMb * 1000000 * 1.5:
         warnings['sample'] = 'The number of assembled nucleotides (' + str(spades_report_general['filtered']['bp']) + ') are lower than 80% or higher than 150% of the provided estimated genome size'
     else:
-        if spades_report_general['filtered']['contigs'] > maxNumberContigs * spades_report_general['filtered']['bp'] / 1500000:
-            warnings['sample'] = 'The number of assembled contigs (' + str(spades_report_general['filtered']['contigs']) + ') exceeds ' + str(maxNumberContigs * spades_report_general['filtered']['bp'] / 1500000)
+        maxContigs = estimatedGenomeSizeMb * maxNumberContigs / 1500000
+        if spades_report_general['filtered']['contigs'] > maxContigs:
+            warnings['sample'] = 'The number of assembled contigs ({contigs}) exceeds {maxContigs}'.format(contigs=spades_report_general['filtered']['contigs'], maxContigs=maxContigs)
             print warnings['sample']
 
     if spades_report_general['filtered']['bp'] >= estimatedGenomeSizeMb * 1000000 * 0.8:
