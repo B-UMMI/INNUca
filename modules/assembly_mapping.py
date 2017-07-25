@@ -224,11 +224,11 @@ def write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, f
             for i in range(1, len(sequence_dict) + 1):
                 if not sequence_dict[i]['discard']:
                     report_filtered.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
-                    contigs_filtered.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(sequence_dict[i]['sequence']) + '\n')
+                    contigs_filtered.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(utils.chunkstring(sequence_dict[i]['sequence'], 80)) + '\n')
                 else:
                     if saveExcludedContigs:
                         found_excluded_contigs = True
-                        excluded_contigs.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(sequence_dict[i]['sequence']) + '\n')
+                        excluded_contigs.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(utils.chunkstring(sequence_dict[i]['sequence'], 80)) + '\n')
 
     if saveExcludedContigs:
         excluded_contigs.flush()

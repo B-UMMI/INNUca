@@ -767,3 +767,7 @@ def get_sequence_information(fasta_file, length_extra_seq):
                 print temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0'
 
     return sequence_dict, headers
+
+
+def chunkstring(string, length):
+    return (string[0 + i:length + i] for i in range(0, len(string), length))
