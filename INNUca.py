@@ -82,7 +82,7 @@ def include_rematch_dependencies_path(doNotUseProvidedSoftware):
 
 
 def main():
-    version = '3.0'
+    version = '3.1'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
