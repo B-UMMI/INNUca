@@ -127,17 +127,22 @@ def main():
     # Check programms
     programs_version_dictionary = {}
     programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
-    if not args.skipTrueCoverage or trueCoverage_config is not None:
-        include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
 
-        programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
-        programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
-    if (not args.skipTrueCoverage or ((not args.skipAssemblyMapping or not args.skipPilon) and not args.skipSPAdes)):
-        programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
-        programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
+    # Java check first for java dependents check next
     if not (args.skipFastQC and args.skipTrimmomatic and (args.skipPilon or args.skipSPAdes)):
         # programs_version_dictionary['java'] = ['-version', '>=', '1.8']
         programs_version_dictionary['java'] = [None, '>=', '1.8']  # For OpenJDK compatibility
+    missingPrograms, programs_version_dictionary = utils.checkPrograms(programs_version_dictionary)
+    if len(missingPrograms) > 0:
+        sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
+
+    if not args.skipTrueCoverage or trueCoverage_config is not None:
+        include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
+        programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
+        programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
+    if not (args.skipTrueCoverage and ((args.skipAssemblyMapping and args.skipPilon) or args.skipSPAdes)):
+        programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
+        programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
     if not args.skipFastQC:
         programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
     if not args.skipTrimmomatic:
@@ -146,9 +151,9 @@ def main():
         programs_version_dictionary['pear'] = ['--version', '>=', '0.9.10']
     if not args.skipSPAdes:
         programs_version_dictionary['spades.py'] = ['--version', '>=', '3.9.0']
-    if not args.skipPilon and not args.skipSPAdes:
+    if not (args.skipPilon or args.skipSPAdes):
         programs_version_dictionary['pilon-1.18.jar'] = ['--version', '==', '1.18']
-    if not args.skipMLST and not args.skipSPAdes:
+    if not (args.skipMLST or args.skipSPAdes):
         programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
 
     # Set and print PATH variable
