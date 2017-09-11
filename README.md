@@ -58,7 +58,7 @@ Usage
                      [--trimSlidingWindow window:meanQuality] [--trimLeading N]
                      [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
                      [--pearKeepFiles] [--pearMinOverlap N]
-                     [--spadesUse_3_9] [--spadesNotUseCareful]
+                     [--spadesVersion] [--spadesNotUseCareful]
                      [--spadesMinContigsLength N] [--spadesMaxMemory N]
                      [--spadesMinCoverageAssembly 10] [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
@@ -190,8 +190,10 @@ Usage
                             it with FastQC)
 
     SPAdes options:
-      --spadesUse_3_9       Tells INNUca.py to use SPAdes v3.9.0 instead of v.3.10.1
-                            (default: False)
+      --spadesVersion 3.11.0
+                            Tells INNUca.py which SPAdes version to use
+                            (available options: 3.9.0, 3.10.1, 3.11.0) (default:
+                            3.11.0)
       --spadesNotUseCareful
                             Tells SPAdes to only perform the assembly without the
                             --careful option (default: False)

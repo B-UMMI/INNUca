@@ -74,7 +74,7 @@ def parseArguments(version):
     pear_options.add_argument('--pearMinOverlap', type=int, metavar='N', help='Minimum nucleotide overlap between read pairs for Pear assembly them into only one read (default: 2/3 of maximum reads length determine using FastQC, or Trimmomatic minimum reads length if it runs, or 33 nts)', required=False)
 
     spades_options = parser.add_argument_group('SPAdes options')
-    spades_options.add_argument('--spadesUse_3_9', action='store_true', help='Tells INNUca.py to use SPAdes v3.9.0 instead of v.3.10.1')
+    spades_options.add_argument('--spadesVersion', type=str, metavar='3.11.0', help='Tells INNUca.py which SPAdes version to use (available options: %(choices)s)', choices=['3.9.0', '3.10.1', '3.11.0'], required=False, default='3.11.0')
     spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
     spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N', help='Filter SPAdes contigs for length greater or equal than this value (default: maximum reads size or 200 bp)', required=False)
     spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N', help='The maximum amount of RAM Gb for SPAdes to use (default: 2 Gb per thread will be used up to the free available memory)', required=False)
@@ -308,9 +308,7 @@ def setPATHvariable(args, script_path):
         fastQC = os.path.join(script_folder, 'src', 'fastqc_v0.11.5')
         trimmomatic = os.path.join(script_folder, 'src', 'Trimmomatic-0.36')
         pear = os.path.join(script_folder, 'src', 'PEAR_v0.9.10', 'bin')
-        spades = os.path.join(script_folder, 'src', 'SPAdes-3.10.1-Linux', 'bin')
-        if args.spadesUse_3_9:
-            spades = os.path.join(script_folder, 'src', 'SPAdes-3.9.0-Linux', 'bin')
+        spades = os.path.join(script_folder, 'src', 'SPAdes-{version}-Linux'.format(version=args.spadesVersion), 'bin')
         bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
         samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
         pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')
