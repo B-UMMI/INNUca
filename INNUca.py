@@ -10,7 +10,7 @@ INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs qual
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: July 07, 2017
+Last modified: September 11, 2017
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
