@@ -18,8 +18,8 @@ Dependencies
 **Mandatory**
 
  - *Java JDK*
- - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (it is recommended
-   to use a mlst version with updated databases)
+ - *mlst* (https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* module should run) (it is recommended to use a mlst version with updated databases)
+ - *ReMatCh* (https://github.com/B-UMMI/ReMatCh) >= v3.2 (whenever *true coverage* module should run)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
 **Optional**
@@ -49,21 +49,21 @@ Usage
                      [--keepIntermediateAssemblies]
                      [--skipEstimatedCoverage] [--skipFastQC]
                      [--skipTrimmomatic] [--skipSPAdes] [--skipAssemblyMapping]
-                     [--skipPilon] [--skipMLST] [--runPear]
+                     [--skipPilon] [--skipMLST] [--runPear] [--noLog] [--noGitInfo]
                      [--skipTrueCoverage | --trueConfigFile species.config]
                      [--adapters adaptersFile.fasta | --doNotSearchAdapters]
                      [--estimatedMinimumCoverage N]
-                     [--fastQCkeepFiles]
+                     [--fastQCkeepFiles] [--fastQCproceed]
                      [--doNotTrimCrops | [[--trimCrop N] [--trimHeadCrop N]]]
                      [--trimSlidingWindow window:meanQuality] [--trimLeading N]
                      [--trimTrailing N] [--trimMinLength N] [--trimKeepFiles]
                      [--pearKeepFiles] [--pearMinOverlap N]
-                     [--spadesUse_3_9] [--spadesNotUseCareful]
+                     [--spadesVersion] [--spadesNotUseCareful]
                      [--spadesMinContigsLength N] [--spadesMaxMemory N]
                      [--spadesMinCoverageAssembly 10] [--spadesMinKmerCovContigs N]
                      [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
                      [--assemblyMinCoverageContigs N]
-                     [--saveExcludedContigs]
+                     [--maxNumberContigs N] [--saveExcludedContigs]
                      [--pilonKeepFiles]
 
     INNUca - Reads Control and Assembly
@@ -123,6 +123,9 @@ Usage
       --skipMLST            Tells the programme to not run MLST analysis (default:
                             False)
       --runPear             Tells the programme to run Pear (default: False)
+      --noLog               Do not create a log file (default: False)
+      --noGitInfo           Do not retreive GitHub repository information
+                            (default: False)
 
     Adapters options (one of the following):
       --adapters adaptersFile.fasta
@@ -150,8 +153,10 @@ Usage
                             with --skipTrueCoverage option (default: None)
 
     FastQC options:
-      --fastQCkeepFiles       Tells INNUca.py to not remove the output of
+      --fastQCkeepFiles     Tells INNUca.py to not remove the output of
                             FastQC (default: False)
+      --fastQCproceed       Do not stop INNUca.py if sample fails FastQC (default:
+                            False)
 
     Trimmomatic options:
       --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of
@@ -185,8 +190,10 @@ Usage
                             it with FastQC)
 
     SPAdes options:
-      --spadesUse_3_9       Tells INNUca.py to use SPAdes v3.9.0 instead of v.3.10.1
-                            (default: False)
+      --spadesVersion 3.11.0
+                            Tells INNUca.py which SPAdes version to use
+                            (available options: 3.9.0, 3.10.1, 3.11.0) (default:
+                            3.11.0)
       --spadesNotUseCareful
                             Tells SPAdes to only perform the assembly without the
                             --careful option (default: False)
@@ -222,6 +229,8 @@ Usage
                             mean coverage or 10x)
 
     Assembly options:
+      --maxNumberContigs N  Maximum number of contigs per 1.5 Mb of expected
+                            genome size (default: 100)
       --saveExcludedContigs Tells INNUca.py to save excluded contigs (default: False)
 
     Pilon options:
