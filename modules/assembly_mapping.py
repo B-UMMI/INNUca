@@ -138,7 +138,7 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
             print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to one third of the assembly mean coverage (' + str(round((float(coverage_initial) / float(position_initial)), 2)) + 'x): ' + str(round(minCoverageAssembly, 2)) + 'x'
         else:
             minCoverageAssembly = 10
-            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because the assembly mean coverage (' + str(round((float(coverage_initial) / float(position_initial)), 2)) + 'x) was lower than 30x'
+            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because one third of the assembly mean coverage (' + str(round((float(coverage_initial) / float(position_initial)), 2)) + 'x) was lower than 10x'
 
     sequences_2_keep = []
     position_filtered = 0
