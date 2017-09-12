@@ -17,7 +17,7 @@ Within this container you can find:
 - [Blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi) v2.6.0
 - [mlst](https://github.com/tseemann/mlst)
 - [ReMatCh](https://github.com/B-UMMI/ReMatCh) v3.2
-- [INNUca](https://github.com/B-UMMI/INNUca) v3.0
+- [INNUca](https://github.com/B-UMMI/INNUca) v3.1
 
 
 
@@ -28,7 +28,7 @@ Within [play-with-docker](http://labs.play-with-docker.com/) webpage click on **
 will open with a big counter on the upper left corner. Click on **+ add new instance** and a terminal like instance should be generated on the right. On
 this terminal you can load this docker image as follows:
 
-`docker pull ummidock/innuca:3.0`
+`docker pull ummidock/innuca:3.1`
 
 #### Build this docker on your local machine
 
@@ -36,15 +36,15 @@ For this, docker needs to be installed on your machine. Instructions for this ca
 
 ##### Using DockerHub (automated build image)
 
-`docker pull ummidock/innuca:3.0`
+`docker pull ummidock/innuca:3.1`
 
 ##### Using GitHub (build docker image)
 
-1) `git clone https://github.com/B-UMMI/INNUca.git -b v2.8`  
-2) `docker build -t innuca:3.0 ./INNUca/Docker/`
+1) `git clone https://github.com/B-UMMI/INNUca.git`  
+2) `docker build -t innuca:3.1 ./INNUca/Docker/`
 
 ### Run (using automated build image)
-    docker run --rm -u $(id -u):$(id -g) -it -v /local/folder/fastq_data:/data/ ummidock/innuca:3.0 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
+    docker run --rm -u $(id -u):$(id -g) -it -v /local/folder/fastq_data:/data/ ummidock/innuca:3.1 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
 
 
 
