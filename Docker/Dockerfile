@@ -15,7 +15,7 @@ RUN apt-get install -y python-dev default-jre
 RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz && tar -xf ncbi-blast-2.6.0+-x64-linux.tar.gz && rm ncbi-blast-2.6.0+-x64-linux.tar.gz
 ENV PATH="/NGStools/ncbi-blast-2.6.0+/bin:${PATH}"
 # Perl libs
-RUN apt-get install -y libmoo-perl liblist-moreutils-perl libjson-perl
+RUN apt-get install -y libmoo-perl liblist-moreutils-perl libjson-perl libfile-slurp-perl
 
 # --- mlst ----
 RUN git clone https://github.com/tseemann/mlst.git
