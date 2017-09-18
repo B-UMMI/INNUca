@@ -26,7 +26,7 @@ RUN git clone https://github.com/B-UMMI/ReMatCh.git
 ENV PATH="/NGStools/ReMatCh:${PATH}"
 
 # --- INNUca ---
-RUN git clone https://github.com/B-UMMI/INNUca.git -b update_dockerfile
+RUN git clone https://github.com/B-UMMI/INNUca.git
 ENV PATH="/NGStools/INNUca:${PATH}"
 
 # fixing permissions for MLST update
