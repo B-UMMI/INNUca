@@ -43,7 +43,7 @@ def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, a
             command[12] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
         else:
             trimmomatic_adapters_folder = os.path.join(os.path.dirname(script_path), 'src', 'Trimmomatic-0.36', 'adapters')
-            adapters_files = [os.path.join(trimmomatic_adapters_folder, 'NexteraPE-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq2-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq3-PE-2.fa')]
+            adapters_files = [os.path.join(trimmomatic_adapters_folder, 'Nextera_XT_INNUca.fasta'), os.path.join(trimmomatic_adapters_folder, 'NexteraPE-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq2-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq3-PE-2.fa')]
             print 'Removing adapters contamination using ' + str(adapters_files)
             adaptersFasta = concatenateFastaFiles(adapters_files, trimmomatic_folder, 'concatenated_adaptersFile.fasta')
             command[12] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'

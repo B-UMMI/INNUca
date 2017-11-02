@@ -9,7 +9,7 @@ from threading import Timer
 import pickle
 import functools
 import traceback
-import csv
+# import csv
 
 
 def parseArguments(version):
@@ -527,7 +527,7 @@ def sampleReportLine(run_report):
         if step in ('FastQ_Integrity', 'Pilon'):
             l = [run_successfully, run_report[step][2]]
         elif step == 'Trimmomatic':
-            l = [run_successfully, run_report[step][2], run_report[step][4]]
+            l = [run_successfully, run_report[step][2], run_report[step][5]]
         else:
             l = [run_successfully, pass_qc, run_report[step][2]]
         line.extend(l)
@@ -547,8 +547,9 @@ def start_sample_report_file(samples_report_path):
             l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime']
         header.extend(l)
     with open(samples_report_path, 'wt') as report:
-        out = csv.writer(report, delimiter='\t')
-        out.writerow(header)
+        report.writer('\t'.join(header) + '\n')
+        # out = csv.writer(report, delimiter='\t')
+        # out.writerow(header)
 
 
 def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, runningTime, fileSize, run_report):
@@ -561,8 +562,9 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
         line[2] = 'WARNING'
     line.extend(modules_line)
     with open(samples_report_path, 'at') as report:
-        out = csv.writer(report, delimiter='\t')
-        out.writerow(line)
+        report.writer('\t'.join(line) + '\n')
+        # out = csv.writer(report, delimiter='\t')
+        # out.writerow(line)
 
     return warnings, line[2]
 
