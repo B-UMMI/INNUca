@@ -107,7 +107,7 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
                 pass_qc = True
             elif species_genus == 'yersinia' and mlst_scheme_genus == 'yersinia':
                 pass_qc = True
-                warnings['sample'] = 'Found a Yersinia scheme ({scheme_mlst}), but it is different from what it was expected({scheme})'.format(scheme_mlst=scheme_mlst, scheme=scheme)
+                warnings['sample'] = 'Found a Yersinia scheme ({scheme_mlst}), but it is different from what it was expected ({scheme})'.format(scheme_mlst=scheme_mlst, scheme=scheme)
             else:
                 failing['sample'] = 'MLST scheme found (' + scheme_mlst + ') and provided (' + scheme + ') are not the same'
                 print failing['sample']
