@@ -5,7 +5,8 @@
 
 """
 INNUca - Reads Control and Assembly
-INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search
+INNUca.py - INNUENDO quality control of reads, de novo assembly and contigs
+quality assessment, and possible contamination detection
 <https://github.com/B-UMMI/INNUca>
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
