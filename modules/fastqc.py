@@ -254,9 +254,7 @@ fastqc_timer = partial(utils.timer, name='FastQC analysis')
 @fastqc_timer
 def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fastQC_run_name):
     pass_qc = False
-    failing = {}
-    failing['sample'] = False
-
+    failing = {'sample': False}
     warnings = {}
 
     maximumReadsLength = None

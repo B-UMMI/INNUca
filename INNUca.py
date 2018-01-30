@@ -302,7 +302,7 @@ def main():
 def write_warning_report(warning_report_path, run_report):
     with open(warning_report_path, 'wt') as writer_warningReport:
         warnings = []
-        for step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
+        for step in ('first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
             if len(run_report[step][4]) > 0:
                 if step == 'first_FastQC' and run_report['second_FastQC'][1] is not False and len(run_report['second_FastQC'][4]) == 0:
                     continue
@@ -404,8 +404,8 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
 
                 # Run Trimmomatic
                 if not args.skipTrimmomatic:
-                    run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, max_reads_length, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding)
-                    runs['Trimmomatic'] = [run_successfully, None, time_taken, failing, {}, fileSize]
+                    run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, fileSize, warning = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, args.doNotSearchAdapters, fastq_files, max_reads_length, args.doNotTrimCrops, args.trimCrop, args.trimHeadCrop, args.trimLeading, args.trimTrailing, args.trimSlidingWindow, args.trimMinLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding)
+                    runs['Trimmomatic'] = [run_successfully, None, time_taken, failing, warning, fileSize]
                     trimmomatic_run_successfully = run_successfully
 
                     if run_successfully and not_empty_fastq:
@@ -449,7 +449,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                     runs['second_Coverage'] = skipped
                     runs['second_FastQC'] = skipped
 
-                if not args.skipFastQC and (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is False and not args.fastQCproceed:
+                if not args.skipFastQC and (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and runs['first_FastQC'][1])) is False and not not_empty_fastq and not args.fastQCproceed:
                     print '\n' + 'This sample does not pass FastQC module QA/QC. It will not proceed with INNUca pipeline'
                     runs['Pear'] = not_run
                     runs['SPAdes'] = not_run

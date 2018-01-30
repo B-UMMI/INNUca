@@ -120,9 +120,9 @@ trim_timer = partial(utils.timer, name='Trimmomatic')
 # Run Trimmomatic procedure
 @trim_timer
 def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding):
-    failing = {}
-    failing['sample'] = False
+    failing = {'sample': False}
     not_empty_fastq = False
+    warnings = {}
 
     paired_reads = None
     fileSize = 'NA'
@@ -142,11 +142,11 @@ def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFa
         fileSize = sum(os.path.getsize(fastq) for fastq in paired_reads)
 
         if not not_empty_fastq:
-            failing['sample'] = 'Zero reads after Trimmomatic'
-            print failing['sample']
+            warnings['sample'] = 'Zero reads after Trimmomatic'
+            print warnings['sample']
 
     else:
         failing['sample'] = 'Did not run'
         print failing['sample']
 
-    return run_successfully, not_empty_fastq, failing, paired_reads, trimmomatic_folder, fileSize
+    return run_successfully, not_empty_fastq, failing, paired_reads, trimmomatic_folder, fileSize, warnings
