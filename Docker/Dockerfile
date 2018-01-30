@@ -33,6 +33,6 @@ ENV PATH="/NGStools/INNUca:${PATH}"
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
 
 # Clean
-RUN apt-get remove -y wget && apt-get autoclean -y
+RUN apt-get autoclean -y
 
 WORKDIR /data/

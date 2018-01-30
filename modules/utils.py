@@ -9,7 +9,7 @@ from threading import Timer
 import pickle
 import functools
 import traceback
-import csv
+# import csv
 
 
 def parseArguments(version):
@@ -28,7 +28,6 @@ def parseArguments(version):
     general_options = parser.add_argument_group('General options')
     general_options.add_argument('-o', '--outdir', type=str, metavar='/output/directory/', help='Path for output directory', required=False, default='.')
     general_options.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads', required=False, default=1)
-    general_options.add_argument('--json', action='store_true', help='Tells INNUca to save the results also in json format')
     general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10', help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be auto or off. When auto is set, 1 Gb per thread will be used up to the free available memory', required=False, default='off')
     general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes, Bowtie2, Samtools and Pilon that are provided with INNUca.py')
     # general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
@@ -44,6 +43,7 @@ def parseArguments(version):
     general_options.add_argument('--runPear', action='store_true', help='Tells the programme to run Pear')
     general_options.add_argument('--noLog', action='store_true', help='Do not create a log file')
     general_options.add_argument('--noGitInfo', action='store_true', help='Do not retrieve GitHub repository information')
+    general_options.add_argument('--json', action='store_true', help='Tells INNUca to save the results also in json format')
 
     adapters_options = parser.add_mutually_exclusive_group()
     adapters_options.add_argument('--adapters', type=argparse.FileType('r'), metavar='adaptersFile.fasta', help='Fasta file containing adapters sequences to be used in FastQC and Trimmomatic', required=False)
@@ -69,10 +69,6 @@ def parseArguments(version):
     trimmomatic_options.add_argument('--trimMinLength', type=int, metavar='N', help='Trimmomatic: drop the read if it is below a specified length', required=False, default=55)
     trimmomatic_options.add_argument('--trimKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Trimmomatic')
 
-    pear_options = parser.add_argument_group('Pear options')
-    pear_options.add_argument('--pearKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pear')
-    pear_options.add_argument('--pearMinOverlap', type=int, metavar='N', help='Minimum nucleotide overlap between read pairs for Pear assembly them into only one read (default: 2/3 of maximum reads length determine using FastQC, or Trimmomatic minimum reads length if it runs, or 33 nts)', required=False)
-
     spades_options = parser.add_argument_group('SPAdes options')
     spades_options.add_argument('--spadesVersion', type=str, metavar='3.11.0', help='Tells INNUca.py which SPAdes version to use (available options: %(choices)s)', choices=['3.9.0', '3.10.1', '3.11.0'], required=False, default='3.11.0')
     spades_options.add_argument('--spadesNotUseCareful', action='store_true', help='Tells SPAdes to only perform the assembly without the --careful option')
@@ -94,6 +90,10 @@ def parseArguments(version):
 
     pilon_options = parser.add_argument_group('Pilon options')
     pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
+
+    pear_options = parser.add_argument_group('Pear options')
+    pear_options.add_argument('--pearKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pear')
+    pear_options.add_argument('--pearMinOverlap', type=int, metavar='N', help='Minimum nucleotide overlap between read pairs for Pear assembly them into only one read (default: 2/3 of maximum reads length determine using FastQC, or Trimmomatic minimum reads length if it runs, or 33 nts)', required=False)
 
     args = parser.parse_args()
 
@@ -527,7 +527,7 @@ def sampleReportLine(run_report):
         if step in ('FastQ_Integrity', 'Pilon'):
             l = [run_successfully, run_report[step][2]]
         elif step == 'Trimmomatic':
-            l = [run_successfully, run_report[step][2], run_report[step][4]]
+            l = [run_successfully, run_report[step][2], run_report[step][5]]
         else:
             l = [run_successfully, pass_qc, run_report[step][2]]
         line.extend(l)
@@ -547,8 +547,9 @@ def start_sample_report_file(samples_report_path):
             l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime']
         header.extend(l)
     with open(samples_report_path, 'wt') as report:
-        out = csv.writer(report, delimiter='\t')
-        out.writerow(header)
+        report.writer('\t'.join(header) + '\n')
+        # out = csv.writer(report, delimiter='\t')
+        # out.writerow(header)
 
 
 def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, runningTime, fileSize, run_report):
@@ -561,8 +562,9 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
         line[2] = 'WARNING'
     line.extend(modules_line)
     with open(samples_report_path, 'at') as report:
-        out = csv.writer(report, delimiter='\t')
-        out.writerow(line)
+        report.writer('\t'.join(line) + '\n')
+        # out = csv.writer(report, delimiter='\t')
+        # out.writerow(line)
 
     return warnings, line[2]
 

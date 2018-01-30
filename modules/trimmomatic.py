@@ -43,7 +43,7 @@ def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, a
             command[12] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
         else:
             trimmomatic_adapters_folder = os.path.join(os.path.dirname(script_path), 'src', 'Trimmomatic-0.36', 'adapters')
-            adapters_files = [os.path.join(trimmomatic_adapters_folder, 'NexteraPE-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq2-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq3-PE-2.fa')]
+            adapters_files = [os.path.join(trimmomatic_adapters_folder, 'Nextera_XT_INNUca.fasta'), os.path.join(trimmomatic_adapters_folder, 'NexteraPE-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq2-PE.fa'), os.path.join(trimmomatic_adapters_folder, 'TruSeq3-PE-2.fa')]
             print 'Removing adapters contamination using ' + str(adapters_files)
             adaptersFasta = concatenateFastaFiles(adapters_files, trimmomatic_folder, 'concatenated_adaptersFile.fasta')
             command[12] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
@@ -120,9 +120,9 @@ trim_timer = partial(utils.timer, name='Trimmomatic')
 # Run Trimmomatic procedure
 @trim_timer
 def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFasta, script_path, doNotSearchAdapters, fastq_files, maxReadsLength, doNotTrimCrops, crop, headCrop, leading, trailing, slidingWindow, minLength, nts2clip_based_ntsContent, jarMaxMemory, fastq_encoding):
-    failing = {}
-    failing['sample'] = False
+    failing = {'sample': False}
     not_empty_fastq = False
+    warnings = {}
 
     paired_reads = None
     fileSize = 'NA'
@@ -142,11 +142,11 @@ def runTrimmomatic(jar_path_trimmomatic, sampleName, outdir, threads, adaptersFa
         fileSize = sum(os.path.getsize(fastq) for fastq in paired_reads)
 
         if not not_empty_fastq:
-            failing['sample'] = 'Zero reads after Trimmomatic'
-            print failing['sample']
+            warnings['sample'] = 'Zero reads after Trimmomatic'
+            print warnings['sample']
 
     else:
         failing['sample'] = 'Did not run'
         print failing['sample']
 
-    return run_successfully, not_empty_fastq, failing, paired_reads, trimmomatic_folder, fileSize
+    return run_successfully, not_empty_fastq, failing, paired_reads, trimmomatic_folder, fileSize, warnings

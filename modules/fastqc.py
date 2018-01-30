@@ -71,11 +71,11 @@ def parseFastQC(fastqc_folder, fastq_files):
                 if fastqc.get('Per base sequence quality') != 'PASS':
                     if reads not in warning:
                         warning[reads] = []
-                    warning[reads].append('Bad per base sequence quality')
+                    warning[reads].append('Poor per base sequence quality')
 
             if fastqc.get('Overrepresented sequences') == 'FAIL':
                 bad_fastq = True
-                failing[reads].append('Overrepresented sequences')
+                failing[reads].append('High overrepresented sequences')
             else:
                 if fastqc.get('Overrepresented sequences') != 'PASS':
                     if reads not in warning:
@@ -254,9 +254,7 @@ fastqc_timer = partial(utils.timer, name='FastQC analysis')
 @fastqc_timer
 def runFastQCanalysis(outdir, threads, adaptersFasta, fastq_files, keepFiles, fastQC_run_name):
     pass_qc = False
-    failing = {}
-    failing['sample'] = False
-
+    failing = {'sample': False}
     warnings = {}
 
     maximumReadsLength = None
