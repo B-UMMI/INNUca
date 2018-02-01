@@ -547,7 +547,7 @@ def start_sample_report_file(samples_report_path):
             l = [step + '_runSuccessfully', step + '_passQC', step + '_runningTime']
         header.extend(l)
     with open(samples_report_path, 'wt') as report:
-        report.writer('\t'.join(header) + '\n')
+        report.write('\t'.join(header) + '\n')
         # out = csv.writer(report, delimiter='\t')
         # out.writerow(header)
 
@@ -562,7 +562,7 @@ def write_sample_report(samples_report_path, sample, run_successfully, pass_qc, 
         line[2] = 'WARNING'
     line.extend(modules_line)
     with open(samples_report_path, 'at') as report:
-        report.writer('\t'.join(line) + '\n')
+        report.write('\t'.join(map(str, line)) + '\n')
         # out = csv.writer(report, delimiter='\t')
         # out.writerow(line)
 
