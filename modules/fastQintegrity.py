@@ -13,7 +13,7 @@ def fastQintegrity(fastq, outdir):
 
     compression_type = utils.compressionType(fastq)
 
-    encoding = None
+    encoding, min_reads_length, max_reads_length = None, None, None
 
     if compression_type is not None:
         command = [compression_type[1], '--stdout', '--keep', fastq, '>', temporary_output_file]

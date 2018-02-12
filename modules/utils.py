@@ -391,6 +391,10 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
             print 'Only one fastq file was found: ' + str(samples[sample])
             print 'Pair-End sequencing is required. This sample will be ignored'
             samples_to_remove.append(sample)
+        elif len(samples[sample]) > 2:
+            print('{n_files} fastq file found for {sample} sample. This sample will be'
+                  ' ignored.'.format(n_files=len(samples[sample]), sample=sample))
+            samples_to_remove.append(sample)
 
     # In Python2.7 this works
     # samples = {k: v for k, v in samples.items() if k not in samples_to_remove}
