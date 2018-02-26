@@ -386,7 +386,7 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
         if args.skipEstimatedCoverage or (run_successfully_estimatedCoverage and not estimatedCoverage < args.estimatedMinimumCoverage):
             if not args.skipTrueCoverage and trueCoverage_config is not None:
                 # Run True Coverage
-                run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], False, False, 1, trueCoverage_config['minimum_gene_identity'], trueCoverage_config, rematch_script)
+                run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing = trueCoverage.runTrueCoverage(sampleName, fastq_files, trueCoverage_config['reference_file'], threads, outdir, trueCoverage_config['length_extra_seq'], trueCoverage_config['minimum_depth_presence'], trueCoverage_config['minimum_depth_call'], trueCoverage_config['minimum_depth_frequency_dominant_allele'], trueCoverage_config['minimum_gene_coverage'], False, trueCoverage_config['minimum_gene_identity'], trueCoverage_config, rematch_script)
                 runs['trueCoverage_ReMatCh'] = [run_successfully_trueCoverage, pass_qc_trueCoverage, time_taken, failing, {}]
             else:
                 print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
