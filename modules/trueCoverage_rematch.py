@@ -8,7 +8,7 @@ coverage and detects contamination with different strain or species.
 
 Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: February 26, 2018
+Last modified: February 27, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

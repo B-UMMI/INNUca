@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: June 21, 2017
+Last modified: February 27, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ def include_rematch_dependencies_path(doNotUseProvidedSoftware):
 
 
 def main():
-    version = '3.1'
+    version = '3.2'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
