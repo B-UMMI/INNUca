@@ -115,6 +115,53 @@ def clean_headers_reference_file(reference_file, outdir, extra_seq, rematch_modu
     return new_reference_file, genes, sequences
 
 
+def rematch_report_assess_failing(outdir, time_str, rematch_folder, sample_data_general, config):
+    """
+    Copy ReMatCh sample report to outdir and assess sample failing status
+
+    Parameters
+    ----------
+    outdir : str
+        Path to the directory where true_coverage results will be stored, e.g. "/path/to/output/directory/"
+    time_str : str or None
+        String containing date and time information in the following format "%Y%m%d-%H%M%S" or None
+    rematch_folder : str
+        Path to the temporary ReMatCh folder that contain ReMatCh results
+    sample_data_general : dict
+        ReMatCh sample_data_general dictionary containing general sample results
+    config : dict
+        parse_config config dictionary containing the settings to run trueCoverage_rematch
+
+    Returns
+    -------
+    failing : dict
+        Dictionary containing the reasons for failing true_coverage
+    """
+
+    print 'Writing report file'
+    os.rename(os.path.join(rematch_folder, 'rematchModule_report.txt'),
+              os.path.join(outdir, 'trueCoverage_report.{time_str}.txt'.format(time_str=time_str)
+              if time_str is not None else 'trueCoverage_report.txt'))
+
+    failing = {}
+    if sample_data_general['number_absent_genes'] > config['maximum_number_absent_genes']:
+        failing['absent_genes'] = 'The number of absent genes ({real_absent}) exceeds the maximum allowed' \
+                                  ' ({max_absent})'.format(real_absent=sample_data_general['number_absent_genes'],
+                                                           max_absent=config['maximum_number_absent_genes'])
+    if sample_data_general['number_genes_multiple_alleles'] > config['maximum_number_genes_multiple_alleles']:
+        failing['multiple_alleles'] = 'The number of genes with multiple alleles' \
+                                      ' ({real_multiple}) exceeds the maximum allowed' \
+                                      ' ({max_multiple})'.format(
+            real_multiple=sample_data_general['number_genes_multiple_alleles'],
+            max_multiple=config['maximum_number_genes_multiple_alleles'])
+    if sample_data_general['mean_sample_coverage'] < config['minimum_read_coverage']:
+        failing['read_coverage'] = 'The mean read coverage for genes present' \
+                                   ' ({real_coverage}) dit not meet the minimum required' \
+                                   ' ({min_coverage})'.format(real_coverage=sample_data_general['mean_sample_coverage'],
+                                                              min_coverage=config['minimum_read_coverage'])
+    return failing
+
+
 trueCoverage_timer = functools.partial(utils.timer, name='True coverage check')
 
 
@@ -138,24 +185,7 @@ def runTrueCoverage(sample, fastq, reference, threads, outdir, extra_seq, min_co
     time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = rematch_module.runRematchModule(sample, fastq, reference_file, threads, true_coverage_folder, extra_seq, min_cov_presence, min_cov_call, min_frequency_dominant_allele, min_gene_coverage, conserved_true, debug, num_map_loc, min_gene_identity, 'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
 
     if run_successfully:
-        print 'Writing report file'
-        os.rename(os.path.join(true_coverage_folder, 'rematchModule_report.txt'),
-                  os.path.join(outdir, 'trueCoverage_report.txt'))
-
-        if sample_data_general['number_absent_genes'] > true_coverage_config['maximum_number_absent_genes']:
-            failing['absent_genes'] = 'The number of absent genes ({real_absent}) exceeds the maximum allowed' \
-                                      ' ({max_absent})'.format(real_absent=sample_data_general['number_absent_genes'],
-                                                               max_absent=true_coverage_config['maximum_number_absent_genes'])
-        if sample_data_general['number_genes_multiple_alleles'] > true_coverage_config['maximum_number_genes_multiple_alleles']:
-            failing['multiple_alleles'] = 'The number of genes with multiple alleles' \
-                                          ' ({real_multiple}) exceeds the maximum allowed' \
-                                          ' ({max_multiple})'.format(real_multiple=sample_data_general['number_genes_multiple_alleles'],
-                                                                     max_multiple=true_coverage_config['maximum_number_genes_multiple_alleles'])
-        if sample_data_general['mean_sample_coverage'] < true_coverage_config['minimum_read_coverage']:
-            failing['read_coverage'] = 'The mean read coverage for genes present' \
-                                       ' ({real_coverage}) dit not meet the minimum required' \
-                                       ' ({min_coverage})'.format(real_coverage=sample_data_general['mean_sample_coverage'],
-                                                                  min_coverage=true_coverage_config['minimum_read_coverage'])
+        failing = rematch_report_assess_failing(outdir, None, true_coverage_folder, sample_data_general, true_coverage_config)
     else:
         failing['sample'] = 'Did not run'
 
@@ -210,7 +240,7 @@ def arguments_check_directory(argument_name):
 
 def check_fasta_config_exist(indir, species):
     """
-    Check if the words passed using the argument, are between those allowed
+    Check if species fasta and config files exist inside indir
 
     Parameters
     ----------
@@ -223,6 +253,9 @@ def check_fasta_config_exist(indir, species):
     -------
     msg : str or None
         Message with the error found or None
+    required_files : dict
+        Dictionary with the two files required, e.g.
+        {'fasta': /path/escherichia_coli.fasta, 'config': /path/escherichia_coli.config}
     """
 
     files = [f for f in os.listdir(indir) if not f.startswith('.') and os.path.isfile(os.path.join(indir, f))]
@@ -232,7 +265,7 @@ def check_fasta_config_exist(indir, species):
         if root.lower() == '_'.join(species).lower():
             ext = ext.lstrip('.')
             if ext in ('fasta', 'config'):
-                required_files[ext] = None
+                required_files[ext] = os.path.join(indir, file_found)
     msg = None
     if len(required_files) == 1:
         msg = 'only found the {ext} file for {species} species (both fasta and config are' \
@@ -241,33 +274,86 @@ def check_fasta_config_exist(indir, species):
         msg = 'no files were found for {species} species (a fasta and config files are' \
               ' required)'.format(species=species)
 
-    return msg
+    return msg, required_files
 
 
-# TODO: finish this
-def import_rematch():
-    try:
-        import subprocess
+def import_rematch(minimum_rematch_version):
+    """
+    Check if ReMatCh is in the PATH and has the correct version
 
-        command = ['which', 'rematch.py']
+    Parameters
+    ----------
+    minimum_rematch_version : str
+        Minimum ReMatCh version, e.g. "3.2"
+
+    Returns
+    -------
+    rematch_module : python module
+        If everything is OK, it returns rematch_module python module
+    """
+
+    import subprocess
+
+    command = ['which', 'rematch.py']
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, _ = p.communicate()
+    if p.returncode == 0:
+        rematch_script = stdout.splitlines()[0]
+        command = ['rematch.py', '--version']
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, _ = p.communicate()
-        rematch_script = stdout.splitlines()[0]
-        sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
-
-        import rematch_module
-    except Exception as e:
-        sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
-        autotranslate(['rematch_module', 'utils'])
-        import rematch_module
+        if p.returncode == 0:
+            stdout = stdout.rstrip('\r\n').split(' ')[-1].replace('v', '')
+            print('rematch.py ({version}) found'.format(version=stdout))
+            program_found_version = stdout.split('.')
+            minimum_rematch_version = minimum_rematch_version.split('.')
+            if len(minimum_rematch_version) == 3:
+                if len(program_found_version) == 2:
+                    program_found_version.append(0)
+                else:
+                    program_found_version[2] = program_found_version[2].split('_')[0]
+            for i in range(0, len(minimum_rematch_version)):
+                if int(program_found_version[i]) > int(minimum_rematch_version[i]):
+                    break
+                elif int(program_found_version[i]) == int(minimum_rematch_version[i]):
+                    continue
+                else:
+                    sys.exit('It is required at least ReMatCh with version'
+                             ' v{minimum_rematch_version}'.format(minimum_rematch_version=minimum_rematch_version))
+            sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
+            import rematch_module
+            return rematch_module
+        else:
+            sys.exit('It was not possible to determine ReMatCh version')
     else:
         sys.exit('ReMatCh not found in PATH')
-    return rematch_module
 
-'''
-    sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
-    import rematch_module
-'''
+
+def start_logger(workdir):
+    import time
+    time_str = time.strftime("%Y%m%d-%H%M%S")
+    sys.stdout = Logger(workdir, time_str)
+    logfile = sys.stdout.getLogFile()
+    return logfile, time_str
+
+
+class Logger(object):
+    def __init__(self, out_directory, time_str):
+        self.logfile = os.path.join(out_directory, str('run.' + time_str + '.log'))
+        self.terminal = sys.stdout
+        self.log = open(self.logfile, "w")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
+
+    def flush(self):
+        pass
+
+    def getLogFile(self):
+        return self.logfile
+
 
 def main():
     if sys.version_info[0] > 2:
@@ -305,13 +391,16 @@ def main():
                                        required=False)
     parser_external_files.add_argument('-c', '--config', type=argparse.FileType('r'), metavar='/path/to/config.file',
                                        help='Config file with the settings to run trueCoverage_rematch. Check some'
-                                            ' examples in INNUca GitHub (https://github.com/B-UMMI/INNUca/tree/master/modules/trueCoverage_rematch).',
+                                            ' examples in INNUca GitHub ('
+                                            'https://github.com/B-UMMI/INNUca/tree/master/modules/trueCoverage_rematch).',
                                        required=False)
 
     parser_optional = parser.add_argument_group('Facultative options')
     parser_optional.add_argument('-o', '--outdir', type=str, metavar='/path/to/output/directory/',
                                  help='Path to the directory where the results will be stored',
                                  required=False, default='.')
+    parser_optional.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads to use',
+                                 required=False, default=1)
     parser_optional.add_argument('--json', action='store_true', help='Stores the results also in JSON format')
 
     args = parser.parse_args()
@@ -322,16 +411,54 @@ def main():
         parser.error('At least one of the following option pairs must be specified:'
                      ' --species and --indir OR --reference and --config')
 
-    # TODO: check rematch
     if args.species is not None:
-        error_msg = check_fasta_config_exist(args.indir, args.species)
+        error_msg, required_files = check_fasta_config_exist(args.indir, args.species)
         if error_msg is not None:
             parser.error('argument {argument_name}: {error_msg}'.format(argument_name='--indir', error_msg=error_msg))
     else:
-        pass
+        required_files = {'fasta': os.path.abspath(args.reference.name), 'config': os.path.abspath(args.config.name)}
 
-    # TODO: run runTrueCoverage with debug=True
-    pass
+    rematch_module = import_rematch('3.2')
+
+    args.outdir = os.path.abspath(args.outdir)
+    if not os.path.isdir(args.outdir):
+        os.mkdir(args.outdir)
+
+    # Start logger
+    logfile, time_str = start_logger(args.outdir)
+
+    config = parse_config(required_files['config'])
+
+    import tempfile
+    rematch_folder = tempfile.mkdtemp(prefix='rematch', suffix='tmp', dir=args.outdir)
+
+    reference_file, gene_list_reference, reference_dict = clean_headers_reference_file(required_files['fasta'],
+                                                                                       rematch_folder,
+                                                                                       config['length_extra_seq'],
+                                                                                       rematch_module)
+    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = rematch_module.runRematchModule('sample', [os.path.abspath(fastq.name) for fastq in args.fastq], reference_file, args.threads, rematch_folder, config['length_extra_seq'], config['minimum_depth_presence'], config['minimum_depth_call'], config['minimum_depth_frequency_dominant_allele'], config['minimum_gene_coverage'], True, True, 1, config['minimum_gene_identity'], 'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
+
+    import shutil
+    if run_successfully:
+        failing = rematch_report_assess_failing(args.outdir, time_str, rematch_folder, sample_data_general, config)
+        if len(failing) > 0:
+            with open(os.path.join(args.outdir, 'failing.' + time_str + '.txt'), 'wt') as writer:
+                for scope, reason in failing.items():
+                    writer.write('#{scope}\n'
+                                 '{reason}\n'.format(scope=scope, reason=reason))
+        if args.json:
+            import json
+            with open(os.path.join(args.outdir, 'sample_data_general.' + time_str + '.json'), 'wt') as writer:
+                json.dump(sample_data_general, writer)
+            if len(failing) > 0:
+                with open(os.path.join(args.outdir, 'failing.' + time_str + '.json'), 'wt') as writer:
+                    json.dump(failing, writer)
+    else:
+        shutil.rmtree(rematch_folder)
+        sys.exit('Something went wrong while running ReMatCh')
+
+    shutil.rmtree(rematch_folder)
+
 
 if __name__ == "__main__":
     main()
