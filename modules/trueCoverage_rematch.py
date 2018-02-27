@@ -64,7 +64,7 @@ def parse_config(config_file):
     with open(config_file, 'rtU') as reader:
         field = None
         for line in reader:
-            line = line.splitlines()[0]
+            line = line.rstrip('\r\n')
             if len(line) > 0:
                 line = line.split(' ')[0]
                 if line.startswith('#'):
@@ -269,10 +269,10 @@ def check_fasta_config_exist(indir, species):
     msg = None
     if len(required_files) == 1:
         msg = 'only found the {ext} file for {species} species (both fasta and config are' \
-              ' required)'.format(ext=required_files.keys()[0], species=species)
+              ' required)'.format(ext=required_files.keys()[0], species=' '.join(species))
     elif len(required_files) == 0:
         msg = 'no files were found for {species} species (a fasta and config files are' \
-              ' required)'.format(species=species)
+              ' required)'.format(species=' '.join(species))
 
     return msg, required_files
 
@@ -298,14 +298,14 @@ def import_rematch(minimum_rematch_version):
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, _ = p.communicate()
     if p.returncode == 0:
-        rematch_script = stdout.splitlines()[0]
+        rematch_script = stdout.rstrip('\r\n')
         command = ['rematch.py', '--version']
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, _ = p.communicate()
+        _, stderr = p.communicate()
         if p.returncode == 0:
-            stdout = stdout.rstrip('\r\n').split(' ')[-1].replace('v', '')
-            print('rematch.py ({version}) found'.format(version=stdout))
-            program_found_version = stdout.split('.')
+            stderr = stderr.rstrip('\r\n').split(' ')[-1].replace('v', '')
+            print('rematch.py ({version}) found'.format(version=stderr))
+            program_found_version = stderr.split('.')
             minimum_rematch_version = minimum_rematch_version.split('.')
             if len(minimum_rematch_version) == 3:
                 if len(program_found_version) == 2:
@@ -320,8 +320,16 @@ def import_rematch(minimum_rematch_version):
                 else:
                     sys.exit('It is required at least ReMatCh with version'
                              ' v{minimum_rematch_version}'.format(minimum_rematch_version=minimum_rematch_version))
+
             sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
             import rematch_module
+
+            bowtie2 = os.path.join(os.path.dirname(rematch_script), 'src', 'bowtie2-2.2.9')
+            samtools = os.path.join(os.path.dirname(rematch_script), 'src', 'samtools-1.3.1', 'bin')
+            bcftools = os.path.join(os.path.dirname(rematch_script), 'src', 'bcftools-1.3.1', 'bin')
+            os.environ['PATH'] = str(':'.join([bowtie2, samtools, bcftools, os.environ['PATH']]))
+            print('PATH={path}'.format(path=os.environ['PATH']))
+
             return rematch_module
         else:
             sys.exit('It was not possible to determine ReMatCh version')
@@ -430,7 +438,7 @@ def main():
     config = parse_config(required_files['config'])
 
     import tempfile
-    rematch_folder = tempfile.mkdtemp(prefix='rematch', suffix='tmp', dir=args.outdir)
+    rematch_folder = tempfile.mkdtemp(prefix='trueCoverage_rematch_', suffix='_tmp', dir=args.outdir)
 
     reference_file, gene_list_reference, reference_dict = clean_headers_reference_file(required_files['fasta'],
                                                                                        rematch_folder,
@@ -449,10 +457,10 @@ def main():
         if args.json:
             import json
             with open(os.path.join(args.outdir, 'sample_data_general.' + time_str + '.json'), 'wt') as writer:
-                json.dump(sample_data_general, writer)
+                json.dump(sample_data_general, writer, separators=(",", ":"))
             if len(failing) > 0:
                 with open(os.path.join(args.outdir, 'failing.' + time_str + '.json'), 'wt') as writer:
-                    json.dump(failing, writer)
+                    json.dump(failing, writer, separators=(",", ":"))
     else:
         shutil.rmtree(rematch_folder)
         sys.exit('Something went wrong while running ReMatCh')
