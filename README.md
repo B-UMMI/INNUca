@@ -306,6 +306,9 @@ In order to manually combine **INNUca** trueCoverage_ReMatCh module reports in r
 
 
 
+## Citation
+MP Machado, J Halkilahti, A Jaakkonen, DN Silva, I Mendes, Y Nalbantoglu, V Borges, M Ramirez, M Rossi, JA Carriço. _INNUca_ **GitHub** https://github.com/B-UMMI/INNUca
+
 Contact
 -------
 Miguel Machado
