@@ -562,10 +562,11 @@ def run_INNUca(sampleName, outdir, fastq_files, args, script_path, scheme, spade
                         runs['MLST'] = skipped
     else:
         print 'Moving to the next sample'
-        for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
-            if step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
-                runs[step] = not_run + ['NA']
-            if step == 'Trimmomatic':
+
+    for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage',
+                 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
+        if step not in runs:
+            if step in ('first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
                 runs[step] = not_run + ['NA']
             else:
                 runs[step] = not_run
