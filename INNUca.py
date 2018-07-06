@@ -474,6 +474,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                   'Estimated coverage is too lower (< {estimatedMinimumCoverage}x). This sample will'
                                   ' not proceed with INNUca'
                                   ' pipeline'.format(estimatedMinimumCoverage=args.estimatedMinimumCoverage))
+                            runs['second_FastQC'] = not_run
                     else:
                         print('Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated'
                               ' Coverage analysis and FastQC analysis')
@@ -496,7 +497,6 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                 print('\n'
                       'This sample does not pass True Coverage module QA/QC. This sample will not proceed with INNUca'
                       ' pipeline')
-
         else:
             print('\n'
                   'Estimated coverage is too lower (< {estimatedMinimumCoverage}x). This sample will not proceed with'
