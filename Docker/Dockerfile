@@ -1,4 +1,6 @@
 FROM ubuntu:16.04
+MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
+LABEL version="3.2-01"
 
 WORKDIR /NGStools/
 
