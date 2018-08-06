@@ -54,7 +54,7 @@ For this, docker needs to be installed on your machine. Instructions for this ca
 # Get Docker image
 udocker pull ummidock/innuca:3.2-01
 
-# Create container
+# Create container (only needed to be done once)
 udocker create --name=innuca_3-2_01 ummidock/innuca:3.2-01
 
 # Run INNUca
