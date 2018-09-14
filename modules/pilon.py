@@ -130,7 +130,7 @@ def runPilon(jar_path_pilon, assembly, fastq_files, threads, outdir, jarMaxMemor
             shutil.copyfile(assembly_polished, os.path.join(outdir, os.path.basename(assembly_polished)))
             assembly_polished = os.path.join(outdir, os.path.basename(assembly_polished))
 
-    if os.path.isfile(alignment_file):
+    if alignment_file is not None and os.path.isfile(alignment_file):
         os.remove(alignment_file)
 
     if not run_successfully:

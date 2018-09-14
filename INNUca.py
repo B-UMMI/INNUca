@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: February 27, 2018
+Last modified: September 14, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import modules.utils as utils
+from modules.kraken import run_for_innuca as kraken
 import modules.fastQintegrity as fastQintegrity
 import modules.estimated_coverage as coverage
 import modules.fastqc as fastqc
@@ -83,7 +84,7 @@ def include_rematch_dependencies_path(doNotUseProvidedSoftware):
 
 
 def main():
-    version = '3.2'
+    version = '4.0'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
@@ -117,7 +118,8 @@ def main():
 
     # Print program version
     print '\n' + 'VERSION INNUca.py:'
-    utils.scriptVersionGit(version, os.getcwd(), script_path, args.noGitInfo)
+    utils.script_version_git(version=version, current_directory=os.getcwd(), innuca_script_path=script_path,
+                             no_git_info=args.noGitInfo)
 
     # Get CPU information
     utils.get_cpu_information(outdir, time_str)
@@ -137,6 +139,9 @@ def main():
     if len(missingPrograms) > 0:
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
 
+    if args.runKraken:
+        programs_version_dictionary['kraken'] = ['--version', '>=', '0.10.6']
+        programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
     if not args.skipTrueCoverage or trueCoverage_config is not None:
         include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
         programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
@@ -302,9 +307,12 @@ def main():
 def write_warning_report(warning_report_path, run_report):
     with open(warning_report_path, 'wt') as writer_warningReport:
         warnings = []
-        for step in ('first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST'):
+        for step in ('Kraken', 'first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping',
+                     'MLST'):
             if len(run_report[step][4]) > 0:
-                if step == 'first_FastQC' and run_report['second_FastQC'][1] is not False and len(run_report['second_FastQC'][4]) == 0:
+                if step == 'first_FastQC' and \
+                        run_report['second_FastQC'][1] is not False and \
+                        len(run_report['second_FastQC'][4]) == 0:
                     continue
                 else:
                     if len(run_report[step][4]) == 0:
@@ -369,248 +377,285 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     pear_folder = None
     trimmomatic_folder = None
     if not_corruption_found:
-        # Run first Estimated Coverage
-        run_successfully_estimated_coverage = False
-        estimated_coverage = None
-        run_successfully_true_coverage = False
-        pass_qc_true_coverage = False
-        if not args.skipEstimatedCoverage:
-            # Check whether the Estimated Coverage output is already present
-            report_file = os.path.join(outdir, 'coverage_report.txt')
-            if os.path.isfile(report_file):
-                os.remove(report_file)
-            # Run getEstimatedCoverage
-            run_successfully_estimated_coverage, pass_qc, time_taken, failing, estimated_coverage = \
-                coverage.getEstimatedCoverage(fastq_files, genome_size, outdir, threads, args.estimatedMinimumCoverage)
-            runs['first_Coverage'] = [run_successfully_estimated_coverage, pass_qc, time_taken, failing, {}, 'NA']
+        # Run Kraken
+        most_abundant_taxon_percent = None
+        if args.runKraken:
+            print('--runKraken set. Running Kraken')
+            run_successfully, pass_qc, time_taken, failing, warning, most_abundant_taxon_percent = \
+                kraken(species=args.speciesExpected, files_to_classify=fastq_files, kraken_db=args.krakenDB,
+                       outdir=outdir, db_mem=args.krakenMemory, quick=args.krakenQuick,
+                       min_percent_covered=args.krakenMinCov, max_unclassified_frag=args.krakenMaxUnclass,
+                       threads=threads)
+            runs['Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
         else:
-            print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
-            runs['first_Coverage'] = skipped
+            runs['Kraken'] = skipped
 
-        trimmomatic_run_successfully = False
-
-        if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
-                                          not estimated_coverage < args.estimatedMinimumCoverage):
-            if not args.skipTrueCoverage and true_coverage_config is not None:
-                # Run True Coverage
-                run_successfully_true_coverage, pass_qc_true_coverage, time_taken, failing = \
-                    trueCoverage.runTrueCoverage(sample_name, fastq_files, true_coverage_config['reference_file'],
-                                                 threads, outdir,
-                                                 true_coverage_config['length_extra_seq'],
-                                                 true_coverage_config['minimum_depth_presence'],
-                                                 true_coverage_config['minimum_depth_call'],
-                                                 true_coverage_config['minimum_depth_frequency_dominant_allele'],
-                                                 true_coverage_config['minimum_gene_coverage'], False,
-                                                 true_coverage_config['minimum_gene_identity'],
-                                                 true_coverage_config, rematch_script)
-                runs['trueCoverage_ReMatCh'] = [run_successfully_true_coverage, pass_qc_true_coverage, time_taken,
-                                                failing, {}, 'NA']
+        if run_successfully and not pass_qc and not args.krakenProceed:
+            print('\n'
+                  'This sample does not pass Kraken module QA/QC. It will not proceed with INNUca pipeline')
+        else:
+            # Run first Estimated Coverage
+            run_successfully_estimated_coverage = False
+            estimated_coverage = None
+            run_successfully_true_coverage = False
+            pass_qc_true_coverage = False
+            if not args.skipEstimatedCoverage:
+                # Check whether the Estimated Coverage output is already present
+                report_file = os.path.join(outdir, 'coverage_report.txt')
+                if os.path.isfile(report_file):
+                    os.remove(report_file)
+                # Run getEstimatedCoverage
+                run_successfully_estimated_coverage, pass_qc, time_taken, failing, estimated_coverage = \
+                    coverage.getEstimatedCoverage(fastq_files, genome_size, outdir, threads,
+                                                  args.estimatedMinimumCoverage)
+                runs['first_Coverage'] = [run_successfully_estimated_coverage, pass_qc, time_taken, failing, {}, 'NA']
             else:
-                print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
-                runs['trueCoverage_ReMatCh'] = skipped
+                print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
+                runs['first_Coverage'] = skipped
 
-            if args.skipTrueCoverage or true_coverage_config is None or (run_successfully_true_coverage and
-                                                                         pass_qc_true_coverage):
-                # Run first FastQC
-                nts2clip_based_nts_content = None
-                if not args.skipFastQC:
-                    run_successfully, pass_qc, time_taken, failing, warning, maximum_reads_length, \
-                        nts2clip_based_nts_content = fastqc.runFastQCanalysis(outdir, threads, adapters_fasta,
-                                                                              fastq_files, args.fastQCkeepFiles,
-                                                                              'first_run')
-                    runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+            trimmomatic_run_successfully = False
+
+            # Correct first estimation coverage with Kraken percentage
+            if args.runKraken and \
+                    (runs['Kraken'][0] and runs['Kraken'][1]) and \
+                    most_abundant_taxon_percent is not None and \
+                    estimated_coverage is not None:
+                new_estimation = estimated_coverage * (most_abundant_taxon_percent / 100)
+                print('\n'
+                      'Correct estimated coverage ({estimated}x) with Kraken taxon percentage'
+                      ' coverage ({percent}%): {new_estimation}x'.format(estimated=estimated_coverage,
+                                                                         percent=most_abundant_taxon_percent,
+                                                                         new_estimation=new_estimation))
+                estimated_coverage = new_estimation
+
+            if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
+                                              not estimated_coverage < args.estimatedMinimumCoverage):
+                if not args.skipTrueCoverage and true_coverage_config is not None:
+                    # Run True Coverage
+                    run_successfully_true_coverage, pass_qc_true_coverage, time_taken, failing = \
+                        trueCoverage.runTrueCoverage(sample_name, fastq_files, true_coverage_config['reference_file'],
+                                                     threads, outdir,
+                                                     true_coverage_config['length_extra_seq'],
+                                                     true_coverage_config['minimum_depth_presence'],
+                                                     true_coverage_config['minimum_depth_call'],
+                                                     true_coverage_config['minimum_depth_frequency_dominant_allele'],
+                                                     true_coverage_config['minimum_gene_coverage'], False,
+                                                     true_coverage_config['minimum_gene_identity'],
+                                                     true_coverage_config, rematch_script)
+                    runs['trueCoverage_ReMatCh'] = [run_successfully_true_coverage, pass_qc_true_coverage, time_taken,
+                                                    failing, {}, 'NA']
                 else:
-                    print '--skipFastQC set. Skipping First FastQC analysis'
-                    runs['first_FastQC'] = skipped
+                    print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
+                    runs['trueCoverage_ReMatCh'] = skipped
 
-                # Run Trimmomatic
-                not_empty_fastq = True
-                if not args.skipTrimmomatic:
-                    run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, \
-                        file_size, warning = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sample_name, outdir,
-                                                                        threads, adapters_fasta, script_path,
-                                                                        args.doNotSearchAdapters, fastq_files,
-                                                                        max_reads_length, args.doNotTrimCrops,
-                                                                        args.trimCrop, args.trimHeadCrop,
-                                                                        args.trimLeading, args.trimTrailing,
-                                                                        args.trimSlidingWindow, args.trimMinLength,
-                                                                        nts2clip_based_nts_content, jar_max_memory,
-                                                                        fastq_encoding)
-                    runs['Trimmomatic'] = [run_successfully, None, time_taken, failing, warning, file_size]
-                    trimmomatic_run_successfully = run_successfully
-
-                    if run_successfully and not_empty_fastq:
-                        fastq_files = paired_reads
-                        min_reads_length = args.trimMinLength
-
-                        # Run second Estimated Coverage
-                        if not args.skipEstimatedCoverage:
-                            run_successfully_estimated_coverage, pass_qc, time_taken, failing, estimated_coverage = \
-                                coverage.getEstimatedCoverage(fastq_files, genome_size, outdir, threads,
-                                                              args.estimatedMinimumCoverage)
-                            runs['second_Coverage'] = [run_successfully_estimated_coverage, pass_qc, time_taken,
-                                                       failing, {}, 'NA']
-                        else:
-                            print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
-                            runs['second_Coverage'] = skipped
-
-                        if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
-                                                          not estimated_coverage < args.estimatedMinimumCoverage):
-                            # Run second FastQC
-                            if not args.skipFastQC:
-                                run_successfully, pass_qc, time_taken, failing, warning, maximum_reads_length, \
-                                    nts2clip_based_nts_content = fastqc.runFastQCanalysis(outdir, threads,
-                                                                                          adapters_fasta, fastq_files,
-                                                                                          args.fastQCkeepFiles,
-                                                                                          'second_run')
-                                runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
-                                if run_successfully:
-                                    max_reads_length = maximum_reads_length
-                            else:
-                                print '--skipFastQC set. Skipping Second FastQC analysis'
-                                runs['second_FastQC'] = skipped
-                        else:
-                            print('\n'
-                                  'Estimated coverage is too lower (< {estimatedMinimumCoverage}x). This sample will'
-                                  ' not proceed with INNUca'
-                                  ' pipeline'.format(estimatedMinimumCoverage=args.estimatedMinimumCoverage))
-                            runs['second_FastQC'] = not_run
+                if args.skipTrueCoverage or true_coverage_config is None or (run_successfully_true_coverage and
+                                                                             pass_qc_true_coverage):
+                    # Run first FastQC
+                    nts2clip_based_nts_content = None
+                    if not args.skipFastQC:
+                        run_successfully, pass_qc, time_taken, failing, warning, maximum_reads_length, \
+                            nts2clip_based_nts_content = fastqc.runFastQCanalysis(outdir, threads, adapters_fasta,
+                                                                                  fastq_files, args.fastQCkeepFiles,
+                                                                                  'first_run')
+                        runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
                     else:
-                        print('Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated'
-                              ' Coverage analysis and FastQC analysis')
+                        print '--skipFastQC set. Skipping First FastQC analysis'
+                        runs['first_FastQC'] = skipped
+
+                    # Run Trimmomatic
+                    not_empty_fastq = True
+                    if not args.skipTrimmomatic:
+                        run_successfully, not_empty_fastq, time_taken, failing, paired_reads, trimmomatic_folder, \
+                            file_size, warning = trimmomatic.runTrimmomatic(jar_path_trimmomatic, sample_name, outdir,
+                                                                            threads, adapters_fasta, script_path,
+                                                                            args.doNotSearchAdapters, fastq_files,
+                                                                            max_reads_length, args.doNotTrimCrops,
+                                                                            args.trimCrop, args.trimHeadCrop,
+                                                                            args.trimLeading, args.trimTrailing,
+                                                                            args.trimSlidingWindow, args.trimMinLength,
+                                                                            nts2clip_based_nts_content, jar_max_memory,
+                                                                            fastq_encoding)
+                        runs['Trimmomatic'] = [run_successfully, None, time_taken, failing, warning, file_size]
+                        trimmomatic_run_successfully = run_successfully
+
+                        if run_successfully and not_empty_fastq:
+                            fastq_files = paired_reads
+                            min_reads_length = args.trimMinLength
+
+                            # Run second Estimated Coverage
+                            if not args.skipEstimatedCoverage:
+                                run_successfully_estimated_coverage, pass_qc, time_run, failing, estimated_coverage = \
+                                    coverage.getEstimatedCoverage(fastq_files, genome_size, outdir, threads,
+                                                                  args.estimatedMinimumCoverage)
+                                runs['second_Coverage'] = [run_successfully_estimated_coverage, pass_qc, time_run,
+                                                           failing, {}, 'NA']
+                            else:
+                                print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
+                                runs['second_Coverage'] = skipped
+
+                            if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
+                                                              not estimated_coverage < args.estimatedMinimumCoverage):
+                                # Run second FastQC
+                                if not args.skipFastQC:
+                                    run_successfully, pass_qc, time_taken, failing, warning, maximum_reads_length, \
+                                        nts2clip_based_nts_content = fastqc.runFastQCanalysis(outdir, threads,
+                                                                                              adapters_fasta,
+                                                                                              fastq_files,
+                                                                                              args.fastQCkeepFiles,
+                                                                                              'second_run')
+                                    runs['second_FastQC'] = [run_successfully, pass_qc, time_taken, failing, warning,
+                                                             'NA']
+                                    if run_successfully:
+                                        max_reads_length = maximum_reads_length
+                                else:
+                                    print '--skipFastQC set. Skipping Second FastQC analysis'
+                                    runs['second_FastQC'] = skipped
+                            else:
+                                print('\n'
+                                      'Estimated coverage is too lower (< {estimatedMinimumCoverage}x). This sample'
+                                      ' will not proceed with INNUca'
+                                      ' pipeline'.format(estimatedMinimumCoverage=args.estimatedMinimumCoverage))
+                        else:
+                            print('Trimmomatic did not run successfully or return zero reads! Skipping Second Estimated'
+                                  ' Coverage analysis and FastQC analysis')
+                            runs['second_Coverage'] = skipped
+                            runs['second_FastQC'] = skipped
+                    else:
+                        print('--skipTrimmomatic set. Skipping Trimmomatic, but also Second FastQC analysis and Second'
+                              ' Estimated Coverage analysis')
+                        runs['Trimmomatic'] = skipped
                         runs['second_Coverage'] = skipped
                         runs['second_FastQC'] = skipped
-                else:
-                    print('--skipTrimmomatic set. Skipping Trimmomatic, but also Second FastQC analysis and Second'
-                          ' Estimated Coverage analysis')
-                    runs['Trimmomatic'] = skipped
-                    runs['second_Coverage'] = skipped
-                    runs['second_FastQC'] = skipped
 
-                if not args.skipFastQC and \
-                        (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and
-                                                      runs['first_FastQC'][1])) is False and \
-                        not not_empty_fastq and not args.fastQCproceed:
+                    if not args.skipFastQC and \
+                            (runs['second_FastQC'][1] or (runs['second_FastQC'][1] is None and
+                                                          runs['first_FastQC'][1])) is False and \
+                            not not_empty_fastq and not args.fastQCproceed:
+                        print('\n'
+                              'This sample does not pass FastQC module QA/QC. It will not proceed with INNUca pipeline')
+                else:
                     print('\n'
-                          'This sample does not pass FastQC module QA/QC. It will not proceed with INNUca pipeline')
+                          'This sample does not pass True Coverage module QA/QC. This sample will not proceed with'
+                          ' INNUca pipeline')
             else:
                 print('\n'
-                      'This sample does not pass True Coverage module QA/QC. This sample will not proceed with INNUca'
-                      ' pipeline')
-        else:
-            print('\n'
-                  'Estimated coverage is too lower (< {estimatedMinimumCoverage}x). This sample will not proceed with'
-                  ' INNUca pipeline'.format(estimatedMinimumCoverage=args.estimatedMinimumCoverage))
+                      'Estimated coverage is too lower (< {estimatedMinimumCoverage}x). This sample will not proceed'
+                      ' with INNUca pipeline'.format(estimatedMinimumCoverage=args.estimatedMinimumCoverage))
 
-        if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
-                                          not estimated_coverage < args.estimatedMinimumCoverage):
-            if args.skipTrueCoverage or true_coverage_config is None or (run_successfully_true_coverage and
-                                                                         pass_qc_true_coverage):
-                if args.skipFastQC or (runs['second_FastQC'][1] or
-                                       (runs['second_FastQC'][1] is None and
-                                        runs['first_FastQC'][1])) is not False or \
-                        args.fastQCproceed:
-                    unassembled_pe_reads = None
-                    assembled_se_reads = None
-                    # Run Pear
-                    if args.runPear:
-                        print '--runPear set. Running Pear'
-                        pear_min_overlap = pear.determine_minimum_overlap(args.pearMinOverlap, min_reads_length,
-                                                                          max_reads_length)
-                        run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, \
-                            pear_folder, warning = pear.runPear(fastq_files, threads, outdir, sample_name,
-                                                                fastq_encoding, trimmomatic_run_successfully,
-                                                                pear_min_overlap)
-                        runs['Pear'] = [run_successfully, pass_qc, time_taken, failing, warning, {}, 'NA']
-                    else:
-                        runs['Pear'] = skipped
+        continue_second_part = False
+        if not args.runKraken or (runs['Kraken'][0] is True and runs['Kraken'][1] is True) or args.krakenProceed:
+            if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
+                                              not estimated_coverage < args.estimatedMinimumCoverage):
+                if args.skipTrueCoverage or true_coverage_config is None or (run_successfully_true_coverage and
+                                                                             pass_qc_true_coverage):
+                    if args.skipFastQC or (runs['second_FastQC'][1] or
+                                           (runs['second_FastQC'][1] is None and
+                                            runs['first_FastQC'][1])) is not False or \
+                            args.fastQCproceed:
+                        continue_second_part = True
 
-                    # Run SPAdes
-                    if not args.skipSPAdes:
-                        run_successfully, pass_qc, time_taken, failing, contigs_spades, warning = \
-                            spades.runSpades(sample_name, outdir, threads,
-                                             unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files,
-                                             args.spadesNotUseCareful, spades_max_memory,
-                                             args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genome_size,
-                                             args.spadesKmers, max_reads_length, args.spadesDefaultKmers,
-                                             args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs,
-                                             args.maxNumberContigs)
-                        runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+        if continue_second_part:
+            unassembled_pe_reads = None
+            assembled_se_reads = None
+            # Run Pear
+            if args.runPear:
+                print '--runPear set. Running Pear'
+                pear_min_overlap = pear.determine_minimum_overlap(args.pearMinOverlap, min_reads_length,
+                                                                  max_reads_length)
+                run_successfully, pass_qc, time_taken, failing, unassembled_pe_reads, assembled_se_reads, \
+                    pear_folder, warning = pear.runPear(fastq_files, threads, outdir, sample_name,
+                                                        fastq_encoding, trimmomatic_run_successfully,
+                                                        pear_min_overlap)
+                runs['Pear'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+            else:
+                runs['Pear'] = skipped
+
+            # Run SPAdes
+            if not args.skipSPAdes:
+                run_successfully, pass_qc, time_taken, failing, contigs_spades, warning = \
+                    spades.runSpades(sample_name, outdir, threads,
+                                     unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files,
+                                     args.spadesNotUseCareful, spades_max_memory,
+                                     args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genome_size,
+                                     args.spadesKmers, max_reads_length, args.spadesDefaultKmers,
+                                     args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs,
+                                     args.maxNumberContigs)
+                runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+
+                if run_successfully:
+                    contigs = contigs_spades
+
+                    # Run Assembly Mapping check
+                    bam_file = None
+                    assembly_filtered = None
+                    assembly_mapping_folder = None
+                    if not args.skipAssemblyMapping:
+                        run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, \
+                            assembly_mapping_folder, warning = \
+                            assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir,
+                                                                args.assemblyMinCoverageContigs, genome_size,
+                                                                args.saveExcludedContigs, args.maxNumberContigs)
+                        runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing, warning,
+                                                    'NA']
 
                         if run_successfully:
-                            contigs = contigs_spades
-
-                            # Run Assembly Mapping check
-                            bam_file = None
-                            assembly_filtered = None
-                            assembly_mapping_folder = None
-                            if not args.skipAssemblyMapping:
-                                run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, \
-                                    assembly_mapping_folder, warning = \
-                                    assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir,
-                                                                        args.assemblyMinCoverageContigs, genome_size,
-                                                                        args.saveExcludedContigs, args.maxNumberContigs)
-                                runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing, warning,
-                                                            'NA']
-
-                                if run_successfully:
-                                    contigs = assembly_filtered
-                                    if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and \
-                                            contigs != contigs_spades:
-                                        os.remove(contigs_spades)
-                            else:
-                                print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
-                                runs['Assembly_Mapping'] = skipped
-
-                            # Run Pilon
-                            if not args.skipPilon:
-                                run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = \
-                                    pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir,
-                                                   jar_max_memory, bam_file)
-                                runs['Pilon'] = [run_successfully, None, time_taken, failing, {}, 'NA']
-
-                                if run_successfully:
-                                    contigs = assembly_polished
-                                    if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and \
-                                            os.path.isfile(assembly_filtered):
-                                        os.remove(assembly_filtered)
-
-                                if not args.pilonKeepFiles and os.path.isdir(pilon_folder):
-                                    utils.removeDirectory(pilon_folder)
-
-                            else:
-                                print '--skipPilon set. Skipping Pilon correction'
-                                runs['Pilon'] = skipped
-
-                            if not args.skipAssemblyMapping:
-                                utils.removeDirectory(assembly_mapping_folder)
-
-                            print '\n' + 'Final assembly: ' + contigs
-                            with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
-                                writer.write(contigs + '\n')
-
-                            # Run MLST
-                            if not args.skipMLST:
-                                run_successfully, pass_qc, time_taken, failing, warning = \
-                                    mlst.runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus)
-                                runs['MLST'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
-                            else:
-                                print '--skipMLST set. Skipping MLST analysis'
-                                runs['MLST'] = skipped
-                        else:
-                            print('SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check'
-                                  ' and MLST analysis')
+                            contigs = assembly_filtered
+                            if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and \
+                                    contigs != contigs_spades:
+                                os.remove(contigs_spades)
                     else:
-                        print('--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST'
-                              ' analysis')
-                        runs['SPAdes'] = skipped
+                        print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
                         runs['Assembly_Mapping'] = skipped
+
+                    # Run Pilon
+                    if not args.skipPilon:
+                        run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = \
+                            pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir,
+                                           jar_max_memory, bam_file)
+                        runs['Pilon'] = [run_successfully, None, time_taken, failing, {}, 'NA']
+
+                        if run_successfully:
+                            contigs = assembly_polished
+                            if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and \
+                                    os.path.isfile(assembly_filtered):
+                                os.remove(assembly_filtered)
+
+                        if not args.pilonKeepFiles and os.path.isdir(pilon_folder):
+                            utils.removeDirectory(pilon_folder)
+
+                    else:
+                        print '--skipPilon set. Skipping Pilon correction'
                         runs['Pilon'] = skipped
+
+                    if not args.skipAssemblyMapping:
+                        utils.removeDirectory(assembly_mapping_folder)
+
+                    print '\n' + 'Final assembly: ' + contigs
+                    with open(os.path.join(outdir, 'final_assembly.txt'), 'wt') as writer:
+                        writer.write(contigs + '\n')
+
+                    # Run MLST
+                    if not args.skipMLST:
+                        run_successfully, pass_qc, time_taken, failing, warning = \
+                            mlst.runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus)
+                        runs['MLST'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+                    else:
+                        print '--skipMLST set. Skipping MLST analysis'
                         runs['MLST'] = skipped
+                else:
+                    print('SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check'
+                          ' and MLST analysis')
+            else:
+                print('--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST'
+                      ' analysis')
+                runs['SPAdes'] = skipped
+                runs['Assembly_Mapping'] = skipped
+                runs['Pilon'] = skipped
+                runs['MLST'] = skipped
     else:
         print 'Moving to the next sample'
 
-    for step in ('first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage',
+    for step in ('Kraken', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage',
                  'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
         if step not in runs:
             runs[step] = not_run
@@ -626,6 +671,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
 
     pass_fastq_integrity = runs['FastQ_Integrity'][0]
+    pass_kraken = runs['Kraken'][1] is not False or args.krakenIgnoreQC
     pass_cov = (runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and
                                                runs['first_Coverage'][1])) is not False
     pass_true_cov = runs['trueCoverage_ReMatCh'][1] is not False
@@ -637,9 +683,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     pass_spades = runs['SPAdes'][1] is not False
     pass_assembly_mapping = runs['Assembly_Mapping'][1] is not False
     pass_pilon = runs['Pilon'][0] is not False
-    pass_mlst = runs['MLST'][1] is not False
-    pass_qc = all([pass_fastq_integrity, pass_cov, pass_true_cov, pass_fastqc, pass_spades, pass_assembly_mapping,
-                   pass_pilon, pass_mlst])
+    pass_mlst = runs['MLST'][1] is not False or args.mlstIgnoreQC
+    pass_qc = all([pass_fastq_integrity, pass_kraken, pass_cov, pass_true_cov, pass_fastqc, pass_spades,
+                   pass_assembly_mapping, pass_pilon, pass_mlst])
 
     return run_successfully, pass_qc, runs
 

@@ -32,6 +32,7 @@ def parseArguments(version):
     general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes, Bowtie2, Samtools and Pilon that are provided with INNUca.py')
     # general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
     general_options.add_argument('--keepIntermediateAssemblies', action='store_true', help='Tells INNUca to keep all the intermediate assemblies')
+    general_options.add_argument('--runKraken', action='store_true', help='Sets INNUca to run Kraken')
     general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
     general_options.add_argument('--skipTrueCoverage', action='store_true', help='Tells the programme to not run trueCoverage_ReMatCh analysis')
     general_options.add_argument('--skipFastQC', action='store_true', help='Tells the programme to not run FastQC analysis')
@@ -48,6 +49,34 @@ def parseArguments(version):
     adapters_options = parser.add_mutually_exclusive_group()
     adapters_options.add_argument('--adapters', type=argparse.FileType('r'), metavar='adaptersFile.fasta', help='Fasta file containing adapters sequences to be used in FastQC and Trimmomatic', required=False)
     adapters_options.add_argument('--doNotSearchAdapters', action='store_true', help='Tells INNUca.py to not search for adapters and clip them during Trimmomatic step')
+
+    kraken_options = parser.add_argument_group('Kraken options')
+    kraken_options.add_argument('--krakenDB', type=str, metavar='minikraken_20171013_4GB',
+                                 help='Name of Kraken DB found in path, or complete path to the directory'
+                                      ' containing the Kraken DB files (for example'
+                                      ' /path/to/directory/minikraken_20171013_4GB)',
+                                 required=False)
+    kraken_options.add_argument('--krakenMemory', action='store_true',
+                                 help='Set Kraken to load the DB into the memory before run')
+    kraken_options.add_argument('--krakenQuick', action='store_true',
+                                help='Set Kraken to do a quick operation and only use the first hits')
+    kraken_options.add_argument('--krakenMinCov', type=float, metavar='1.5', required=False,
+                                help='Minimum percentage of fragments covered to consider the taxon. If nothing'
+                                     ' is specified, the hundredth of the taxon found (species or genus if no'
+                                     ' species are available for a given genus) with higher percentage of'
+                                     ' fragments covered (excluding unclassified category) will be used.')
+    kraken_options.add_argument('--krakenMaxUnclass', type=float, metavar='1.5', required=False,
+                                help='Maximum percentage of unclassified fragments allowed. If nothing is'
+                                     ' specified, the tenth of 100 minus the percentage of fragments of the'
+                                     ' taxon found (species or genus if no  species are available for a given'
+                                     ' genus) with higher percentage of fragments covered (excluding'
+                                     ' unclassified category) will be used.')
+    kraken_options.add_argument('--krakenProceed', action='store_true', help='Do not stop INNUca.py if sample fails'
+                                                                             ' Kraken')
+    kraken_options.add_argument('--krakenIgnoreQC', action='store_true', help='Ignore Kraken QA/QC in sample quality'
+                                                                              ' assessment. Useful when analysing data'
+                                                                              ' from possible new species or higher'
+                                                                              ' taxonomic levels (higher than species)')
 
     estimated_options = parser.add_argument_group('Estimated Coverage options')
     estimated_options.add_argument('--estimatedMinimumCoverage', type=int, metavar='N', help='Minimum estimated coverage to continue INNUca pipeline', required=False, default=15)
@@ -91,25 +120,41 @@ def parseArguments(version):
     pilon_options = parser.add_argument_group('Pilon options')
     pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
 
+    mlst_options = parser.add_argument_group('MLST options')
+    mlst_options.add_argument('--mlstIgnoreQC', action='store_true', help='Ignore MLST QA/QC in sample quality'
+                                                                          ' assessment. Useful when analysing data'
+                                                                          ' from possible new species or higher'
+                                                                          ' taxonomic levels (higher than species)')
+
     pear_options = parser.add_argument_group('Pear options')
     pear_options.add_argument('--pearKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pear')
     pear_options.add_argument('--pearMinOverlap', type=int, metavar='N', help='Minimum nucleotide overlap between read pairs for Pear assembly them into only one read (default: 2/3 of maximum reads length determine using FastQC, or Trimmomatic minimum reads length if it runs, or 33 nts)', required=False)
 
     args = parser.parse_args()
 
+    msg = []
     if args.doNotTrimCrops and (args.trimCrop or args.trimHeadCrop):
-        parser.error('Cannot use --doNotTrimCrops option with --trimCrop or --trimHeadCrop')
-
+        msg.append('Cannot use --doNotTrimCrops option with --trimCrop or --trimHeadCrop')
     if args.skipTrueCoverage and args.trueConfigFile:
-        parser.error('Cannot use --skipTrueCoverage option with --trueConfigFile')
-
+        msg.append('Cannot use --skipTrueCoverage option with --trueConfigFile')
     if args.spadesKmers is not None:
         for number in args.spadesKmers:
             if number % 2 == 0 or number >= 128:
-                parser.error('All k-mers values must be odd integers, lower than 128')
-
+                msg.append('All k-mers values must be odd integers, lower than 128')
     if len(args.speciesExpected.split(' ')) != 2:
-        parser.error('Mal-formatted species name. Should be something like "Streptococcus agalactiae"')
+        msg.append('Mal-formatted species name. Should be something like "Streptococcus agalactiae"')
+    if args.runKraken:
+        if args.krakenDB is None:
+            msg.append('Cannot run Kraken without --krakenDB option')
+    if args.krakenMinCov is not None:
+        if args.krakenMinCov < 0 or args.krakenMinCov > 100:
+            msg.append('--krakenMinCov should be a value between [0, 100]')
+    if args.krakenMaxUnclass is not None:
+        if args.krakenMaxUnclass < 0 or args.krakenMaxUnclass > 100:
+            msg.append('--krakenMaxUnclass should be a value between [0, 100]')
+
+    if len(msg) > 0:
+        argparse.ArgumentParser.error('\n'.join(msg))
 
     return args
 
@@ -166,29 +211,29 @@ def define_jar_max_memory(jar_max_memory, threads, available_memory_GB):
         return jar_max_memory
     elif str(jar_max_memory) == 'auto':
         if maximum_memory_GB > available_memory_GB:
-            print 'WARNNING: the maximum memory calculated for ' + str(threads) + ' threads (' + str(round(maximum_memory_GB, 1)) + ' GB) are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!'
-            print 'Setting jar maximum memory to ' + str(int(round((available_memory_GB - 0.5), 0))) + ' GB'
+            print('WARNNING: the maximum memory calculated for ' + str(threads) + ' threads (' + str(round(maximum_memory_GB, 1)) + ' GB) are higher than the available memory (' + str(round(available_memory_GB, 1)) + ' GB)!')
+            print('Setting jar maximum memory to ' + str(int(round((available_memory_GB - 0.5), 0))) + ' GB')
             return int(round((available_memory_GB - 0.5), 0))
         else:
-            print 'Setting jar maximum memory to ' + str(int(round(maximum_memory_GB, 0))) + ' GB'
+            print('Setting jar maximum memory to ' + str(int(round(maximum_memory_GB, 0))) + ' GB')
             return int(round(maximum_memory_GB, 0))
     else:
         return jar_max_memory
 
 
 def kill_subprocess_Popen(subprocess_Popen, command):
-    print 'Command run out of time: ' + str(command)
+    print('Command run out of time: ' + str(command))
     subprocess_Popen.kill()
 
 
 def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_comand_True):
     run_successfully = False
-    if not isinstance(command, basestring):
+    if not isinstance(command, str):
         command = ' '.join(command)
     command = shlex.split(command)
 
     if print_comand_True:
-        print 'Running: ' + ' '.join(command)
+        print('Running: ' + ' '.join(command))
 
     if shell_True:
         command = ' '.join(command)
@@ -210,14 +255,14 @@ def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_coma
         run_successfully = True
     else:
         if not print_comand_True and not_killed_by_timer:
-            print 'Running: ' + str(command)
+            print('Running: ' + str(command))
         if len(stdout) > 0:
-            print 'STDOUT'
-            print stdout.decode("utf-8")
+            print('STDOUT')
+            print(stdout.decode("utf-8"))
         if len(stderr) > 0:
-            print 'STDERR'
-            print stderr.decode("utf-8")
-    return run_successfully, stdout, stderr
+            print('STDERR')
+            print(stderr.decode("utf-8"))
+    return run_successfully, stdout.decode("utf-8"), stderr.decode("utf-8")
 
 
 def runTime(start_time):
@@ -225,7 +270,7 @@ def runTime(start_time):
     time_taken = end_time - start_time
     hours, rest = divmod(time_taken, 3600)
     minutes, seconds = divmod(rest, 60)
-    print 'Runtime :' + str(hours) + 'h:' + str(minutes) + 'm:' + str(round(seconds, 2)) + 's'
+    print('Runtime :' + str(hours) + 'h:' + str(minutes) + 'm:' + str(round(seconds, 2)) + 's')
     return round(time_taken, 2)
 
 
@@ -249,7 +294,7 @@ class Logger(object):
 
 # Check programs versions
 def checkPrograms(programs_version_dictionary):
-    print '\n' + 'Checking dependencies...'
+    print('\n' + 'Checking dependencies...')
     programs = programs_version_dictionary
     which_program = ['which', '']
     listMissings = []
@@ -259,10 +304,10 @@ def checkPrograms(programs_version_dictionary):
         if not run_successfully:
             listMissings.append(program + ' not found in PATH.')
         else:
-            print stdout.splitlines()[0]
+            print(stdout.splitlines()[0])
             programs[program].append(stdout.splitlines()[0])
             if programs[program][0] is None:
-                print program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0]
+                print(program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0])
             else:
                 if program.endswith('.jar'):
                     check_version = ['java', '-jar', stdout.splitlines()[0], programs[program][0]]
@@ -275,14 +320,14 @@ def checkPrograms(programs_version_dictionary):
                     version_line = stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
                 elif program == 'pilon-1.18.jar':
                     version_line = stdout.splitlines()[0].split(' ', 3)[2]
-                elif program == 'mlst':
+                elif program == 'mlst' or program == 'kraken' or program == 'kraken-report':
                     version_line = stdout.splitlines()[0].split(' ')[-1].split('-', 1)[0]
                 else:
                     version_line = stdout.splitlines()[0].split(' ')[-1]
                 replace_characters = ['"', 'v', 'V', '+']
                 for i in replace_characters:
                     version_line = version_line.replace(i, '')
-                print program + ' (' + version_line + ') found'
+                print(program + ' (' + version_line + ') found')
                 if programs[program][1] == '>=':
                     program_found_version = version_line.split('.')
                     program_version_required = programs[program][2].split('.')
@@ -318,8 +363,8 @@ def setPATHvariable(args, script_path):
         pilon = os.path.join(script_folder, 'src', 'pilon_v1.18')
 
         os.environ['PATH'] = str(':'.join([fastQC, trimmomatic, pear, spades, bowtie2, samtools, pilon, path_variable]))
-    print '\n' + 'PATH variable:'
-    print os.environ['PATH']
+    print('\n' + 'PATH variable:')
+    print(os.environ['PATH'])
 
 
 # Search for fastq files in the directory
@@ -392,8 +437,8 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
     samples_to_remove = []
     for sample in samples:
         if len(samples[sample]) == 1:
-            print 'Only one fastq file was found: ' + str(samples[sample])
-            print 'Pair-End sequencing is required. This sample will be ignored'
+            print('Only one fastq file was found: ' + str(samples[sample]))
+            print('Pair-End sequencing is required. This sample will be ignored')
             samples_to_remove.append(sample)
         elif len(samples[sample]) > 2:
             print('{n_files} fastq file found for {sample} sample. This sample will be'
@@ -432,7 +477,7 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
     indir_same_outdir = False
 
     if inputDirectory == outdir:
-        print 'Input directory and output directory are the same'
+        print('Input directory and output directory are the same')
         indir_same_outdir = True
 
     if not os.path.isdir(inputDirectory):
@@ -440,7 +485,7 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
     else:
         directories = [d for d in os.listdir(inputDirectory) if not d.startswith('.') and os.path.isdir(os.path.join(inputDirectory, d, ''))]
         if os.path.basename(outdir) in directories:
-            print 'Output directory is inside input directory and will be ignore in the checking and setting input directory step'
+            print('Output directory is inside input directory and will be ignore in the checking and setting input directory step')
             directories.remove(os.path.basename(outdir))
         if len(directories) == 0:
             print('There is no samples folders! Search for fastq files in input directory')
@@ -450,8 +495,8 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
             for directory in directories:
                 files = searchFastqFiles(os.path.join(inputDirectory, directory, ''), pairEnd_filesSeparation_list, False)
                 if len(files) == 1:
-                    print 'Only one fastq file was found: ' + str(files)
-                    print 'Pair-End sequencing is required. This sample will be ignored'
+                    print('Only one fastq file was found: ' + str(files))
+                    print('Pair-End sequencing is required. This sample will be ignored')
                     continue
                 elif len(files) >= 1:
                     samples.append(directory)
@@ -467,21 +512,41 @@ def removeDirectory(directory):
 
 
 # Get script version
-def scriptVersionGit(version, directory, script_path, noGitInfo):
-    print 'Version ' + version
+def script_version_git(version, current_directory, script_path, no_git_info=True):
+    """
+    Print script version and get GitHub commit information
 
-    if not noGitInfo:
+    Parameters
+    ----------
+    version : str
+        Version of the script, e.g. "4.0"
+    current_directory : str
+        Path to the directory where the script was start to run
+    script_path : str
+        Path to the script running
+    no_git_info : bool, default True
+        False if it is not necessary to retreive the GitHub commit information
+
+    Returns
+    -------
+
+    """
+    print('Version ' + version)
+
+    if not no_git_info:
         try:
             os.chdir(os.path.dirname(script_path))
             command = ['git', 'log', '-1', '--date=local', '--pretty=format:"%h (%H) - Commit by %cn, %cd) : %s"']
             run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, 15, False)
-            print stdout
+            print(stdout)
             command = ['git', 'remote', 'show', 'origin']
             run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, 15, False)
-            print stdout
-            os.chdir(directory)
+            print(stdout)
         except:
-            print 'HARMLESS WARNING: git command possibly not found. The GitHub repository information will not be obtained.'
+            print('HARMLESS WARNING: git command possibly not found. The GitHub repository information will not be'
+                  ' obtained.')
+        finally:
+            os.chdir(current_directory)
 
 
 def saveVariableToPickle(variableToStore, outdir, prefix):
@@ -510,7 +575,8 @@ def compressionType(file_to_test):
     return None
 
 
-steps = ['FastQ_Integrity', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
+steps = ['FastQ_Integrity', 'Kraken', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic',
+         'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Pilon', 'Assembly_Mapping', 'MLST']
 
 
 def sampleReportLine(run_report):
@@ -524,7 +590,9 @@ def sampleReportLine(run_report):
         elif run_report[step][1] is None:
             pass_qc = run_report[step][3]['sample']
 
-        if step in ('first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST') and pass_qc == 'PASS' and len(run_report[step][4]) > 0:
+        if step in ('Kraken', 'first_FastQC', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'MLST') and \
+                pass_qc == 'PASS' and \
+                len(run_report[step][4]) > 0:
             pass_qc = 'WARNING'
             if step == 'first_FastQC':
                 if run_report['second_FastQC'][1] is None or run_report['second_FastQC'][1] is False:
@@ -667,7 +735,7 @@ def get_free_memory_free(dict_free_output):
             mem_cached_found = True
 
     if not mem_cached_found:
-        print 'WARNING: it was not possible to determine the cached memory!'
+        print('WARNING: it was not possible to determine the cached memory!')
 
     return cached
 
@@ -676,10 +744,10 @@ def get_free_memory_os():
     free_memory_Kb = 0
     try:
         free_memory_Kb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_AVPHYS_PAGES')) / 1024.0
-        print 'The strict free memory available determined is ' + str(round((free_memory_Kb / (1024.0 ** 2)), 1)) + ' Gb'
+        print('The strict free memory available determined is ' + str(round((free_memory_Kb / (1024.0 ** 2)), 1)) + ' Gb')
     except Exception as e:
-        print e
-        print 'WARNING: it was not possible to determine the free memory available!'
+        print(e)
+        print('WARNING: it was not possible to determine the free memory available!')
 
     return free_memory_Kb
 
@@ -697,13 +765,13 @@ def get_free_memory():
 
         try:
             free_memory_Kb = int(dict_free_output['memory']['free']) + cached
-            print 'For the memory use (in Kb) below, the free memory available (free + cached) is ' + str(round((free_memory_Kb / (1024.0 ** 2)), 1)) + ' Gb'
-            print dict_free_output['memory']
+            print('For the memory use (in Kb) below, the free memory available (free + cached) is ' + str(round((free_memory_Kb / (1024.0 ** 2)), 1)) + ' Gb')
+            print(dict_free_output['memory'])
         except:
-            print 'WARNING: it was impossible to determine the free memory using the free command!'
+            print('WARNING: it was impossible to determine the free memory using the free command!')
             free_memory_Kb = get_free_memory_os()
     else:
-        print 'WARNING: it was impossible to determine the free memory using the free command!'
+        print('WARNING: it was impossible to determine the free memory using the free command!')
         free_memory_Kb = get_free_memory_os()
 
     return free_memory_Kb
@@ -728,7 +796,7 @@ def trace_unhandled_exceptions(func):
         try:
             func(*args, **kwargs)
         except:
-            print 'Exception in ' + func.__name__
+            print('Exception in ' + func.__name__)
             traceback.print_exc()
     return wrapped_func
 
@@ -751,7 +819,7 @@ def get_sequence_information(fasta_file, length_extra_seq):
                                 sequence_dict[temp_sequence_dict.keys()[0]] = temp_sequence_dict.values()[0]
                                 headers.append(temp_sequence_dict.values()[0]['header'])
                             else:
-                                print temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0'
+                                print(temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0')
                             temp_sequence_dict = {}
 
                         if line[1:] in headers:
@@ -772,7 +840,7 @@ def get_sequence_information(fasta_file, length_extra_seq):
                 sequence_dict[temp_sequence_dict.keys()[0]] = temp_sequence_dict.values()[0]
                 headers.append(temp_sequence_dict.values()[0]['header'])
             else:
-                print temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0'
+                print(temp_sequence_dict.values()[0]['header'] + ' sequence ignored due to length <= 0')
 
     return sequence_dict, headers
 

@@ -61,6 +61,7 @@ udocker create --name=innuca_3-2_01 ummidock/innuca:3.2-01
 udocker run --user $(id -u):$(id -g) -v /local/folder/fastq_data:/data/ innuca_3-2_01 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
 ```
 More examples on how to use **udocker** can be found in **udocker** [GitHub page](https://github.com/indigo-dc/udocker)  
+  
 *__NOTE__*: if some `Error: in download: HTTP/1.1 400 Bad Request` occur while pulling the Docker image, first pull it using `docker` and then retry pulling it with `udocker` (same with Shifter).
 
 ### Updating the mlst database in docker instance
