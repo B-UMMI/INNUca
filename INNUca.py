@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import modules.utils as utils
 from modules.kraken import run_for_innuca as kraken
+from modules.kraken import get_kraken_version as kraken_version
 import modules.fastQintegrity as fastQintegrity
 import modules.estimated_coverage as coverage
 import modules.fastqc as fastqc
@@ -81,6 +82,9 @@ def include_rematch_dependencies_path(doNotUseProvidedSoftware):
         if not doNotUseProvidedSoftware:
             bcftools = os.path.join(script_folder, 'src', 'bcftools-1.3.1', 'bin')
             os.environ['PATH'] = str(':'.join([bcftools, path_variable]))
+
+
+version_kraken_global = None
 
 
 def main():
@@ -140,8 +144,13 @@ def main():
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
 
     if args.runKraken:
-        programs_version_dictionary['kraken'] = ['--version', '>=', '0.10.6']
-        programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
+        global version_kraken_global
+        version_kraken_global = kraken_version()
+        if version_kraken_global == 2:
+            programs_version_dictionary['kraken2'] = ['--version', '>=', '2.0.6']
+        else:
+            programs_version_dictionary['kraken'] = ['--version', '>=', '0.10.6']
+            programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
     if not args.skipTrueCoverage or trueCoverage_config is not None:
         include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
         programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
@@ -383,9 +392,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
             print('--runKraken set. Running Kraken')
             run_successfully, pass_qc, time_taken, failing, warning, most_abundant_taxon_percent = \
                 kraken(species=args.speciesExpected, files_to_classify=fastq_files, kraken_db=args.krakenDB,
-                       outdir=outdir, db_mem=args.krakenMemory, quick=args.krakenQuick,
-                       min_percent_covered=args.krakenMinCov, max_unclassified_frag=args.krakenMaxUnclass,
-                       threads=threads)
+                       outdir=outdir, version_kraken=version_kraken_global, db_mem=args.krakenMemory,
+                       quick=args.krakenQuick, min_percent_covered=args.krakenMinCov,
+                       max_unclassified_frag=args.krakenMaxUnclass, threads=threads)
             runs['Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
         else:
             runs['Kraken'] = skipped
@@ -587,38 +596,61 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
 
                     # Run Assembly Mapping check
                     bam_file = None
-                    assembly_filtered = None
+                    original_bam = None
                     assembly_mapping_folder = None
+                    possible_assemblies_bam_remove = {}
                     if not args.skipAssemblyMapping:
                         run_successfully, pass_qc, time_taken, failing, assembly_filtered, bam_file, \
-                            assembly_mapping_folder, warning = \
-                            assembly_mapping.runAssemblyMapping(fastq_files, contigs, threads, outdir,
-                                                                args.assemblyMinCoverageContigs, genome_size,
-                                                                args.saveExcludedContigs, args.maxNumberContigs)
+                            assembly_mapping_folder, warning, original_bam = \
+                            assembly_mapping.run_assembly_mapping(fastq_files=fastq_files, reference_file=contigs,
+                                                                  outdir=outdir, estimated_genome_size_mb=genome_size,
+                                                                  max_number_contigs=args.maxNumberContigs,
+                                                                  save_excluded_contigs=args.saveExcludedContigs,
+                                                                  min_coverage_assembly=args.assemblyMinCoverageContigs,
+                                                                  keep_bam=args.keepBAM, threads=threads)
                         runs['Assembly_Mapping'] = [run_successfully, pass_qc, time_taken, failing, warning,
                                                     'NA']
 
                         if run_successfully:
-                            contigs = assembly_filtered
-                            if not args.keepIntermediateAssemblies and os.path.isfile(contigs_spades) and \
-                                    contigs != contigs_spades:
-                                os.remove(contigs_spades)
+                            # Assembly to remove
+                            if not args.keepIntermediateAssemblies:
+                                if os.path.isfile(contigs_spades) and \
+                                        assembly_filtered is not None and \
+                                        assembly_filtered != contigs_spades:
+                                    if not args.keepBAM:
+                                        os.remove(contigs_spades)
+                                    else:
+                                        possible_assemblies_bam_remove['assembly_mapping'] = contigs_spades
+
+                            if assembly_filtered is not None:
+                                contigs = assembly_filtered
                     else:
                         print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
                         runs['Assembly_Mapping'] = skipped
 
                     # Run Pilon
+                    pilon_new_bam = False
+                    pilon_bam = None
                     if not args.skipPilon:
-                        run_successfully, _, time_taken, failing, assembly_polished, pilon_folder = \
-                            pilon.runPilon(jar_path_pilon, contigs, fastq_files, threads, outdir,
-                                           jar_max_memory, bam_file)
+                        run_successfully, _, time_taken, failing, assembly_polished, pilon_folder, pilon_new_bam, \
+                            pilon_bam = pilon.run_pilon(jar_path_pilon=jar_path_pilon, assembly=contigs,
+                                                        fastq_files=fastq_files, outdir=outdir,
+                                                        jar_max_memory=jar_max_memory, alignment_file=bam_file,
+                                                        keep_bam=args.keepBAM, threads=threads)
                         runs['Pilon'] = [run_successfully, None, time_taken, failing, {}, 'NA']
 
                         if run_successfully:
+                            if not args.keepIntermediateAssemblies:
+                                if os.path.isfile(contigs) and \
+                                        assembly_polished is not None and \
+                                        assembly_polished != contigs:
+                                    if not args.keepBAM:
+                                        os.remove(contigs)
+                                    else:
+                                        if not pilon_new_bam:
+                                            possible_assemblies_bam_remove['pilon'] = contigs
+
                             contigs = assembly_polished
-                            if not args.keepIntermediateAssemblies and 'assembly_filtered' in locals() and \
-                                    os.path.isfile(assembly_filtered):
-                                os.remove(assembly_filtered)
 
                         if not args.pilonKeepFiles and os.path.isdir(pilon_folder):
                             utils.removeDirectory(pilon_folder)
@@ -626,6 +658,36 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                     else:
                         print '--skipPilon set. Skipping Pilon correction'
                         runs['Pilon'] = skipped
+
+                    if not args.keepBAM:
+                        if bam_file is not None and os.path.isfile(bam_file):
+                            os.remove(bam_file)
+                        if original_bam is not None and os.path.isfile(original_bam):
+                            os.remove(original_bam)
+                        if pilon_bam is not None and os.path.isfile(pilon_bam):
+                            os.remove(pilon_bam)
+                        if 'assembly_mapping' in possible_assemblies_bam_remove and \
+                                os.path.isfile(possible_assemblies_bam_remove['assembly_mapping']):
+                            os.remove(possible_assemblies_bam_remove['assembly_mapping'])
+                        if 'pilon' in possible_assemblies_bam_remove and \
+                                os.path.isfile(possible_assemblies_bam_remove['pilon']):
+                            os.remove(possible_assemblies_bam_remove['pilon'])
+                    else:
+                        if pilon_new_bam:
+                            if bam_file is not None and os.path.isfile(bam_file):
+                                os.remove(bam_file)
+                            if original_bam is not None and os.path.isfile(original_bam):
+                                os.remove(original_bam)
+                            if 'assembly_mapping' in possible_assemblies_bam_remove and \
+                                    os.path.isfile(possible_assemblies_bam_remove['assembly_mapping']):
+                                os.remove(possible_assemblies_bam_remove['assembly_mapping'])
+                        else:
+                            if bam_file is not None and os.path.isfile(bam_file) and \
+                                    original_bam is not None and os.path.isfile(original_bam):
+                                os.remove(bam_file)
+                            if 'pilon' in possible_assemblies_bam_remove and \
+                                    os.path.isfile(possible_assemblies_bam_remove['pilon']):
+                                os.remove(possible_assemblies_bam_remove['pilon'])
 
                     if not args.skipAssemblyMapping:
                         utils.removeDirectory(assembly_mapping_folder)

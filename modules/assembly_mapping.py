@@ -65,7 +65,8 @@ def get_sequence_coverage(alignment_file, sequence_to_analyse, outdir, counter):
     position = 0
     coverage = 0
 
-    run_successfully, genome_coverage_data_file = compute_genome_coverage_data(alignment_file, sequence_to_analyse, outdir, counter)
+    run_successfully, genome_coverage_data_file = compute_genome_coverage_data(alignment_file, sequence_to_analyse,
+                                                                               outdir, counter)
     if run_successfully:
         problems_found, position, coverage = calculate_genome_coverage(genome_coverage_data_file)
         if not problems_found and position == 0:
@@ -79,7 +80,8 @@ def get_sequence_coverage(alignment_file, sequence_to_analyse, outdir, counter):
     except Exception as e:
         print e
 
-    utils.saveVariableToPickle([sequence_to_analyse, run_successfully, problems_found, position, coverage], outdir, str('coverage.sequence_' + str(counter)))
+    utils.saveVariableToPickle([sequence_to_analyse, run_successfully, problems_found, position, coverage], outdir,
+                               str('coverage.sequence_' + str(counter)))
 
 
 def sample_coverage(referenceFile, alignment_file, outdir, threads):
@@ -99,15 +101,19 @@ def sample_coverage(referenceFile, alignment_file, outdir, threads):
 
     sample_coverage_no_problems = True
     mean_coverage_data = {}
-    files = [f for f in os.listdir(coverage_outdir) if not f.startswith('.') and os.path.isfile(os.path.join(coverage_outdir, f))]
+    files = [f for f in os.listdir(coverage_outdir) if
+             not f.startswith('.') and os.path.isfile(os.path.join(coverage_outdir, f))]
     for file_found in files:
         if file_found.startswith('coverage.sequence_') and file_found.endswith('.pkl'):
             file_path = os.path.join(coverage_outdir, file_found)
 
             if sample_coverage_no_problems:
-                sequence_to_analyse, run_successfully, problems_found, position, coverage = utils.extractVariableFromPickle(file_path)
+                sequence_to_analyse, run_successfully, problems_found, position, coverage = utils.extractVariableFromPickle(
+                    file_path)
                 if run_successfully and not problems_found:
-                    mean_coverage_data[sequence_to_analyse] = {'position': position, 'coverage': coverage, 'mean_coverage': round((float(coverage) / float(position)), 2)}
+                    mean_coverage_data[sequence_to_analyse] = {'position': position, 'coverage': coverage,
+                                                               'mean_coverage': round(
+                                                                   (float(coverage) / float(position)), 2)}
                 else:
                     print 'WARNING: it was not possible to compute coverage information for sequence ' + sequence_to_analyse
                     sample_coverage_no_problems = False
@@ -135,10 +141,13 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
     if minCoverageAssembly is None:
         if float(coverage_initial) / float(position_initial) / float(3) >= 10:
             minCoverageAssembly = float(coverage_initial) / float(position_initial) / float(3)
-            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to one third of the assembly mean coverage (' + str(round((float(coverage_initial) / float(position_initial)), 2)) + 'x): ' + str(round(minCoverageAssembly, 2)) + 'x'
+            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to one third of the assembly mean coverage (' + str(
+                round((float(coverage_initial) / float(position_initial)), 2)) + 'x): ' + str(
+                round(minCoverageAssembly, 2)) + 'x'
         else:
             minCoverageAssembly = 10
-            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because one third of the assembly mean coverage (' + str(round((float(coverage_initial) / float(position_initial)), 2)) + 'x) was lower than 10x'
+            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because one third of the assembly mean coverage (' + str(
+                round((float(coverage_initial) / float(position_initial)), 2)) + 'x) was lower than 10x'
 
     sequences_2_keep = []
     position_filtered = 0
@@ -161,7 +170,8 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
         pass_qc = True
         print 'Assembly coverage: ' + str(round((float(coverage_filtered) / float(position_filtered)), 2)) + 'x'
     else:
-        failing_reason = 'Assembly coverage: ' + str(round((float(coverage_filtered) / float(position_filtered)), 2)) + 'x (lower than 30x)'
+        failing_reason = 'Assembly coverage: ' + str(
+            round((float(coverage_filtered) / float(position_filtered)), 2)) + 'x (lower than 30x)'
 
     return pass_qc, failing_reason, sequences_2_keep
 
@@ -178,7 +188,8 @@ def get_sequence_information(sequence_file):
                 if not blank_line_found:
                     if line.startswith('>'):
                         sequence_counter += 1
-                        sequence_dict[sequence_counter] = {'header': line[1:], 'sequence': [], 'length': 0, 'discard': True}
+                        sequence_dict[sequence_counter] = {'header': line[1:], 'sequence': [], 'length': 0,
+                                                           'discard': True}
                     else:
                         sequence_dict[sequence_counter]['sequence'].append(line)
                         sequence_dict[sequence_counter]['length'] += len(line)
@@ -209,26 +220,33 @@ def determine_sequences_to_filter(sequence_dict, list_sequences, pilon_run_succe
     return sequence_dict, sequence_report_general
 
 
-def write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, filtered_sequence_file, saveExcludedContigs):
+def write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, filtered_sequence_file,
+                                       saveExcludedContigs):
     if saveExcludedContigs:
         path_excluded_contigs = os.path.splitext(filtered_sequence_file)[0] + '.excluded_contigs.fasta'
         excluded_contigs = open(path_excluded_contigs, 'wt')
 
     found_excluded_contigs = False
-    with open(os.path.join(os.path.dirname(filtered_sequence_file), str('assembly_mapping_report.sequences_filtered.' + os.path.splitext(os.path.basename(filtered_sequence_file))[0]) + '.tab'), 'wt') as report_filtered:
+    with open(os.path.join(os.path.dirname(filtered_sequence_file), str(
+            'assembly_mapping_report.sequences_filtered.' + os.path.splitext(os.path.basename(filtered_sequence_file))[
+                0]) + '.tab'), 'wt') as report_filtered:
         with open(filtered_sequence_file, 'wt') as contigs_filtered:
             fields = ['header', 'length']
-            report_filtered.write('\n'.join(['#general', '>contigs', str(sequence_report_general['filtered']['contigs']), '>bp', str(sequence_report_general['filtered']['bp'])]) + '\n')
+            report_filtered.write('\n'.join(
+                ['#general', '>contigs', str(sequence_report_general['filtered']['contigs']), '>bp',
+                 str(sequence_report_general['filtered']['bp'])]) + '\n')
             report_filtered.write('#' + '\t'.join(fields) + '\n')
 
             for i in range(1, len(sequence_dict) + 1):
                 if not sequence_dict[i]['discard']:
                     report_filtered.write('\t'.join([str(sequence_dict[i][f]) for f in fields]) + '\n')
-                    contigs_filtered.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(utils.chunkstring(sequence_dict[i]['sequence'], 80)) + '\n')
+                    contigs_filtered.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(
+                        utils.chunkstring(sequence_dict[i]['sequence'], 80)) + '\n')
                 else:
                     if saveExcludedContigs:
                         found_excluded_contigs = True
-                        excluded_contigs.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(utils.chunkstring(sequence_dict[i]['sequence'], 80)) + '\n')
+                        excluded_contigs.write('>' + sequence_dict[i]['header'] + '\n' + '\n'.join(
+                            utils.chunkstring(sequence_dict[i]['sequence'], 80)) + '\n')
 
     if saveExcludedContigs:
         excluded_contigs.flush()
@@ -269,19 +287,24 @@ def save_mapping_statistics(dict_mapping_statistics, outdir):
     total_mapped_reads = 0
     with open(report_file, 'wt') as writer:
         for field in sorted(dict_mapping_statistics):
-            writer.write(str('#' + field) + '\n' + str('>' + 'qc_passed') + '\n' + str(dict_mapping_statistics[field]['qc_passed']) + '\n' + str('>' + 'qc_failed') + '\n' + str(dict_mapping_statistics[field]['qc_failed']) + '\n')
+            writer.write(str('#' + field) + '\n' + str('>' + 'qc_passed') + '\n' + str(
+                dict_mapping_statistics[field]['qc_passed']) + '\n' + str('>' + 'qc_failed') + '\n' + str(
+                dict_mapping_statistics[field]['qc_failed']) + '\n')
 
             if field == 'in_total':
                 total_reads = dict_mapping_statistics[field]['qc_passed'] + dict_mapping_statistics[field]['qc_failed']
             elif field == 'mapped':
-                total_mapped_reads = dict_mapping_statistics[field]['qc_passed'] + dict_mapping_statistics[field]['qc_failed']
+                total_mapped_reads = dict_mapping_statistics[field]['qc_passed'] + dict_mapping_statistics[field][
+                    'qc_failed']
 
     if total_mapped_reads > 0 and total_reads > 0:
         if round((float(total_mapped_reads) / float(total_reads)), 2) >= min_mapping:
             pass_qc = True
             print 'Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '%'
         else:
-            failing_reason = 'Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '% (lower than ' + str(min_mapping * 100) + '%)'
+            failing_reason = 'Mapped reads: ' + str(
+                round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '% (lower than ' + str(
+                min_mapping * 100) + '%)'
     else:
         failing_reason = 'No reads were mapped'
 
@@ -306,7 +329,8 @@ def mappingBowtie2(fastq_files, referenceFile, threads, outdir):
     run_successfully = indexSequenceBowtie2(referenceFile, threads)
 
     if run_successfully:
-        command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '', '-S', sam_file]
+        command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '', '-S',
+                   sam_file]
         if len(fastq_files) == 1:
             command[8] = '-U ' + fastq_files
         else:
@@ -341,7 +365,8 @@ def indexAlignment(alignment_file, print_command_True):
 def get_bam_subset(alignment_file, sequences_2_keep, threads):
     bam_subset = os.path.splitext(alignment_file)[0] + '.subset.bam'
 
-    command = ['samtools', 'view', '-buh', '-F', '4', '-o', bam_subset, '-@', str(threads), alignment_file, ' '.join(sequences_2_keep)]
+    command = ['samtools', 'view', '-buh', '-F', '4', '-o', bam_subset, '-@', str(threads), alignment_file,
+               ' '.join(sequences_2_keep)]
     run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
 
     if not run_successfully:
@@ -354,32 +379,82 @@ assemblyMapping_timer = partial(utils.timer, name='Assembly mapping check')
 
 
 @assemblyMapping_timer
-def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverageAssembly, estimatedGenomeSizeMb, saveExcludedContigs, maxNumberContigs):
+def run_assembly_mapping(fastq_files, reference_file, outdir, estimated_genome_size_mb, max_number_contigs=100,
+                         save_excluded_contigs=False, min_coverage_assembly=None, keep_bam=False, threads=1):
+    """
+    Runs Assembly_Mapping for INNUca and QA/QC the results
+
+    Parameters
+    ----------
+    fastq_files : list
+        List of fastq files
+    reference_file : str
+        Path to the reference file (the assembly)
+    outdir : str
+        Path to the output directory
+    estimated_genome_size_mb : float
+        Expected genome size in Mb
+    save_excluded_contigs : bool, default False
+        True if want to save excluded contigs
+    max_number_contigs : int, default 100
+        Maximum number of contigs per 1.5 Mb of expected genome size
+    min_coverage_assembly : int or None, default None
+        Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this
+        average coverage. If None is provided, 1/3 of the assembly mean coverage or 10x will be used
+    keep_bam : bool, default False
+        True if want to keep the BAM file produced (with mapped and unmapped reads)
+    threads : int, default 1
+        Number of threads to be used
+
+    Returns
+    -------
+    run_successfully : bool
+        Boolean stating if INNUca Assembly_Mapping module ran successfully or not
+    pass_qc : bool
+        Boolean stating if sample pass QA/QC or not
+    time_taken : float
+        Seconds that run_assembly_mapping took to run
+    failing : dict
+        Dictionary with the failing reasons. If sample did not fail, it is only {'sample': False}. If it failed, keys
+        will be the level of failing, and values list of strings
+    assembly_filtered : str or None
+        Path to the filtered assembly (or original one if nothing was filtered). If something went wrong, None is
+        returned
+    bam_file : str or None
+        Path to the BAM file to be used in subsequent steps. If something went wrong, None is returned
+    assembly_mapping_folder : str
+        Path to Assembly_Mapping working directory
+    warnings : dict
+        Dictionary with the warning reasons. If no warnings were raised, it is empty. If warnings were raised, keys
+        will be the level of warnings, and values list of strings
+    original_bam : str or None
+        Path to the BAM file produced with reference_file if a new BAM file for subset of sequences is produced,
+        else None.
+    """
+
     pass_qc = True
-    pass_qc_coverage = False
-    pass_qc_mapping = False
 
     failing = {}
     warnings = {}
 
-    assemblyMapping_folder = os.path.join(outdir, 'assemblyMapping', '')
-    utils.removeDirectory(assemblyMapping_folder)
-    os.mkdir(assemblyMapping_folder)
+    assembly_mapping_folder = os.path.join(outdir, 'assemblyMapping', '')
+    utils.removeDirectory(assembly_mapping_folder)
+    os.mkdir(assembly_mapping_folder)
 
     assembly_filtered = None
 
     # Create a symbolic link to the assembly
-    assembly_link = os.path.join(assemblyMapping_folder, os.path.basename(reference_file))
+    assembly_link = os.path.join(assembly_mapping_folder, os.path.basename(reference_file))
     os.symlink(reference_file, assembly_link)
 
     bam_file = None
+    original_bam = None
     # Index assembly using Bowtie2
     run_successfully = indexSequenceBowtie2(assembly_link, threads)
 
     sample_coverage_no_problems = False
-    sample_mapping_statistics_no_problems = False
     if run_successfully:
-        run_successfully, sam_file = mappingBowtie2(fastq_files, assembly_link, threads, assemblyMapping_folder)
+        run_successfully, sam_file = mappingBowtie2(fastq_files, assembly_link, threads, assembly_mapping_folder)
 
         if run_successfully:
             bam_file = os.path.splitext(sam_file)[0] + '.bam'
@@ -392,30 +467,38 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                 if run_successfully:
                     sequences_2_keep = []
                     # Get assembly coverage
-                    sample_coverage_no_problems, mean_coverage_data = sample_coverage(reference_file, bam_file, assemblyMapping_folder, threads)
+                    sample_coverage_no_problems, mean_coverage_data = sample_coverage(reference_file, bam_file,
+                                                                                      assembly_mapping_folder, threads)
                     if sample_coverage_no_problems:
-                        pass_qc_coverage, failing_reason, sequences_2_keep = save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembly)
+                        pass_qc_coverage, failing_reason, sequences_2_keep = \
+                            save_assembly_coverage_report(mean_coverage_data, outdir, min_coverage_assembly)
                         if not pass_qc_coverage:
                             failing['Coverage'] = [failing_reason]
 
                         assembly_filtered = os.path.splitext(reference_file)[0] + '.mappingCov.fasta'
 
                         sequence_dict, ignore = utils.get_sequence_information(reference_file, 0)
-                        sequence_dict, sequence_report_general = determine_sequences_to_filter(sequence_dict, sequences_2_keep, False)
-                        failing_sequences_filtered, minimumBP = spades.qc_assembly(sequence_report_general, estimatedGenomeSizeMb, maxNumberContigs)
+                        sequence_dict, sequence_report_general = determine_sequences_to_filter(sequence_dict,
+                                                                                               sequences_2_keep, False)
+                        failing_sequences_filtered, minimumBP = spades.qc_assembly(sequence_report_general,
+                                                                                   estimated_genome_size_mb,
+                                                                                   max_number_contigs)
                         if failing_sequences_filtered['sample'] is not False:
                             warnings['Sequences_filtered'] = [failing_sequences_filtered['sample']]
                             if not minimumBP:
                                 assembly_filtered = reference_file
                             else:
-                                write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered, saveExcludedContigs)
+                                write_filtered_sequences_and_stats(sequence_dict, sequence_report_general,
+                                                                   assembly_filtered, save_excluded_contigs)
                         else:
-                            write_filtered_sequences_and_stats(sequence_dict, sequence_report_general, assembly_filtered, saveExcludedContigs)
+                            write_filtered_sequences_and_stats(sequence_dict, sequence_report_general,
+                                                               assembly_filtered, save_excluded_contigs)
                     else:
                         failing['Coverage'] = ['Did not run']
 
                     # Save mapping statistics
-                    sample_mapping_statistics_no_problems, dict_mapping_statistics = getting_mapping_statistics(bam_file)
+                    sample_mapping_statistics_no_problems, dict_mapping_statistics = getting_mapping_statistics(
+                        bam_file)
                     if sample_mapping_statistics_no_problems:
                         pass_qc_mapping, failing_reason = save_mapping_statistics(dict_mapping_statistics, outdir)
 
@@ -424,12 +507,16 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
                     else:
                         warnings['Mapping'] = ['Did not run']
 
-                    if assembly_filtered is not None and assembly_filtered != reference_file and len(sequences_2_keep) > 0:
+                    if assembly_filtered is not None and \
+                            assembly_filtered != reference_file and \
+                            len(sequences_2_keep) > 0:
                         print 'Producing bam subset for sequences to keep'
                         run_successfully, bam_subset = get_bam_subset(bam_file, sequences_2_keep, threads)
                         if run_successfully:
-                            os.remove(bam_file)
+                            if not keep_bam:
+                                os.remove(bam_file)
                             os.remove(bam_file + '.bai')
+                            original_bam = bam_file
                             bam_file = bam_subset
                             run_successfully = indexAlignment(bam_file, False)
 
@@ -444,4 +531,5 @@ def runAssemblyMapping(fastq_files, reference_file, threads, outdir, minCoverage
         print 'Failing:', failing
         pass_qc = False
 
-    return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assemblyMapping_folder, warnings
+    return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assembly_mapping_folder, warnings, \
+           original_bam

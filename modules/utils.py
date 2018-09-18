@@ -17,7 +17,8 @@ def parseArguments(version):
 
     required_options = parser.add_argument_group('Required options')
     required_options.add_argument('-s', '--speciesExpected', type=str, metavar='"Streptococcus agalactiae"', help='Expected species name', required=True)
-    required_options.add_argument('-g', '--genomeSizeExpectedMb', type=float, metavar='2.1', help='Expected genome size in Mb', required=True)
+    required_options.add_argument('-g', '--genomeSizeExpectedMb', type=float, metavar='2.1',
+                                  help='Expected genome size in Mb', required=True)
 
     input_options = parser.add_mutually_exclusive_group(required=True)
     input_options.add_argument('-i', '--inputDirectory', type=str, metavar='/path/to/input/directory/', help='Path to directory containing the fastq files. Can be organized in separete directories by samples or all together')
@@ -28,10 +29,14 @@ def parseArguments(version):
     general_options = parser.add_argument_group('General options')
     general_options.add_argument('-o', '--outdir', type=str, metavar='/output/directory/', help='Path for output directory', required=False, default='.')
     general_options.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads', required=False, default=1)
-    general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10', help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be auto or off. When auto is set, 1 Gb per thread will be used up to the free available memory', required=False, default='off')
+    general_options.add_argument('--jarMaxMemory', type=jar_max_memory, metavar='10',
+                                 help='Sets the maximum RAM Gb usage by jar files (Trimmomatic and Pilon). Can also be'
+                                      ' auto or off. When auto is set, 1 Gb per thread will be used up to the free'
+                                      ' available memory', required=False, default='off')
     general_options.add_argument('--doNotUseProvidedSoftware', action='store_true', help='Tells the software to not use FastQC, Trimmomatic, SPAdes, Bowtie2, Samtools and Pilon that are provided with INNUca.py')
     # general_options.add_argument('--pairEnd_filesSeparation', nargs=2, type=str, metavar='"_left/rigth.fq.gz"', help='For unusual pair-end files separation designations, you can provide two strings containning the end of fastq files names to designate each file from a pair-end data ("_left.fq.gz" "_rigth.fq.gz" for sample_left.fq.gz sample_right.fq.gz)', required=False, default=None)
-    general_options.add_argument('--keepIntermediateAssemblies', action='store_true', help='Tells INNUca to keep all the intermediate assemblies')
+    general_options.add_argument('--keepBAM', action='store_true',
+                                 help='Keep the last BAM file produced (with mapped and unmapped reads)')
     general_options.add_argument('--runKraken', action='store_true', help='Sets INNUca to run Kraken')
     general_options.add_argument('--skipEstimatedCoverage', action='store_true', help='Tells the programme to not estimate coverage depth based on number of sequenced nucleotides and expected genome size')
     general_options.add_argument('--skipTrueCoverage', action='store_true', help='Tells the programme to not run trueCoverage_ReMatCh analysis')
@@ -111,11 +116,18 @@ def parseArguments(version):
     spades_kmers_options.add_argument('--spadesDefaultKmers', action='store_true', help='Tells INNUca to use SPAdes default k-mers')
 
     assembly_mapping_options = parser.add_argument_group('Assembly Mapping options')
-    assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N', help='Minimum contigs average coverage. After mapping reads back to the contigs, only keep contigs with at least this average coverage (default: 1/3 of the assembly mean coverage or 10x)', required=False)
+    assembly_mapping_options.add_argument('--assemblyMinCoverageContigs', type=int, metavar='N',
+                                          help='Minimum contigs average coverage. After mapping reads back to the'
+                                               ' contigs, only keep contigs with at least this average coverage'
+                                               ' (default: 1/3 of the assembly mean coverage or 10x)', required=False)
 
     assembly_options = parser.add_argument_group('Assembly options')
-    assembly_options.add_argument('--maxNumberContigs', type=int, metavar='N', help='Maximum number of contigs per 1.5 Mb of expected genome size', required=False, default=100)
-    assembly_options.add_argument('--saveExcludedContigs', action='store_true', help='Tells INNUca.py to save excluded contigs')
+    assembly_options.add_argument('--maxNumberContigs', type=int, metavar='N', required=False, default=100,
+                                  help='Maximum number of contigs per 1.5 Mb of expected genome size')
+    assembly_options.add_argument('--saveExcludedContigs', action='store_true',
+                                  help='Tells INNUca.py to save excluded contigs')
+    assembly_options.add_argument('--keepIntermediateAssemblies', action='store_true',
+                                  help='Tells INNUca to keep all the intermediate assemblies')
 
     pilon_options = parser.add_argument_group('Pilon options')
     pilon_options.add_argument('--pilonKeepFiles', action='store_true', help='Tells INNUca.py to not remove the output of Pilon')
@@ -320,7 +332,7 @@ def checkPrograms(programs_version_dictionary):
                     version_line = stdout.splitlines()[0].rsplit(',', 1)[0].split(' ')[-1]
                 elif program == 'pilon-1.18.jar':
                     version_line = stdout.splitlines()[0].split(' ', 3)[2]
-                elif program == 'mlst' or program == 'kraken' or program == 'kraken-report':
+                elif program == 'mlst' or program == 'kraken' or program == 'kraken-report' or program == 'kraken2':
                     version_line = stdout.splitlines()[0].split(' ')[-1].split('-', 1)[0]
                 else:
                     version_line = stdout.splitlines()[0].split(' ')[-1]

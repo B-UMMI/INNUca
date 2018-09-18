@@ -2,7 +2,14 @@
 
 # -*- coding: utf-8 -*-
 
-# TODO: prepare things to Kraken2
+# TODO: prepare things to Kraken2 (check the other options bellow)
+"""
+  --confidence FLOAT      Confidence score threshold (default: 0.0); must be
+                          in [0, 1].
+  --minimum-base-quality NUM
+                          Minimum base quality used in classification (def: 0,
+                          only effective with FASTQ input).
+"""
 # TODO: update readme
 
 """
@@ -73,6 +80,32 @@ def find_compression_type(file_to_test):
     return compression_type
 
 
+def get_kraken_version():
+    """
+    Determine Kraken version. If kraken2 exists, it will be the default.
+
+    Returns
+    -------
+    version_kraken : int or None
+        1 if only first Kraken (or zero version) was found, 2 if kraken2 was found, or None if none of those was found
+    """
+    version_kraken = None
+
+    command = ['which', 'kraken']
+    run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
+                                               print_comand_True=False)
+    if run_successfully:
+        version_kraken = 1
+
+    command[1] = 'kraken2'
+    run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
+                                               print_comand_True=False)
+    if run_successfully:
+        version_kraken = 2
+
+    return version_kraken
+
+
 def kraken_compression_type(file_to_test):
     """
     Get compression type and check if compatible with Kraken (gzip, bzip2 or uncompressed allowed)
@@ -96,7 +129,8 @@ def kraken_compression_type(file_to_test):
     return compression_type
 
 
-def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, db_mem=False, quick=False, threads=1):
+def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
+                    threads=1):
     """
     Run Kraken for data classification
 
@@ -110,6 +144,8 @@ def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, db_mem=Fal
         Type of the files to be classified: fasta or fastq
     outdir : str
         Path to the output directory
+    version_kraken : int or None
+        1 if only first Kraken (or zero version) was found, 2 if kraken2 was found, or None if none of those was found
     db_mem : bool, default False
         True if want to load the Kraken DB into memory before run, else False
     quick : bool, default False
@@ -121,22 +157,34 @@ def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, db_mem=Fal
     -------
     run_successfully : bool
         Boolean stating if Kraken ran successfully or not
-    output : str
-        Path to Kraken output file
+    kraken_output : str or None
+        Path to Kraken output file. If running kraken2, None is returned
+    kraken_report : str or None
+        Path to Kraken report (results) file in case of kraken2, else None
     """
     files_type_options = ['fastq', 'fasta']
     if files_type not in files_type_options:
         raise ValueError("Invalid files type. Expected one of: %s" % files_type_options)
 
     kraken_output = os.path.join(outdir, 'kraken.{db}.out'.format(db=os.path.basename(kraken_db)))
+    kraken_report = None
+
     command = ['kraken', '', '', '--db', kraken_db, '--threads', str(threads), '--output', kraken_output, '',
-               '--{type}-input'.format(type=files_type), '', ' '.join(files_to_classify)]
+               '--{type}-input'.format(type=files_type), '', '', '', ' '.join(files_to_classify)]
+
+    if version_kraken == 2:
+        command[0] = 'kraken2'
+        command[8] = '-'
+        kraken_output = None
+        kraken_report = os.path.join(outdir, 'kraken_report.{db}.txt'.format(db=os.path.basename(kraken_db)))
+        command[11] = '--report'
+        command[12] = kraken_report
 
     if len(files_to_classify) == 0:
         sys.exit('No files provided for classification.')
     elif len(files_to_classify) <= 2:
         if files_type == 'fastq' and len(files_to_classify) == 2:
-            command[11] = '--paired'
+            command[13] = '--paired'
         elif files_type == 'fasta':
             if len(files_to_classify) == 2:
                 sys.exit('{n} files provided for classification. Maximum of 1 file for fasta is'
@@ -153,13 +201,15 @@ def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, db_mem=Fal
     if quick:
         command[1] = '--quick'
 
-    if db_mem:
+    if db_mem and version_kraken == 1:
         command[2] = '--preload'
+    elif not db_mem and version_kraken == 2:
+        command[2] = '--memory-mapping'
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
                                                print_comand_True=True)
 
-    return run_successfully, kraken_output
+    return run_successfully, kraken_output, kraken_report
 
 
 def run_kraken_report(kraken_db, kraken_output, outdir):
@@ -192,6 +242,28 @@ def run_kraken_report(kraken_db, kraken_output, outdir):
             writer.write(kraken_results)
 
     return run_successfully, kraken_results
+
+
+def read_kraken_report(kraken_report):
+    """
+    Read Kraken report into a variable
+
+    Parameters
+    ----------
+    kraken_report : str
+        Path to Kraken report (results) file
+
+    Returns
+    -------
+    kraken_results : str
+        String with Kraken report
+    """
+    kraken_results = None
+
+    with open(kraken_report, 'rt') as reader:
+        kraken_results = reader.read()
+
+    return kraken_results
 
 
 def parse_kraken_results(kraken_results):
@@ -234,7 +306,7 @@ def parse_kraken_results(kraken_results):
                         species = {}
             elif fields[3].strip() == 'S':
                 species[('species', fields[4].strip(), fields[5].strip())] = float(fields[0].strip())
-            elif fields[3].strip() != '-':
+            elif not fields[3].strip().startswith('S'):
                 if len(species) == 0 and len(genus) > 0:
                     results_parsed.update(genus)
                 elif len(species) > 0:
@@ -287,7 +359,7 @@ def clean_kraken_results(results_parsed, min_percent_covered=None):
     return cleaned_results
 
 
-def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, db_mem=False, quick=False,
+def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
                       min_percent_covered=None, threads=1):
     """
     Run Kraken, parse and clean the results
@@ -302,6 +374,8 @@ def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, db_mem=F
         Type of the files to be classified: fasta or fastq
     outdir : str
         Path to the output directory
+    version_kraken : int or None
+        1 if only first Kraken (or zero version) was found, 2 if kraken2 was found, or None if none of those was found
     db_mem : bool, default False
         True if want to load the Kraken DB into memory before run, else False
     quick : bool, default False
@@ -323,27 +397,33 @@ def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, db_mem=F
         Percentage of unclassified fragments
     """
 
-    run_successfully, kraken_output = run_kraken_main(files_to_classify=files_to_classify, kraken_db=kraken_db,
-                                                      files_type=files_type, outdir=outdir, db_mem=db_mem, quick=quick,
-                                                      threads=threads)
-
     cleaned_results = {}
     unclassified = 0
+
+    run_successfully, kraken_output, kraken_report = run_kraken_main(files_to_classify=files_to_classify,
+                                                                     kraken_db=kraken_db, files_type=files_type,
+                                                                     outdir=outdir, version_kraken=version_kraken,
+                                                                     db_mem=db_mem, quick=quick, threads=threads)
+    kraken_results = None
     if run_successfully:
-        run_successfully, kraken_results = run_kraken_report(kraken_db=kraken_db, kraken_output=kraken_output,
-                                                             outdir=outdir)
-        if run_successfully:
-            results_parsed, unclassified = parse_kraken_results(kraken_results=kraken_results)
+        if version_kraken == 2:
+            kraken_results = read_kraken_report(kraken_report)
+        else:
+            run_successfully, kraken_results = run_kraken_report(kraken_db=kraken_db, kraken_output=kraken_output,
+                                                                 outdir=outdir)
 
-            if len(results_parsed) > 0:
-                cleaned_results = clean_kraken_results(results_parsed=results_parsed,
-                                                       min_percent_covered=min_percent_covered)
-            del results_parsed
-        del kraken_results
-
-    if os.path.isfile(kraken_output):
+    if kraken_output is not None and os.path.isfile(kraken_output):
         os.remove(kraken_output)
     del kraken_output
+
+    if run_successfully:
+        results_parsed, unclassified = parse_kraken_results(kraken_results=kraken_results)
+
+        if len(results_parsed) > 0:
+            cleaned_results = clean_kraken_results(results_parsed=results_parsed,
+                                                   min_percent_covered=min_percent_covered)
+        del results_parsed
+    del kraken_results
 
     return run_successfully, cleaned_results, unclassified
 
@@ -515,8 +595,8 @@ def print_results(multispecies, unknown_fragments, most_abundant_taxon):
                                                              percent=most_abundant_taxon[3]))
 
 
-def run_module(files_to_classify, kraken_db, files_type, outdir, db_mem=False, quick=False, min_percent_covered=None,
-               max_unclassified_frag=None, threads=1):
+def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
+               min_percent_covered=None, max_unclassified_frag=None, threads=1):
     """
     Runs Kraken, parse the results and evaluate the outputs
 
@@ -530,6 +610,8 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, db_mem=False, q
         Type of the files to be classified: fasta or fastq
     outdir : str
         Path to the output directory
+    version_kraken : int or None
+        1 if only first Kraken (or zero version) was found, 2 if kraken2 was found, or None if none of those was found
     db_mem : bool, default False
         True if want to load the Kraken DB into memory before run, else False
     quick : bool, default False
@@ -558,7 +640,8 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, db_mem=False, q
 
     run_successfully, cleaned_results, unclassified = run_kraken_module(files_to_classify=files_to_classify,
                                                                         kraken_db=kraken_db, files_type=files_type,
-                                                                        outdir=outdir, db_mem=db_mem, quick=quick,
+                                                                        outdir=outdir, version_kraken=version_kraken,
+                                                                        db_mem=db_mem, quick=quick,
                                                                         min_percent_covered=min_percent_covered,
                                                                         threads=threads)
 
@@ -589,7 +672,7 @@ kraken_timer = partial(utils_timer, name='Kraken')
 
 
 @kraken_timer
-def run_for_innuca(species, files_to_classify, kraken_db, outdir, db_mem, quick, min_percent_covered,
+def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken, db_mem, quick, min_percent_covered,
                    max_unclassified_frag, threads):
     """
     Runs Kraken for INNUca and QA/QC the results
@@ -599,11 +682,13 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, db_mem, quick,
     species : str
         Species name, e.g. "streptococcus agalactiae"
     files_to_classify : list
-        List with files to be classified by Kraken. Can be one fasta or up to two fastq files
+        List with files to be classified by Kraken. Fastq files required
     kraken_db : str
         Kraken DB name or path to the directory containing the Kraken DB
     outdir : str
         Path to the output directory
+    version_kraken : int or None
+        1 if only first Kraken (or zero version) was found, 2 if kraken2 was found, or None if none of those was found
     db_mem : bool, default False
         True if want to load the Kraken DB into memory before run, else False
     quick : bool, default False
@@ -643,7 +728,7 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, db_mem, quick,
 
     run_successfully, multispecies, unknown_fragments, most_abundant_taxon = \
         run_module(files_to_classify=files_to_classify, kraken_db=kraken_db, files_type='fastq', outdir=outdir,
-                   db_mem=db_mem, quick=quick, min_percent_covered=min_percent_covered,
+                   version_kraken=version_kraken, db_mem=db_mem, quick=quick, min_percent_covered=min_percent_covered,
                    max_unclassified_frag=max_unclassified_frag, threads=threads)
 
     # QA/QC assessment
@@ -751,8 +836,16 @@ def main():
     print('\n'
           '===>  RUNNING  kraken.py  <===\n')
 
-    missing_programs, _ = utils_check_programs({'kraken': ['--version', '>=', '0.10.6'],
-                                                'kraken-report': ['--version', '>=', '0.10.6']})
+    version_kraken = get_kraken_version()
+    if version_kraken == 2:
+        missing_programs, _ = utils_check_programs({'kraken2': ['--version', '>=', '2.0.6']})
+    elif version_kraken == 1:
+        missing_programs, _ = utils_check_programs({'kraken': ['--version', '>=', '0.10.6'],
+                                                    'kraken-report': ['--version', '>=', '0.10.6']})
+    else:
+        print()
+        sys.exit('Kraken was not found in PATH')
+
     print()
 
     if len(missing_programs) > 0:
@@ -770,15 +863,14 @@ def main():
             args.kraken = args.kraken[:-1]
 
     run_successfully, _, _, _ = run_module(files_to_classify=args.files, kraken_db=args.kraken,
-                                           files_type=args.type, outdir=args.outdir, db_mem=args.memory,
-                                           quick=args.quick, min_percent_covered=args.min_cov,
+                                           files_type=args.type, outdir=args.outdir, version_kraken=version_kraken,
+                                           db_mem=args.memory, quick=args.quick, min_percent_covered=args.min_cov,
                                            max_unclassified_frag=args.max_unclass, threads=args.threads)
 
     _ = utils_run_time(start_time)
 
     if not run_successfully:
-        sys.exit('\n'
-                 'Something went wrong!')
+        sys.exit('Something went wrong!')
 
 
 if __name__ == "__main__":
