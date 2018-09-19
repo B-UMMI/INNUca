@@ -122,7 +122,7 @@ def main():
 
     # Print program version
     print '\n' + 'VERSION INNUca.py:'
-    utils.script_version_git(version=version, current_directory=os.getcwd(), innuca_script_path=script_path,
+    utils.script_version_git(version=version, current_directory=os.getcwd(), script_path=script_path,
                              no_git_info=args.noGitInfo)
 
     # Get CPU information

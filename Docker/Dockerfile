@@ -12,9 +12,21 @@ RUN apt-get install -y git wget
 # -- INNUca General Dependencies ---
 RUN apt-get install -y python-dev default-jre
 
+# --- kraken2 --
+# -- dependencies --
+RUN apt-get install -y libgomp1
+# -- kraken2 --
+RUN wget https://github.com/DerrickWood/kraken2/archive/v2.0.7-beta.tar.gz && \
+    tar xf v2.0.7-beta.tar.gz && \
+    v2.0.7-beta/install_kraken2.sh /NGStools/2.0.7-beta/ && \
+    rm -r v2.0.7-beta.tar.gz v2.0.7-beta/
+ENV PATH="/NGStools/2.0.7-beta:${PATH}"
+
 # -- mlst Dependencies --
 # Blast
-RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz && tar -xf ncbi-blast-2.6.0+-x64-linux.tar.gz && rm ncbi-blast-2.6.0+-x64-linux.tar.gz
+RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz && \
+    tar -xf ncbi-blast-2.6.0+-x64-linux.tar.gz && \
+    rm ncbi-blast-2.6.0+-x64-linux.tar.gz
 ENV PATH="/NGStools/ncbi-blast-2.6.0+/bin:${PATH}"
 # Perl libs
 RUN apt-get install -y libmoo-perl liblist-moreutils-perl libjson-perl libfile-slurp-perl
