@@ -394,7 +394,8 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                 kraken(species=args.speciesExpected, files_to_classify=fastq_files, kraken_db=args.krakenDB,
                        outdir=outdir, version_kraken=version_kraken_global, db_mem=args.krakenMemory,
                        quick=args.krakenQuick, min_percent_covered=args.krakenMinCov,
-                       max_unclassified_frag=args.krakenMaxUnclass, threads=threads)
+                       max_unclassified_frag=args.krakenMaxUnclass, min_base_quality=args.krakenMinQual,
+                       threads=threads)
             runs['Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
         else:
             runs['Kraken'] = skipped

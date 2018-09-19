@@ -76,6 +76,9 @@ def parseArguments(version):
                                      ' taxon found (species or genus if no  species are available for a given'
                                      ' genus) with higher percentage of fragments covered (excluding'
                                      ' unclassified category) will be used.')
+    kraken_options.add_argument('--krakenMinQual', type=int, metavar='N', required=False, default=10,
+                                help='Sets the minimum base quality to be used in classification (default: 10)')
+
     kraken_options.add_argument('--krakenProceed', action='store_true', help='Do not stop INNUca.py if sample fails'
                                                                              ' Kraken')
     kraken_options.add_argument('--krakenIgnoreQC', action='store_true', help='Ignore Kraken QA/QC in sample quality'

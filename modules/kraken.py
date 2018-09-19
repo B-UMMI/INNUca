@@ -2,14 +2,6 @@
 
 # -*- coding: utf-8 -*-
 
-# TODO: prepare things to Kraken2 (check the other options bellow)
-"""
-  --confidence FLOAT      Confidence score threshold (default: 0.0); must be
-                          in [0, 1].
-  --minimum-base-quality NUM
-                          Minimum base quality used in classification (def: 0,
-                          only effective with FASTQ input).
-"""
 # TODO: update readme
 
 """
@@ -130,7 +122,7 @@ def kraken_compression_type(file_to_test):
 
 
 def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
-                    threads=1):
+                    min_base_quality=10, threads=1):
     """
     Run Kraken for data classification
 
@@ -150,6 +142,8 @@ def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, version_kr
         True if want to load the Kraken DB into memory before run, else False
     quick : bool, default False
         True if want to do a quick operation and only use the first hits
+    min_base_quality : int, default 10
+        Minimum base quality used in classification. Only used with fastq files and kraken2.
     threads : int, default 1
         Number of threads to be used
 
@@ -170,21 +164,58 @@ def run_kraken_main(files_to_classify, kraken_db, files_type, outdir, version_kr
     kraken_report = None
 
     command = ['kraken', '', '', '--db', kraken_db, '--threads', str(threads), '--output', kraken_output, '',
-               '--{type}-input'.format(type=files_type), '', '', '', ' '.join(files_to_classify)]
+               '--{type}-input'.format(type=files_type), '', '', '', '', '', '', '', ' '.join(files_to_classify)]
 
     if version_kraken == 2:
         command[0] = 'kraken2'
         command[8] = '-'
+        command[10] = ''
         kraken_output = None
         kraken_report = os.path.join(outdir, 'kraken_report.{db}.txt'.format(db=os.path.basename(kraken_db)))
         command[11] = '--report'
         command[12] = kraken_report
+        """
+        Didn't get what this confidence mean
+          --confidence FLOAT      Confidence score threshold (default: 0.0); must be
+                                  in [0, 1].
+
+        At present, we have not yet developed a confidence score with a probabilistic interpretation for Kraken 2.
+         However, we have developed a simple scoring scheme that has yielded good results for us, and we've made that
+          available in Kraken 2 through use of the --confidence option to kraken2. The approach we use allows a user to
+           specify a threshold score in the [0,1] interval; the classifier then will adjust labels up the tree until the
+            label's score (described below) meets or exceeds that threshold. If a label at the root of the taxonomic
+             tree would not have a score exceeding the threshold, the sequence is called unclassified by Kraken 2 when
+              this threshold is applied.
+
+        A sequence label's score is a fraction C/Q, where C is the number of k-mers mapped to LCA values in the clade
+         rooted at the label, and Q is the number of k-mers in the sequence that lack an ambiguous nucleotide (i.e.,
+          they were queried against the database). Consider the example of the LCA mappings in Kraken 2's output given
+           earlier:
+
+        "562:13 561:4 A:31 0:1 562:3" would indicate that:
+        
+        the first 13 k-mers mapped to taxonomy ID #562
+        the next 4 k-mers mapped to taxonomy ID #561
+        the next 31 k-mers contained an ambiguous nucleotide
+        the next k-mer was not in the database
+        the last 3 k-mers mapped to taxonomy ID #562
+
+        In this case, ID #561 is the parent node of #562. Here, a label of #562 for this sequence would have a score of
+         C/Q = (13+3)/(13+4+1+3) = 16/21. A label of #561 would have a score of C/Q = (13+4+3)/(13+4+1+3) = 20/21. If a
+          user specified a --confidence threshold over 16/21, the classifier would adjust the original label from #562
+           to #561; if the threshold was greater than 20/21, the sequence would become unclassified.
+        """
+        # command[13] = '--confidence'
+        # command[14] = '1'
+        if files_type == 'fastq':
+            command[15] = '--minimum-base-quality'
+            command[16] = str(min_base_quality)
 
     if len(files_to_classify) == 0:
         sys.exit('No files provided for classification.')
     elif len(files_to_classify) <= 2:
         if files_type == 'fastq' and len(files_to_classify) == 2:
-            command[13] = '--paired'
+            command[17] = '--paired'
         elif files_type == 'fasta':
             if len(files_to_classify) == 2:
                 sys.exit('{n} files provided for classification. Maximum of 1 file for fasta is'
@@ -360,7 +391,7 @@ def clean_kraken_results(results_parsed, min_percent_covered=None):
 
 
 def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
-                      min_percent_covered=None, threads=1):
+                      min_percent_covered=None, min_base_quality=10, threads=1):
     """
     Run Kraken, parse and clean the results
 
@@ -383,6 +414,8 @@ def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_
     min_percent_covered : float or None, default None
         Minimum percentage of fragments covered to consider the taxon. If None is provided, the ["maximum percentage of
         fragments covered found (excluding unclassified category)" / 100] will be used.
+    min_base_quality : int, default 10
+        Minimum base quality used in classification. Only used with fastq files and kraken2.
     threads : int, default 1
         Number of threads to be used
 
@@ -403,7 +436,8 @@ def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_
     run_successfully, kraken_output, kraken_report = run_kraken_main(files_to_classify=files_to_classify,
                                                                      kraken_db=kraken_db, files_type=files_type,
                                                                      outdir=outdir, version_kraken=version_kraken,
-                                                                     db_mem=db_mem, quick=quick, threads=threads)
+                                                                     db_mem=db_mem, quick=quick,
+                                                                     min_base_quality=min_base_quality, threads=threads)
     kraken_results = None
     if run_successfully:
         if version_kraken == 2:
@@ -596,7 +630,7 @@ def print_results(multispecies, unknown_fragments, most_abundant_taxon):
 
 
 def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
-               min_percent_covered=None, max_unclassified_frag=None, threads=1):
+               min_percent_covered=None, max_unclassified_frag=None, min_base_quality=10, threads=1):
     """
     Runs Kraken, parse the results and evaluate the outputs
 
@@ -622,6 +656,8 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken,
     max_unclassified_frag : float or None, default None
         Maximum percentage of unclassified fragments. If None is provided, the [100 - "maximum percentage of
         fragments covered found (excluding unclassified category)" / 10] will be used.
+    min_base_quality : int, default 10
+        Minimum base quality used in classification. Only used with fastq files and kraken2.
     threads : int, default 1
         Number of threads to be used
 
@@ -643,6 +679,7 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken,
                                                                         outdir=outdir, version_kraken=version_kraken,
                                                                         db_mem=db_mem, quick=quick,
                                                                         min_percent_covered=min_percent_covered,
+                                                                        min_base_quality=min_base_quality,
                                                                         threads=threads)
 
     multispecies = False
@@ -672,8 +709,8 @@ kraken_timer = partial(utils_timer, name='Kraken')
 
 
 @kraken_timer
-def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken, db_mem, quick, min_percent_covered,
-                   max_unclassified_frag, threads):
+def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken, db_mem=False, quick=False,
+                   min_percent_covered=None, max_unclassified_frag=None, min_base_quality=10, threads=1):
     """
     Runs Kraken for INNUca and QA/QC the results
 
@@ -699,6 +736,8 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken
     max_unclassified_frag : float or None, default None
         Maximum percentage of unclassified fragments. If None is provided, the [100 - "maximum percentage of
         fragments covered found (excluding unclassified category)" / 10] will be used.
+    min_base_quality : int, default 10
+        Minimum base quality used in classification. Only used with fastq files and kraken2.
     threads : int, default 1
         Number of threads to be used
 
@@ -729,7 +768,7 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken
     run_successfully, multispecies, unknown_fragments, most_abundant_taxon = \
         run_module(files_to_classify=files_to_classify, kraken_db=kraken_db, files_type='fastq', outdir=outdir,
                    version_kraken=version_kraken, db_mem=db_mem, quick=quick, min_percent_covered=min_percent_covered,
-                   max_unclassified_frag=max_unclassified_frag, threads=threads)
+                   max_unclassified_frag=max_unclassified_frag, min_base_quality=min_base_quality, threads=threads)
 
     # QA/QC assessment
     if run_successfully:
@@ -817,6 +856,9 @@ def main():
                                              ' taxon found (species or genus if no  species are available for a given'
                                              ' genus) with higher percentage of fragments covered (excluding'
                                              ' unclassified category) will be used.')
+    parser_optional_kraken.add_argument('--min_quality', type=int, metavar='N',
+                                         help='Using fastq files, sets the minimum base quality to be used in'
+                                              ' classification', required=False, default=10)
 
     args = parser.parse_args()
 
@@ -865,7 +907,8 @@ def main():
     run_successfully, _, _, _ = run_module(files_to_classify=args.files, kraken_db=args.kraken,
                                            files_type=args.type, outdir=args.outdir, version_kraken=version_kraken,
                                            db_mem=args.memory, quick=args.quick, min_percent_covered=args.min_cov,
-                                           max_unclassified_frag=args.max_unclass, threads=args.threads)
+                                           max_unclassified_frag=args.max_unclass, min_base_quality=args.min_quality,
+                                           threads=args.threads)
 
     _ = utils_run_time(start_time)
 
