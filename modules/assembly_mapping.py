@@ -515,10 +515,18 @@ def run_assembly_mapping(fastq_files, reference_file, outdir, estimated_genome_s
                         if run_successfully:
                             if not keep_bam:
                                 os.remove(bam_file)
+                            else:
+                                original_bam = os.path.join(outdir, '{}.bam'.format(os.path.basename(reference_file)))
+                                os.rename(bam_file, original_bam)
                             os.remove(bam_file + '.bai')
-                            original_bam = bam_file
                             bam_file = bam_subset
                             run_successfully = indexAlignment(bam_file, False)
+                    else:
+                        if keep_bam:
+                            os.rename(bam_file, os.path.join(outdir, '{}.bam'.format(os.path.basename(reference_file))))
+                            os.rename(bam_file + '.bai',
+                                      os.path.join(outdir, '{}.bam.bai'.format(os.path.basename(reference_file))))
+                            bam_file = os.path.join(outdir, '{}.bam'.format(os.path.basename(reference_file)))
 
     if not run_successfully:
         failing['sample'] = ['Did not run']

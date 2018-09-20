@@ -2,15 +2,13 @@
 
 # -*- coding: utf-8 -*-
 
-# TODO: update readme
-
 """
 kraken.py - Runs Kraken on fasta and fastq files, parse the results and evaluate the outputs
 <https://github.com/B-UMMI/INNUca/modules/>
 
 Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: September 14, 2018
+Last modified: September 20, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -569,14 +567,16 @@ def write_reports(multispecies, unknown_fragments, cleaned_results, unclassified
     """
     results_classification = os.path.join(outdir,
                                           'kraken_results.classification.{}.tab'.format(os.path.basename(kraken_db)))
-    with open(results_classification, 'wt', newline='\n') as writer:
+    # with open(results_classification, 'wt', newline='\n') as writer:
+    with open(results_classification, 'wt') as writer:
         writer.write('\t'.join(['#taxon_level', 'taxon_id', 'taxon_name', 'percentage_fragments_covered']) + '\n')
         writer.write('\t'.join(['unclassified', '', '', str(unclassified)]) + '\n')
         for species_info, percent_covered in cleaned_results.items():
             writer.write('\t'.join([species_info[0], species_info[1], species_info[2], str(percent_covered)]) + '\n')
 
     results_evaluation = os.path.join(outdir, 'kraken_results.evaluation.{}.tab'.format(os.path.basename(kraken_db)))
-    with open(results_evaluation, 'wt', newline='\n') as writer:
+    # with open(results_evaluation, 'wt', newline='\n') as writer:
+    with open(results_evaluation, 'wt') as writer:
         if most_abundant_taxon is None:
             most_abundant_taxon_level, most_abundant_taxon_id, most_abundant_taxon_name, most_abundant_taxon_percent = \
                 get_most_abundant_taxon(cleaned_results)
@@ -705,11 +705,49 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken,
     return run_successfully, multispecies, unknown_fragments, most_abundant_taxon
 
 
+def rename_output_innuca(kraken_db, files_type, outdir):
+    """
+    Rename the output files to contain the information if it was ran in the reads or in the assembly
+
+    Parameters
+    ----------
+    kraken_db : str
+        Kraken DB name or path to the directory containing the Kraken DB
+    files_type : str
+        Type of the files to be classified: fasta or fastq
+    outdir : str
+        Path to the output directory
+
+    Returns
+    -------
+    """
+
+    # kraken_report
+    old = os.path.join(outdir, 'kraken_report.{db}.txt'.format(db=os.path.basename(kraken_db)))
+    new = os.path.join(outdir, 'kraken_report.{db}.{type}.txt'.format(db=os.path.basename(kraken_db), type=files_type))
+    if os.path.isfile(old):
+        os.rename(old, new)
+
+    # kraken classification cleaned
+    old = os.path.join(outdir, 'kraken_results.classification.{db}.tab'.format(db=os.path.basename(kraken_db)))
+    new = os.path.join(outdir, 'kraken_results.classification.{db}.{type}.tab'.format(db=os.path.basename(kraken_db),
+                                                                                      type=files_type))
+    if os.path.isfile(old):
+        os.rename(old, new)
+
+    # kraken evaluation
+    old = os.path.join(outdir, 'kraken_results.evaluation.{db}.tab'.format(db=os.path.basename(kraken_db)))
+    new = os.path.join(outdir, 'kraken_results.evaluation.{db}.{type}.tab'.format(db=os.path.basename(kraken_db),
+                                                                                  type=files_type))
+    if os.path.isfile(old):
+        os.rename(old, new)
+
+
 kraken_timer = partial(utils_timer, name='Kraken')
 
 
 @kraken_timer
-def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken, db_mem=False, quick=False,
+def run_for_innuca(species, files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
                    min_percent_covered=None, max_unclassified_frag=None, min_base_quality=10, threads=1):
     """
     Runs Kraken for INNUca and QA/QC the results
@@ -722,6 +760,8 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken
         List with files to be classified by Kraken. Fastq files required
     kraken_db : str
         Kraken DB name or path to the directory containing the Kraken DB
+    files_type : str
+        Type of the files to be classified: fasta or fastq
     outdir : str
         Path to the output directory
     version_kraken : int or None
@@ -759,16 +799,23 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken
         Percentage of fragments assigned to the most abundant taxon. If no taxon was found, None is returned
     """
 
-    pass_qc = True
+    pass_qc = False
     failing = {}
     warnings = {}
+
+    if os.path.isdir(kraken_db):
+        kraken_db = os.path.abspath(kraken_db)
+        if kraken_db.endswith('/'):
+            kraken_db = kraken_db[:-1]
 
     species = species.lower().split(' ')
 
     run_successfully, multispecies, unknown_fragments, most_abundant_taxon = \
-        run_module(files_to_classify=files_to_classify, kraken_db=kraken_db, files_type='fastq', outdir=outdir,
+        run_module(files_to_classify=files_to_classify, kraken_db=kraken_db, files_type=files_type, outdir=outdir,
                    version_kraken=version_kraken, db_mem=db_mem, quick=quick, min_percent_covered=min_percent_covered,
                    max_unclassified_frag=max_unclassified_frag, min_base_quality=min_base_quality, threads=threads)
+
+    rename_output_innuca(kraken_db=kraken_db, files_type=files_type, outdir=outdir)
 
     # QA/QC assessment
     if run_successfully:
@@ -801,9 +848,9 @@ def run_for_innuca(species, files_to_classify, kraken_db, outdir, version_kraken
 
     if len(failing) == 0:
         failing = {'sample': False}
+        pass_qc = True
     else:
         print('Failing: {}'.format(failing))
-        pass_qc = False
 
     most_abundant_taxon_percent = most_abundant_taxon[3]
 
@@ -835,10 +882,10 @@ def main():
 
     parser_optional_general = parser.add_argument_group('General facultative options')
     parser_optional_general.add_argument('-o', '--outdir', type=str, metavar='/path/to/output/directory/',
-                                         help='Path to the directory where the sequences will be stored',
+                                         help='Path to the directory where the sequences will be stored (default: ./)',
                                          required=False, default='.')
     parser_optional_general.add_argument('-j', '--threads', type=int, metavar='N',
-                                         help='Number of threads to use', required=False, default=1)
+                                         help='Number of threads to use (default: 1)', required=False, default=1)
 
     parser_optional_kraken = parser.add_argument_group('Kraken facultative options')
     parser_optional_kraken.add_argument('-m', '--memory', action='store_true',
@@ -857,8 +904,8 @@ def main():
                                              ' genus) with higher percentage of fragments covered (excluding'
                                              ' unclassified category) will be used.')
     parser_optional_kraken.add_argument('--min_quality', type=int, metavar='N',
-                                         help='Using fastq files, sets the minimum base quality to be used in'
-                                              ' classification', required=False, default=10)
+                                        help='Using fastq files, sets the minimum base quality to be used in'
+                                             ' classification (default: 10)', required=False, default=10)
 
     args = parser.parse_args()
 

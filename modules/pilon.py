@@ -1,6 +1,5 @@
 import utils
 import os
-import shutil
 from functools import partial
 
 
@@ -204,11 +203,11 @@ def run_pilon(jar_path_pilon, assembly, fastq_files, outdir, jar_max_memory, ali
 
         if run_successfully:
             parsePilonResult(assembly_polished, outdir)
-            shutil.copyfile(assembly_polished, os.path.join(outdir, os.path.basename(assembly_polished)))
+            os.rename(assembly_polished, os.path.join(outdir, os.path.basename(assembly_polished)))
             assembly_polished = os.path.join(outdir, os.path.basename(assembly_polished))
             if keep_bam and new_bam:
-                shutil.copyfile(alignment_file, os.path.join(outdir, os.path.basename(alignment_file)))
-                alignment_file = os.path.join(outdir, os.path.basename(alignment_file))
+                os.rename(alignment_file, os.path.join(outdir, '{}.bam'.format(os.path.basename(assembly))))
+                alignment_file = os.path.join(outdir, '{}.bam'.format(os.path.basename(assembly)))
 
     if alignment_file is not None and os.path.isfile(str(alignment_file)) and not keep_bam:
         os.remove(alignment_file)

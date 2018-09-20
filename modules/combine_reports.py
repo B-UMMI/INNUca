@@ -8,7 +8,7 @@ combine_reports.py - Combine INNUca reports
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: September 14, 2018
+Last modified: September 20, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -58,9 +58,9 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
         sys.exit('No samples found')
 
     fields = ['#samples',
-              'kraken_number_taxon_found', 'kraken_percentage_unknown_fragments', 'kraken_most_abundant_taxon',
-              'kraken_percentage_most_abundant_taxon',
-              'uncorrected_first_coverage',
+              'reads_kraken_number_taxon_found', 'reads_kraken_percentage_unknown_fragments',
+              'reads_kraken_most_abundant_taxon', 'reads_kraken_percentage_most_abundant_taxon',
+              'first_coverage',
               'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage',
               'second_Coverage',
               'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads',
@@ -69,6 +69,8 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
               'mapping_filtered_contigs', 'mapping_filtered_bp',
               'Pilon_changes', 'Pilon_contigs_changed',
               'MLST_scheme', 'MLST_ST',
+              'assembly_kraken_number_taxon_found', 'assembly_kraken_percentage_unknown_fragments',
+              'assembly_kraken_most_abundant_taxon', 'assembly_kraken_percentage_most_abundant_taxon',
               'final_assembly']
 
     for directory in directories:
@@ -89,16 +91,16 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                 name_file_found = file_found
                 file_found = os.path.join(directory, file_found)
 
-                if name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('.tab'):
+                if name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fastq.tab'):
                     with open(file_found, 'rt') as reader:
                         for line in reader:
                             if len(line) > 0:
                                 if not line.startswith('#'):
-                                    line = line.splitlines()
-                                    results[sample]['kraken_number_taxon_found'] = line[1]
-                                    results[sample]['kraken_percentage_unknown_fragments'] = line[3]
-                                    results[sample]['kraken_most_abundant_taxon'] = line[6]
-                                    results[sample]['kraken_percentage_most_abundant_taxon'] = line[7]
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['reads_kraken_number_taxon_found'] = line[1]
+                                    results[sample]['reads_kraken_percentage_unknown_fragments'] = line[3]
+                                    results[sample]['reads_kraken_most_abundant_taxon'] = line[6]
+                                    results[sample]['reads_kraken_percentage_most_abundant_taxon'] = line[7]
                 elif name_file_found == 'coverage_report.txt':
                     data = []
                     with open(file_found, 'rtU') as reader:
@@ -107,7 +109,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                                 line = line.splitlines()[0].rsplit('x')[0]
                                 data.append(line)
                     if len(data) == 2:
-                        results[sample]['uncorrected_first_coverage'] = data[0]
+                        results[sample]['first_coverage'] = data[0]
                         results[sample]['second_Coverage'] = data[1]
                     elif len(data) == 1:
                         if samples_report is not None:
@@ -123,7 +125,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
 
                                         if line[0] in sample:
                                             if line[header.index("first_Coverage_runSuccessfully")] == 'True':
-                                                results[sample]['uncorrected_first_coverage'] = data[0]
+                                                results[sample]['first_coverage'] = data[0]
                                             elif line[header.index("second_Coverage_runSuccessfully")] == 'True':
                                                 results[sample]['second_Coverage'] = data[0]
                 elif name_file_found == 'trueCoverage_report.txt':
@@ -356,6 +358,16 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                                     if st:
                                         results[sample]['MLST_ST'] = line
                                         st = False
+                elif name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fasta.tab'):
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['assembly_kraken_number_taxon_found'] = line[1]
+                                    results[sample]['assembly_kraken_percentage_unknown_fragments'] = line[3]
+                                    results[sample]['assembly_kraken_most_abundant_taxon'] = line[6]
+                                    results[sample]['assembly_kraken_percentage_most_abundant_taxon'] = line[7]
                 elif name_file_found == 'final_assembly.txt':
                     with open(file_found, 'rtU') as reader:
                         for line in reader:

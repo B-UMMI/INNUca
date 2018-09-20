@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: September 14, 2018
+Last modified: September 20, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -269,6 +269,10 @@ def main():
         if removeCreatedSamplesDirectories and not indir_same_outdir:
             utils.removeDirectory(os.path.join(inputDirectory, sample, ''))
 
+        # Remove reads folder if --fastq was provided
+        if args.fastq is not None:
+            utils.removeDirectory(os.path.join(outdir, 'reads', ''))
+
         print 'END ' + sample + ' analysis'
         time_taken = utils.runTime(sample_start_time)
 
@@ -316,8 +320,8 @@ def main():
 def write_warning_report(warning_report_path, run_report):
     with open(warning_report_path, 'wt') as writer_warningReport:
         warnings = []
-        for step in ('Kraken', 'first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping',
-                     'MLST'):
+        for step in ('reads_Kraken', 'first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes',
+                     'Assembly_Mapping', 'MLST', 'reads_Kraken'):
             if len(run_report[step][4]) > 0:
                 if step == 'first_FastQC' and \
                         run_report['second_FastQC'][1] is not False and \
@@ -387,20 +391,20 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     trimmomatic_folder = None
     if not_corruption_found:
         # Run Kraken
-        most_abundant_taxon_percent = None
+        # most_abundant_taxon_percent = None
         if args.runKraken:
-            print('--runKraken set. Running Kraken')
-            run_successfully, pass_qc, time_taken, failing, warning, most_abundant_taxon_percent = \
+            print('--runKraken set. Running Kraken for reads')
+            run_successfully, pass_qc, time_taken, failing, warning, _ = \
                 kraken(species=args.speciesExpected, files_to_classify=fastq_files, kraken_db=args.krakenDB,
-                       outdir=outdir, version_kraken=version_kraken_global, db_mem=args.krakenMemory,
-                       quick=args.krakenQuick, min_percent_covered=args.krakenMinCov,
+                       files_type='fastq', outdir=outdir, version_kraken=version_kraken_global,
+                       db_mem=args.krakenMemory, quick=args.krakenQuick, min_percent_covered=args.krakenMinCov,
                        max_unclassified_frag=args.krakenMaxUnclass, min_base_quality=args.krakenMinQual,
                        threads=threads)
-            runs['Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+            runs['reads_Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
         else:
-            runs['Kraken'] = skipped
+            runs['reads_Kraken'] = skipped
 
-        if run_successfully and not pass_qc and not args.krakenProceed:
+        if (run_successfully and not pass_qc) or not args.krakenProceed:
             print('\n'
                   'This sample does not pass Kraken module QA/QC. It will not proceed with INNUca pipeline')
         else:
@@ -425,18 +429,19 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
 
             trimmomatic_run_successfully = False
 
-            # Correct first estimation coverage with Kraken percentage
-            if args.runKraken and \
-                    (runs['Kraken'][0] and runs['Kraken'][1]) and \
-                    most_abundant_taxon_percent is not None and \
-                    estimated_coverage is not None:
-                new_estimation = estimated_coverage * (most_abundant_taxon_percent / 100)
-                print('\n'
-                      'Correct estimated coverage ({estimated}x) with Kraken taxon percentage'
-                      ' coverage ({percent}%): {new_estimation}x'.format(estimated=estimated_coverage,
-                                                                         percent=most_abundant_taxon_percent,
-                                                                         new_estimation=new_estimation))
-                estimated_coverage = new_estimation
+            # # Correct first estimation coverage with Kraken percentage
+            # # Does not seem to be a good idea (at least for Streptococcus agalactiae)
+            # if args.runKraken and \
+            #         (runs['Kraken'][0] and runs['Kraken'][1]) and \
+            #         most_abundant_taxon_percent is not None and \
+            #         estimated_coverage is not None:
+            #     new_estimation = estimated_coverage * (most_abundant_taxon_percent / 100)
+            #     print('\n'
+            #           'Correct estimated coverage ({estimated}x) with Kraken taxon percentage'
+            #           ' coverage ({percent}%): {new_estimation}x'.format(estimated=estimated_coverage,
+            #                                                              percent=most_abundant_taxon_percent,
+            #                                                              new_estimation=new_estimation))
+            #     estimated_coverage = new_estimation
 
             if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
                                               not estimated_coverage < args.estimatedMinimumCoverage):
@@ -553,7 +558,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                       ' with INNUca pipeline'.format(estimatedMinimumCoverage=args.estimatedMinimumCoverage))
 
         continue_second_part = False
-        if not args.runKraken or (runs['Kraken'][0] is True and runs['Kraken'][1] is True) or args.krakenProceed:
+        if not args.runKraken or \
+                (runs['reads_Kraken'][0] is True and runs['reads_Kraken'][1] is True) or \
+                args.krakenProceed:
             if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
                                               not estimated_coverage < args.estimatedMinimumCoverage):
                 if args.skipTrueCoverage or true_coverage_config is None or (run_successfully_true_coverage and
@@ -623,7 +630,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                     else:
                                         possible_assemblies_bam_remove['assembly_mapping'] = contigs_spades
 
-                            if assembly_filtered is not None:
+                            if assembly_filtered is not None and \
+                                    assembly_filtered != contigs_spades and \
+                                    os.path.isfile(assembly_filtered):
                                 contigs = assembly_filtered
                     else:
                         print '--skipAssemblyMapping set. Skipping Assembly Mapping check'
@@ -644,14 +653,16 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                             if not args.keepIntermediateAssemblies:
                                 if os.path.isfile(contigs) and \
                                         assembly_polished is not None and \
-                                        assembly_polished != contigs:
+                                        os.path.isfile(assembly_polished):
                                     if not args.keepBAM:
                                         os.remove(contigs)
                                     else:
                                         if not pilon_new_bam:
                                             possible_assemblies_bam_remove['pilon'] = contigs
 
-                            contigs = assembly_polished
+                            if assembly_polished is not None and \
+                                    os.path.isfile(assembly_filtered):
+                                contigs = assembly_polished
 
                         if not args.pilonKeepFiles and os.path.isdir(pilon_folder):
                             utils.removeDirectory(pilon_folder)
@@ -661,12 +672,18 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                         runs['Pilon'] = skipped
 
                     if not args.keepBAM:
-                        if bam_file is not None and os.path.isfile(bam_file):
-                            os.remove(bam_file)
+                        if bam_file is not None:
+                            if os.path.isfile(bam_file):
+                                os.remove(bam_file)
+                            if os.path.isfile(bam_file + '.bai'):
+                                os.remove(bam_file + '.bai')
+
                         if original_bam is not None and os.path.isfile(original_bam):
                             os.remove(original_bam)
+
                         if pilon_bam is not None and os.path.isfile(pilon_bam):
                             os.remove(pilon_bam)
+
                         if 'assembly_mapping' in possible_assemblies_bam_remove and \
                                 os.path.isfile(possible_assemblies_bam_remove['assembly_mapping']):
                             os.remove(possible_assemblies_bam_remove['assembly_mapping'])
@@ -675,16 +692,21 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                             os.remove(possible_assemblies_bam_remove['pilon'])
                     else:
                         if pilon_new_bam:
-                            if bam_file is not None and os.path.isfile(bam_file):
-                                os.remove(bam_file)
+                            if bam_file is not None:
+                                if os.path.isfile(bam_file):
+                                    os.remove(bam_file)
+                                if os.path.isfile(bam_file + '.bai'):
+                                    os.remove(bam_file + '.bai')
+
                             if original_bam is not None and os.path.isfile(original_bam):
                                 os.remove(original_bam)
+
                             if 'assembly_mapping' in possible_assemblies_bam_remove and \
                                     os.path.isfile(possible_assemblies_bam_remove['assembly_mapping']):
                                 os.remove(possible_assemblies_bam_remove['assembly_mapping'])
                         else:
-                            if bam_file is not None and os.path.isfile(bam_file) and \
-                                    original_bam is not None and os.path.isfile(original_bam):
+                            if original_bam is not None and os.path.isfile(original_bam) and \
+                                    bam_file is not None and os.path.isfile(bam_file):
                                 os.remove(bam_file)
                             if 'pilon' in possible_assemblies_bam_remove and \
                                     os.path.isfile(possible_assemblies_bam_remove['pilon']):
@@ -705,6 +727,21 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                     else:
                         print '--skipMLST set. Skipping MLST analysis'
                         runs['MLST'] = skipped
+
+                    # Run Kraken
+                    if args.runKraken:
+                        print('--runKraken set. Running Kraken for assembly')
+                        run_successfully, pass_qc, time_taken, failing, warning, _ = \
+                            kraken(species=args.speciesExpected, files_to_classify=[contigs], kraken_db=args.krakenDB,
+                                   files_type='fasta', outdir=outdir, version_kraken=version_kraken_global,
+                                   db_mem=args.krakenMemory, quick=args.krakenQuick,
+                                   min_percent_covered=args.krakenMinCov,
+                                   max_unclassified_frag=args.krakenMaxUnclass, min_base_quality=args.krakenMinQual,
+                                   threads=threads)
+                        runs['assembly_Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+                    else:
+                        runs['assembly_Kraken'] = skipped
+
                 else:
                     print('SPAdes did not run successfully! Skipping Pilon correction, Assembly Mapping check'
                           ' and MLST analysis')
@@ -718,8 +755,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     else:
         print 'Moving to the next sample'
 
-    for step in ('Kraken', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic', 'second_Coverage',
-                 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST'):
+    for step in ('reads_Kraken', 'first_Coverage', 'trueCoverage_ReMatCh', 'first_FastQC', 'Trimmomatic',
+                 'second_Coverage', 'second_FastQC', 'Pear', 'SPAdes', 'Assembly_Mapping', 'Pilon', 'MLST',
+                 'assembly_Kraken'):
         if step not in runs:
             runs[step] = not_run
 
@@ -734,7 +772,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     run_successfully = all(runs[step][0] or runs[step][0] is None for step in runs)
 
     pass_fastq_integrity = runs['FastQ_Integrity'][0]
-    pass_kraken = runs['Kraken'][1] is not False or args.krakenIgnoreQC
+    pass_reads_kraken = runs['reads_Kraken'][1] is not False or args.krakenIgnoreQC
     pass_cov = (runs['second_Coverage'][1] or (runs['second_Coverage'][1] is None and
                                                runs['first_Coverage'][1])) is not False
     pass_true_cov = runs['trueCoverage_ReMatCh'][1] is not False
@@ -747,8 +785,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     pass_assembly_mapping = runs['Assembly_Mapping'][1] is not False
     pass_pilon = runs['Pilon'][0] is not False
     pass_mlst = runs['MLST'][1] is not False or args.mlstIgnoreQC
-    pass_qc = all([pass_fastq_integrity, pass_kraken, pass_cov, pass_true_cov, pass_fastqc, pass_spades,
-                   pass_assembly_mapping, pass_pilon, pass_mlst])
+    pass_assembly_kraken = runs['assembly_Kraken'][1] is not False or args.krakenIgnoreQC
+    pass_qc = all([pass_fastq_integrity, pass_reads_kraken, pass_cov, pass_true_cov, pass_fastqc, pass_spades,
+                   pass_assembly_mapping, pass_pilon, pass_mlst, pass_assembly_kraken])
 
     return run_successfully, pass_qc, runs
 
