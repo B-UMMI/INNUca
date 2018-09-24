@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2017 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: September 20, 2018
+Last modified: September 24, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -50,7 +50,6 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
     trueCoverage_config = None
     if not skipTrueCoverage:
         trueCoverage_reference = None
-        trueCoverage_config_file = None
         trueCoverage_config = None
 
         if trueConfigFile is None:
@@ -404,7 +403,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
         else:
             runs['reads_Kraken'] = skipped
 
-        if (run_successfully and not pass_qc) or not args.krakenProceed:
+        if (run_successfully and not pass_qc) and not args.krakenProceed and not args.krakenIgnoreQC:
             print('\n'
                   'This sample does not pass Kraken module QA/QC. It will not proceed with INNUca pipeline')
         else:
@@ -560,7 +559,8 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
         continue_second_part = False
         if not args.runKraken or \
                 (runs['reads_Kraken'][0] is True and runs['reads_Kraken'][1] is True) or \
-                args.krakenProceed:
+                args.krakenProceed or \
+                args.krakenIgnoreQC:
             if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
                                               not estimated_coverage < args.estimatedMinimumCoverage):
                 if args.skipTrueCoverage or true_coverage_config is None or (run_successfully_true_coverage and
@@ -661,7 +661,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                             possible_assemblies_bam_remove['pilon'] = contigs
 
                             if assembly_polished is not None and \
-                                    os.path.isfile(assembly_filtered):
+                                    os.path.isfile(assembly_polished):
                                 contigs = assembly_polished
 
                         if not args.pilonKeepFiles and os.path.isdir(pilon_folder):

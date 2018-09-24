@@ -381,11 +381,11 @@ def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_coma
     if timeout_sec_None is None:
         stdout, stderr = proc.communicate()
     else:
-        timer = Timer(timeout_sec_None, kill_subprocess_Popen, args=(proc, command,))
-        timer.start()
+        time_counter = Timer(timeout_sec_None, kill_subprocess_Popen, args=(proc, command,))
+        time_counter.start()
         stdout, stderr = proc.communicate()
-        timer.cancel()
-        not_killed_by_timer = timer.isAlive()
+        time_counter.cancel()
+        not_killed_by_timer = time_counter.isAlive()
 
     if proc.returncode == 0:
         run_successfully = True
