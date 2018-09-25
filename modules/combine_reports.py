@@ -8,7 +8,7 @@ combine_reports.py - Combine INNUca reports
 
 Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: November 16, 2016
+Last modified: September 20, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ import os
 import sys
 import time
 
-version = '0.3'
+version = '0.4'
 
 
 def combine_reports(innucaOut, outdir, json, time_str, number_samples):
@@ -57,7 +57,21 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
     if len(directories) == 0:
         sys.exit('No samples found')
 
-    fields = ['#samples', 'first_coverage', 'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage', 'second_Coverage', 'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads', 'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp', 'assembly_coverage_initial', 'assembly_coverage_filtered', 'mapped_reads_percentage', 'mapping_filtered_contigs', 'mapping_filtered_bp', 'Pilon_changes', 'Pilon_contigs_changed', 'MLST_scheme', 'MLST_ST', 'final_assembly']
+    fields = ['#samples',
+              'reads_kraken_number_taxon_found', 'reads_kraken_percentage_unknown_fragments',
+              'reads_kraken_most_abundant_taxon', 'reads_kraken_percentage_most_abundant_taxon',
+              'first_coverage',
+              'trueCoverage_absent_genes', 'trueCoverage_multiple_alleles', 'trueCoverage_sample_coverage',
+              'second_Coverage',
+              'pear_assembled_reads', 'pear_unassembled_reads', 'pear_dicarded_reads',
+              'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp',
+              'assembly_coverage_initial', 'assembly_coverage_filtered', 'mapped_reads_percentage',
+              'mapping_filtered_contigs', 'mapping_filtered_bp',
+              'Pilon_changes', 'Pilon_contigs_changed',
+              'MLST_scheme', 'MLST_ST',
+              'assembly_kraken_number_taxon_found', 'assembly_kraken_percentage_unknown_fragments',
+              'assembly_kraken_most_abundant_taxon', 'assembly_kraken_percentage_most_abundant_taxon',
+              'final_assembly']
 
     for directory in directories:
         sample = directory
@@ -77,7 +91,17 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                 name_file_found = file_found
                 file_found = os.path.join(directory, file_found)
 
-                if name_file_found == 'coverage_report.txt':
+                if name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fastq.tab'):
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['reads_kraken_number_taxon_found'] = line[1]
+                                    results[sample]['reads_kraken_percentage_unknown_fragments'] = line[3]
+                                    results[sample]['reads_kraken_most_abundant_taxon'] = line[6]
+                                    results[sample]['reads_kraken_percentage_most_abundant_taxon'] = line[7]
+                elif name_file_found == 'coverage_report.txt':
                     data = []
                     with open(file_found, 'rtU') as reader:
                         for line in reader:
@@ -334,6 +358,16 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                                     if st:
                                         results[sample]['MLST_ST'] = line
                                         st = False
+                elif name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fasta.tab'):
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['assembly_kraken_number_taxon_found'] = line[1]
+                                    results[sample]['assembly_kraken_percentage_unknown_fragments'] = line[3]
+                                    results[sample]['assembly_kraken_most_abundant_taxon'] = line[6]
+                                    results[sample]['assembly_kraken_percentage_most_abundant_taxon'] = line[7]
                 elif name_file_found == 'final_assembly.txt':
                     with open(file_found, 'rtU') as reader:
                         for line in reader:
