@@ -335,7 +335,7 @@ def parse_kraken_results(kraken_results):
                         species = {}
             elif fields[3].strip() == 'S':
                 species[('species', fields[4].strip(), fields[5].strip())] = float(fields[0].strip())
-            elif not fields[3].strip().startswith('S'):
+            elif not fields[3].strip().startswith(('G', 'S')):
                 if len(species) == 0 and len(genus) > 0:
                     results_parsed.update(genus)
                 elif len(species) > 0:

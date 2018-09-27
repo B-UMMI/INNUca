@@ -392,7 +392,8 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
         # Run Kraken
         # most_abundant_taxon_percent = None
         if args.runKraken:
-            print('--runKraken set. Running Kraken for reads')
+            print('\n'
+                  '--runKraken set. Running Kraken for reads')
             run_successfully, pass_qc, time_taken, failing, warning, _ = \
                 kraken(species=args.speciesExpected, files_to_classify=fastq_files, kraken_db=args.krakenDB,
                        files_type='fastq', outdir=outdir, version_kraken=version_kraken_global,
@@ -730,7 +731,8 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
 
                     # Run Kraken
                     if args.runKraken:
-                        print('--runKraken set. Running Kraken for assembly')
+                        print('\n'
+                              '--runKraken set. Running Kraken for assembly')
                         run_successfully, pass_qc, time_taken, failing, warning, _ = \
                             kraken(species=args.speciesExpected, files_to_classify=[contigs], kraken_db=args.krakenDB,
                                    files_type='fasta', outdir=outdir, version_kraken=version_kraken_global,
