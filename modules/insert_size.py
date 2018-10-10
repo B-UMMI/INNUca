@@ -106,7 +106,7 @@ def mapping_bowtie2(fastq, reference_index, outdir, threads=1):
     return run_successfully, sam
 
 
-def get_statistics_samtools(alignment, outdir, reference=None):
+def get_statistics_samtools(alignment, outdir):
     """
     Run Samtools stats to get several statistics from the alignment file
 
@@ -116,8 +116,6 @@ def get_statistics_samtools(alignment, outdir, reference=None):
         Path to the alignment file (can be SAM, BAM or CRAM)
     outdir : str
         Path to the output directory
-    reference : str or None
-        Path to the reference fasta file. If provided, it will be calculated the GC-depth and mismatches-per-cycle.
 
     Returns
     -------
@@ -129,10 +127,7 @@ def get_statistics_samtools(alignment, outdir, reference=None):
 
     samtools_stats = os.path.join(outdir, 'samtools_stats.txt')
 
-    command = ['samtools', 'stats', '', alignment, '>', samtools_stats]
-
-    if reference is not None:
-        command[2] = '--ref-seq ' + reference
+    command = ['samtools', 'stats', alignment, '>', samtools_stats]
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=True, timeout_sec_None=None,
                                                print_comand_True=True)
@@ -198,7 +193,7 @@ def write_reports(statistics, outdir):
         writer.write('\t'.join([str(statistics[k]) for k in sorted(statistics.keys())]) + '\n')
 
 
-def clean_outdir(outdir, reference_index=None):
+def clean_outdir(outdir, reference_index=None, alignment=None):
     """
     Remove temporary files
 
@@ -208,6 +203,8 @@ def clean_outdir(outdir, reference_index=None):
         Path to the output directory
     reference_index : str or None
         Path to the reference Bowtie2 index (or None if only using alignment file for the analysis)
+    alignment : str or None
+        Path to the alignment file (or None if don't want to remove the alignment file)
 
     Returns
     -------
@@ -219,6 +216,10 @@ def clean_outdir(outdir, reference_index=None):
         # Bowtie2 index
         if reference_index is not None:
             if file_found.startswith(os.path.basename(reference_index) + '.') and file_found.endswith('.bt2'):
+                os.remove(os.path.join(outdir, file_found))
+        # Alignment
+        if alignment is not None:
+            if file_found == os.path.basename(reference_index):
                 os.remove(os.path.join(outdir, file_found))
 
 
@@ -270,19 +271,19 @@ def main():
     run_successfully, reference_index = index_sequence_bowtie2(reference=args.reference, outdir=args.outdir,
                                                                threads=args.threads)
 
+    sam = None
     if run_successfully:
         run_successfully, sam = mapping_bowtie2(fastq=args.fastq, reference_index=reference_index, outdir=args.outdir,
                                                 threads=args.threads)
 
         if run_successfully:
-            run_successfully, samtools_stats = get_statistics_samtools(alignment=sam, outdir=args.outdir,
-                                                                       reference=args.reference)
+            run_successfully, samtools_stats = get_statistics_samtools(alignment=sam, outdir=args.outdir)
 
             if run_successfully:
                 statistics = parse_statistics_samtools(samtools_stats=samtools_stats)
                 write_reports(statistics=statistics, outdir=args.outdir)
 
-    clean_outdir(outdir=args.outdir, reference_index=reference_index)
+    clean_outdir(outdir=args.outdir, reference_index=reference_index, alignment=sam)
 
     _ = utils_run_time(start_time)
 
