@@ -61,6 +61,7 @@ def index_sequence_bowtie2(reference, outdir, threads=1):
     command = ['bowtie2-build', '--threads', str(threads), reference, os.path.join(outdir, os.path.basename(reference))]
     run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
                                                print_comand_True=True)
+    print()
 
     reference_index = None
     if run_successfully:
@@ -99,6 +100,7 @@ def mapping_bowtie2(fastq, reference_index, outdir, threads=1):
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
                                                print_comand_True=True)
+    print()
 
     if not run_successfully:
         sam = None
@@ -131,6 +133,7 @@ def get_statistics_samtools(alignment, outdir):
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=True, timeout_sec_None=None,
                                                print_comand_True=True)
+    print()
 
     if not run_successfully:
         samtools_stats = None
@@ -219,7 +222,7 @@ def clean_outdir(outdir, reference_index=None, alignment=None):
                 os.remove(os.path.join(outdir, file_found))
         # Alignment
         if alignment is not None:
-            if file_found == os.path.basename(reference_index):
+            if file_found == os.path.basename(alignment):
                 os.remove(os.path.join(outdir, file_found))
 
 
@@ -252,7 +255,7 @@ def main():
     start_time = time.time()
 
     print('\n'
-          '===>  RUNNING  insert_size.py  <===\n')
+          '===>  RUNNING  insert_size.py  <===')
 
     missing_programs, _ = utils_check_programs({'bowtie2': ['--version', '>=', '2.2.9'],
                                                 'samtools': ['--version', '==', '1.3.1']})
@@ -284,6 +287,8 @@ def main():
                 write_reports(statistics=statistics, outdir=args.outdir)
 
     clean_outdir(outdir=args.outdir, reference_index=reference_index, alignment=sam)
+
+    print()
 
     _ = utils_run_time(start_time)
 
