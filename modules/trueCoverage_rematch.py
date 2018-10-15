@@ -182,10 +182,15 @@ def runTrueCoverage(sample, fastq, reference, threads, outdir, extra_seq, min_co
     # Run ReMatCh
     reference_file, gene_list_reference, reference_dict = clean_headers_reference_file(reference, true_coverage_folder,
                                                                                        extra_seq, rematch_module)
-    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = rematch_module.runRematchModule(sample, fastq, reference_file, threads, true_coverage_folder, extra_seq, min_cov_presence, min_cov_call, min_frequency_dominant_allele, min_gene_coverage, conserved_true, debug, num_map_loc, min_gene_identity, 'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
+    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = \
+        rematch_module.run_rematch_module(sample, fastq, reference_file, threads, true_coverage_folder, extra_seq,
+                                          min_cov_presence, min_cov_call, min_frequency_dominant_allele,
+                                          min_gene_coverage, conserved_true, debug, num_map_loc, min_gene_identity,
+                                          'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
 
     if run_successfully:
-        failing = rematch_report_assess_failing(outdir, None, true_coverage_folder, sample_data_general, true_coverage_config)
+        failing = rematch_report_assess_failing(outdir, None, true_coverage_folder, sample_data_general,
+                                                true_coverage_config)
     else:
         failing['sample'] = 'Did not run'
 
@@ -426,7 +431,7 @@ def main():
     else:
         required_files = {'fasta': os.path.abspath(args.reference.name), 'config': os.path.abspath(args.config.name)}
 
-    rematch_module = import_rematch('3.2')
+    rematch_module = import_rematch('4.0')
 
     args.outdir = os.path.abspath(args.outdir)
     if not os.path.isdir(args.outdir):
@@ -444,7 +449,14 @@ def main():
                                                                                        rematch_folder,
                                                                                        config['length_extra_seq'],
                                                                                        rematch_module)
-    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = rematch_module.runRematchModule('sample', [os.path.abspath(fastq.name) for fastq in args.fastq], reference_file, args.threads, rematch_folder, config['length_extra_seq'], config['minimum_depth_presence'], config['minimum_depth_call'], config['minimum_depth_frequency_dominant_allele'], config['minimum_gene_coverage'], True, True, 1, config['minimum_gene_identity'], 'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
+    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = \
+        rematch_module.run_rematch_module('sample', [os.path.abspath(fastq.name) for fastq in args.fastq],
+                                          reference_file, args.threads, rematch_folder, config['length_extra_seq'],
+                                          config['minimum_depth_presence'], config['minimum_depth_call'],
+                                          config['minimum_depth_frequency_dominant_allele'],
+                                          config['minimum_gene_coverage'], True, True, 1,
+                                          config['minimum_gene_identity'], 'first', 7, 'none', reference_dict, 'X',
+                                          None, gene_list_reference, True)
 
     import shutil
     if run_successfully:
