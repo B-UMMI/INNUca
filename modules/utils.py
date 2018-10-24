@@ -657,7 +657,7 @@ def removeDirectory(directory):
 
 
 # Get script version
-def script_version_git(version, current_directory, script_path, no_git_info=True):
+def script_version_git(version, current_directory, script_path, no_git_info=False):
     """
     Print script version and get GitHub commit information
 
@@ -669,14 +669,14 @@ def script_version_git(version, current_directory, script_path, no_git_info=True
         Path to the directory where the script was start to run
     script_path : str
         Path to the script running
-    no_git_info : bool, default True
-        False if it is not necessary to retreive the GitHub commit information
+    no_git_info : bool, default False
+        True if it is not necessary to retreive the GitHub commit information
 
     Returns
     -------
 
     """
-    print('Version ' + version)
+    print('Version {}'.format(version))
 
     if not no_git_info:
         try:

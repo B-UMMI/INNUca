@@ -320,7 +320,7 @@ def write_warning_report(warning_report_path, run_report):
     with open(warning_report_path, 'wt') as writer_warningReport:
         warnings = []
         for step in ('reads_Kraken', 'first_FastQC', 'Trimmomatic', 'second_FastQC', 'Pear', 'SPAdes',
-                     'Assembly_Mapping', 'MLST', 'reads_Kraken'):
+                     'Assembly_Mapping', 'MLST', 'assembly_Kraken'):
             if len(run_report[step][4]) > 0:
                 if step == 'first_FastQC' and \
                         run_report['second_FastQC'][1] is not False and \
@@ -353,19 +353,23 @@ def get_sample_args_fastq(fastq_files_list, outdir, pairEnd_filesSeparation_list
     return new_indir, samples, removeCreatedSamplesDirectories, indir_same_outdir
 
 
-def get_samples(args_inputDirectory, args_fastq, outdir, pairEnd_filesSeparation_list):
+def get_samples(args_input_directory, args_fastq, outdir, pair_end_files_separation_list):
+    samples, input_directory, remove_created_samples_directories, indir_same_outdir = None, None, None, None
+
     if args_fastq is None:
         # Check if input directory exists with fastq files and store samples name that have fastq files
-        inputDirectory = os.path.abspath(os.path.join(args_inputDirectory, ''))
+        input_directory = os.path.abspath(os.path.join(args_input_directory, ''))
         print ''
-        samples, removeCreatedSamplesDirectories, indir_same_outdir = utils.checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
-    elif args_inputDirectory is None:
+        samples, remove_created_samples_directories, indir_same_outdir = \
+            utils.checkSetInputDirectory(input_directory, outdir, pair_end_files_separation_list)
+    elif args_input_directory is None:
         fastq_files = [os.path.abspath(fastq.name) for fastq in args_fastq]
         if fastq_files[0] == fastq_files[1]:
             sys.exit('Same fastq file provided twice')
-        inputDirectory, samples, removeCreatedSamplesDirectories, indir_same_outdir = get_sample_args_fastq(fastq_files, outdir, pairEnd_filesSeparation_list)
+        input_directory, samples, remove_created_samples_directories, indir_same_outdir = \
+            get_sample_args_fastq(fastq_files, outdir, pair_end_files_separation_list)
 
-    return samples, inputDirectory, removeCreatedSamplesDirectories, indir_same_outdir
+    return samples, input_directory, remove_created_samples_directories, indir_same_outdir
 
 
 def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spades_max_memory, jar_path_trimmomatic,
@@ -391,28 +395,34 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
     if not_corruption_found:
         # Run Kraken
         # most_abundant_taxon_percent = None
+        run_successfully_kraken = False
+        run_successfully_estimated_coverage = False
+        estimated_coverage = None
+        run_successfully_true_coverage = False
+        pass_qc_true_coverage = False
+
+        trimmomatic_run_successfully = False
         if args.runKraken:
             print('\n'
                   '--runKraken set. Running Kraken for reads')
-            run_successfully, pass_qc, time_taken, failing, warning, _ = \
+            run_successfully_kraken, pass_qc, time_taken, failing, warning, _ = \
                 kraken(species=args.speciesExpected, files_to_classify=fastq_files, kraken_db=args.krakenDB,
                        files_type='fastq', outdir=outdir, version_kraken=version_kraken_global,
                        db_mem=args.krakenMemory, quick=args.krakenQuick, min_percent_covered=args.krakenMinCov,
                        max_unclassified_frag=args.krakenMaxUnclass, min_base_quality=args.krakenMinQual,
                        threads=threads)
-            runs['reads_Kraken'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
+            runs['reads_Kraken'] = [run_successfully_kraken, pass_qc, time_taken, failing, warning, 'NA']
         else:
             runs['reads_Kraken'] = skipped
 
-        if (run_successfully and not pass_qc) and not args.krakenProceed and not args.krakenIgnoreQC:
+        if args.runKraken and \
+                (run_successfully_kraken and not pass_qc) and \
+                not args.krakenProceed and \
+                not args.krakenIgnoreQC:
             print('\n'
                   'This sample does not pass Kraken module QA/QC. It will not proceed with INNUca pipeline')
         else:
             # Run first Estimated Coverage
-            run_successfully_estimated_coverage = False
-            estimated_coverage = None
-            run_successfully_true_coverage = False
-            pass_qc_true_coverage = False
             if not args.skipEstimatedCoverage:
                 # Check whether the Estimated Coverage output is already present
                 report_file = os.path.join(outdir, 'coverage_report.txt')
@@ -426,8 +436,6 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
             else:
                 print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
                 runs['first_Coverage'] = skipped
-
-            trimmomatic_run_successfully = False
 
             # # Correct first estimation coverage with Kraken percentage
             # # Does not seem to be a good idea (at least for Streptococcus agalactiae)
