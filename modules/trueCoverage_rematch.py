@@ -166,9 +166,9 @@ trueCoverage_timer = functools.partial(utils.timer, name='True coverage check')
 
 
 @trueCoverage_timer
-def runTrueCoverage(sample, fastq, reference, threads, outdir, extra_seq, min_cov_presence, min_cov_call,
-                    min_frequency_dominant_allele, min_gene_coverage, debug, min_gene_identity,
-                    true_coverage_config, rematch_script, conserved_true=True, num_map_loc=1):
+def run_true_coverage(sample, fastq, reference, threads, outdir, extra_seq, min_cov_presence, min_cov_call,
+                      min_frequency_dominant_allele, min_gene_coverage, debug, min_gene_identity,
+                      true_coverage_config, rematch_script, conserved_true=True, num_map_loc=1):
     pass_qc = False
     failing = {}
 
@@ -176,7 +176,7 @@ def runTrueCoverage(sample, fastq, reference, threads, outdir, extra_seq, min_co
     utils.removeDirectory(true_coverage_folder)
     os.mkdir(true_coverage_folder)
 
-    sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
+    sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules'))
     import rematch_module
 
     # Run ReMatCh
@@ -203,7 +203,7 @@ def runTrueCoverage(sample, fastq, reference, threads, outdir, extra_seq, min_co
     if not debug:
         utils.removeDirectory(true_coverage_folder)
 
-    return run_successfully, pass_qc, failing
+    return run_successfully, pass_qc, failing, sample_data_general
 
 
 def arguments_required_length(tuple_length_options, argument_name):
@@ -282,64 +282,27 @@ def check_fasta_config_exist(indir, species):
     return msg, required_files
 
 
-def import_rematch(minimum_rematch_version):
-    """
-    Check if ReMatCh is in the PATH and has the correct version
+def include_rematch_dependencies_path(do_not_use_provided_software=False):
+    rematch_script = utils.find_rematch()
 
-    Parameters
-    ----------
-    minimum_rematch_version : str
-        Minimum ReMatCh version, e.g. "3.2"
-
-    Returns
-    -------
-    rematch_module : python module
-        If everything is OK, it returns rematch_module python module
-    """
-
-    import subprocess
-
-    command = ['which', 'rematch.py']
-    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, _ = p.communicate()
-    if p.returncode == 0:
-        rematch_script = stdout.rstrip('\r\n')
-        command = ['rematch.py', '--version']
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        _, stderr = p.communicate()
-        if p.returncode == 0:
-            stderr = stderr.rstrip('\r\n').split(' ')[-1].replace('v', '')
-            print('rematch.py ({version}) found'.format(version=stderr))
-            program_found_version = stderr.split('.')
-            minimum_rematch_version = minimum_rematch_version.split('.')
-            if len(minimum_rematch_version) == 3:
-                if len(program_found_version) == 2:
-                    program_found_version.append(0)
-                else:
-                    program_found_version[2] = program_found_version[2].split('_')[0]
-            for i in range(0, len(minimum_rematch_version)):
-                if int(program_found_version[i]) > int(minimum_rematch_version[i]):
-                    break
-                elif int(program_found_version[i]) == int(minimum_rematch_version[i]):
-                    continue
-                else:
-                    sys.exit('It is required at least ReMatCh with version'
-                             ' v{minimum_rematch_version}'.format(minimum_rematch_version=minimum_rematch_version))
-
-            sys.path.append(os.path.join(os.path.dirname(rematch_script), 'modules', ''))
-            import rematch_module
-
-            bowtie2 = os.path.join(os.path.dirname(rematch_script), 'src', 'bowtie2-2.2.9')
-            samtools = os.path.join(os.path.dirname(rematch_script), 'src', 'samtools-1.3.1', 'bin')
-            bcftools = os.path.join(os.path.dirname(rematch_script), 'src', 'bcftools-1.3.1', 'bin')
-            os.environ['PATH'] = str(':'.join([bowtie2, samtools, bcftools, os.environ['PATH']]))
-            print('PATH={path}'.format(path=os.environ['PATH']))
-
-            return rematch_module
+    if rematch_script is not None:
+        programs_version_dictionary = {'rematch.py': ['--version', '>=', '4.0']}
+        missing_programs, _ = utils.checkPrograms(programs_version_dictionary)
+        if len(missing_programs) > 0:
+            sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missing_programs))
         else:
-            sys.exit('It was not possible to determine ReMatCh version')
+            if not do_not_use_provided_software:
+                path_variable = os.environ['PATH']
+                script_folder = os.path.dirname(rematch_script)
+                bowtie2 = os.path.join(script_folder, 'src', 'bowtie2-2.2.9')
+                samtools = os.path.join(script_folder, 'src', 'samtools-1.3.1', 'bin')
+                bcftools = os.path.join(script_folder, 'src', 'bcftools-1.3.1', 'bin')
+                os.environ['PATH'] = str(':'.join([bowtie2, samtools, bcftools, path_variable]))
+                print('PATH={path}'.format(path=os.environ['PATH']))
     else:
         sys.exit('ReMatCh not found in PATH')
+
+    return rematch_script
 
 
 def start_logger(workdir):
@@ -431,7 +394,7 @@ def main():
     else:
         required_files = {'fasta': os.path.abspath(args.reference.name), 'config': os.path.abspath(args.config.name)}
 
-    rematch_module = import_rematch('4.0')
+    rematch_script = include_rematch_dependencies_path()
 
     args.outdir = os.path.abspath(args.outdir)
     if not os.path.isdir(args.outdir):
@@ -445,22 +408,23 @@ def main():
     import tempfile
     rematch_folder = tempfile.mkdtemp(prefix='trueCoverage_rematch_', suffix='_tmp', dir=args.outdir)
 
-    reference_file, gene_list_reference, reference_dict = clean_headers_reference_file(required_files['fasta'],
-                                                                                       rematch_folder,
-                                                                                       config['length_extra_seq'],
-                                                                                       rematch_module)
-    time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = \
-        rematch_module.run_rematch_module('sample', [os.path.abspath(fastq.name) for fastq in args.fastq],
-                                          reference_file, args.threads, rematch_folder, config['length_extra_seq'],
-                                          config['minimum_depth_presence'], config['minimum_depth_call'],
-                                          config['minimum_depth_frequency_dominant_allele'],
-                                          config['minimum_gene_coverage'], True, True, 1,
-                                          config['minimum_gene_identity'], 'first', 7, 'none', reference_dict, 'X',
-                                          None, gene_list_reference, True)
+    run_successfully, pass_qc, time_taken, failing, sample_data_general = \
+        run_true_coverage('sample',
+                          [os.path.abspath(fastq.name) for fastq in args.fastq],
+                          required_files['fasta'],
+                          args.threads,
+                          rematch_folder,
+                          config['length_extra_seq'],
+                          config['minimum_depth_presence'],
+                          config['minimum_depth_call'],
+                          config['minimum_depth_frequency_dominant_allele'],
+                          config['minimum_gene_coverage'],
+                          False,
+                          config['minimum_gene_identity'],
+                          config, rematch_script)
 
     import shutil
     if run_successfully:
-        failing = rematch_report_assess_failing(args.outdir, time_str, rematch_folder, sample_data_general, config)
         if len(failing) > 0:
             with open(os.path.join(args.outdir, 'failing.' + time_str + '.txt'), 'wt') as writer:
                 for scope, reason in failing.items():

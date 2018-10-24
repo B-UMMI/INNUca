@@ -9,6 +9,7 @@ from threading import Timer
 import pickle
 import functools
 import traceback
+from pkg_resources import resource_filename
 
 
 # import csv
@@ -997,3 +998,24 @@ def get_sequence_information(fasta_file, length_extra_seq):
 
 def chunkstring(string, length):
     return (string[0 + i:length + i] for i in range(0, len(string), length))
+
+
+def find_rematch():
+    original_rematch = None
+    command = ['which', 'rematch.py']
+    run_successfully, stdout, stderr = runCommandPopenCommunicate(command, False, None, False)
+    if run_successfully:
+        original_rematch = stdout.splitlines()[0]
+
+    resource_rematch = None
+    try:
+        resource_rematch = resource_filename('ReMatCh', 'rematch.py')
+    # except ModuleNotFoundError:  FOR PYTHON 3
+    except Exception:
+        resource_rematch = original_rematch
+    else:
+        print('\n'
+              'Using ReMatCh "{resource_rematch}" via "{original_rematch}"\n'.format(resource_rematch=resource_rematch,
+                                                                                     original_rematch=original_rematch))
+
+    return resource_rematch

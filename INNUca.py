@@ -71,16 +71,16 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
     return trueCoverage_config
 
 
-def include_rematch_dependencies_path(doNotUseProvidedSoftware):
-    command = ['which', 'rematch.py']
-    run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, False)
-    if run_successfully:
-        rematch = stdout.splitlines()[0]
+def include_rematch_dependencies_path(do_not_use_provided_software):
+    rematch_script = utils.find_rematch()
+
+    if not do_not_use_provided_software and rematch_script is not None:
         path_variable = os.environ['PATH']
-        script_folder = os.path.dirname(rematch)
-        if not doNotUseProvidedSoftware:
-            bcftools = os.path.join(script_folder, 'src', 'bcftools-1.3.1', 'bin')
-            os.environ['PATH'] = str(':'.join([bcftools, path_variable]))
+        script_folder = os.path.dirname(rematch_script)
+        bcftools = os.path.join(script_folder, 'src', 'bcftools-1.3.1', 'bin')
+        os.environ['PATH'] = str(':'.join([bcftools, path_variable]))
+
+    return rematch_script
 
 
 version_kraken_global = None
@@ -128,7 +128,9 @@ def main():
     utils.get_cpu_information(outdir, time_str)
 
     # Get trueCoverage_ReMatCh settings
-    trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage, args.trueConfigFile.name if args.trueConfigFile is not None else None, args.speciesExpected, script_path)
+    trueCoverage_config = get_trueCoverage_config(args.skipTrueCoverage,
+                                                  args.trueConfigFile.name if args.trueConfigFile is not None else None,
+                                                  args.speciesExpected, script_path)
 
     # Check programms
     programs_version_dictionary = {}
@@ -142,6 +144,8 @@ def main():
     if len(missingPrograms) > 0:
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
 
+    rematch_script = None
+
     if args.runKraken:
         global version_kraken_global
         version_kraken_global = kraken_version()
@@ -151,8 +155,8 @@ def main():
             programs_version_dictionary['kraken'] = ['--version', '>=', '0.10.6']
             programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
     if not args.skipTrueCoverage or trueCoverage_config is not None:
-        include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
-        programs_version_dictionary['rematch.py'] = ['--version', '>=', '3.2']
+        rematch_script = include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
+        programs_version_dictionary['rematch.py'] = ['--version', '>=', '4.0']
         programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
     if not (args.skipTrueCoverage and ((args.skipAssemblyMapping and args.skipPilon) or args.skipSPAdes)):
         programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
@@ -185,11 +189,6 @@ def main():
     jar_path_pilon = None
     if not args.skipPilon and not args.skipSPAdes:
         jar_path_pilon = programs_version_dictionary['pilon-1.18.jar'][3]
-
-    rematch_script = None
-    # ReMatCh path
-    if not args.skipTrueCoverage:
-        rematch_script = programs_version_dictionary['rematch.py'][3]
 
     # pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
     pairEnd_filesSeparation_list = None
@@ -253,7 +252,10 @@ def main():
         print str(fastq_files) + '\n'
 
         # Run INNUca.py analysis
-        run_successfully, pass_qc, run_report = run_innuca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory, jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script, species_genus, mlst_scheme_genus)
+        run_successfully, pass_qc, run_report = \
+            run_innuca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory,
+                       jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script,
+                       species_genus, mlst_scheme_genus)
 
         # Save sample fail report
         utils.write_fail_report(os.path.join(sample_outdir, 'fail_report.txt'), run_report)
@@ -455,16 +457,16 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                               not estimated_coverage < args.estimatedMinimumCoverage):
                 if not args.skipTrueCoverage and true_coverage_config is not None:
                     # Run True Coverage
-                    run_successfully_true_coverage, pass_qc_true_coverage, time_taken, failing = \
-                        trueCoverage.runTrueCoverage(sample_name, fastq_files, true_coverage_config['reference_file'],
-                                                     threads, outdir,
-                                                     true_coverage_config['length_extra_seq'],
-                                                     true_coverage_config['minimum_depth_presence'],
-                                                     true_coverage_config['minimum_depth_call'],
-                                                     true_coverage_config['minimum_depth_frequency_dominant_allele'],
-                                                     true_coverage_config['minimum_gene_coverage'], False,
-                                                     true_coverage_config['minimum_gene_identity'],
-                                                     true_coverage_config, rematch_script)
+                    run_successfully_true_coverage, pass_qc_true_coverage, time_taken, failing, _ = \
+                        trueCoverage.run_true_coverage(sample_name, fastq_files, true_coverage_config['reference_file'],
+                                                       threads, outdir,
+                                                       true_coverage_config['length_extra_seq'],
+                                                       true_coverage_config['minimum_depth_presence'],
+                                                       true_coverage_config['minimum_depth_call'],
+                                                       true_coverage_config['minimum_depth_frequency_dominant_allele'],
+                                                       true_coverage_config['minimum_gene_coverage'], False,
+                                                       true_coverage_config['minimum_gene_identity'],
+                                                       true_coverage_config, rematch_script)
                     runs['trueCoverage_ReMatCh'] = [run_successfully_true_coverage, pass_qc_true_coverage, time_taken,
                                                     failing, {}, 'NA']
                 else:
