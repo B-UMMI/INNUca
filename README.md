@@ -39,7 +39,19 @@ assessment, and possible contamination detection*
 
 ## Installation
 
-    git clone https://github.com/B-UMMI/INNUca.git
+### Standalone usage
+````bash
+git clone https://github.com/B-UMMI/INNUca.git
+cd INNUca
+
+# Temporarily add ReMatCh to the PATH
+export PATH="$(pwd -P):$PATH"
+
+# Permanently add ReMatCh to the PATH
+echo export PATH="$(pwd -P):$PATH" >> ~/.profile
+````
+### Docker usage
+Check [here](./Docker)
 
 ---
 

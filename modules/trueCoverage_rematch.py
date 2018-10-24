@@ -30,7 +30,7 @@ import functools
 import sys
 import argparse
 
-version = '0.2'
+version = '0.3'
 
 
 def check_existing_default_config(species, script_path):

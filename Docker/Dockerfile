@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.0-01"
+LABEL version="4.0.1-01"
 
 WORKDIR /NGStools/
 
@@ -10,7 +10,8 @@ RUN apt-get update
 RUN apt-get install -y git wget make g++
 
 # -- INNUca General Dependencies ---
-RUN apt-get install -y python-dev default-jre
+RUN apt-get install -y python-dev default-jre python3 python3-pip && \
+    pip3 install setuptools
 
 # --- kraken2 --
 # -- dependencies --
@@ -38,8 +39,10 @@ RUN git clone https://github.com/tseemann/mlst.git
 ENV PATH="/NGStools/mlst/bin:${PATH}"
 
 # --- ReMatCh ---
-RUN git clone https://github.com/B-UMMI/ReMatCh.git
-ENV PATH="/NGStools/ReMatCh:${PATH}"
+RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
+    cd ReMatCh && \
+    python3 setup.py install && \
+    cd /NGStools
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git
@@ -49,7 +52,8 @@ ENV PATH="/NGStools/INNUca:${PATH}"
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
 
 # Clean
-RUN apt-get remove -y make g++ && \
+RUN pip3 uninstall setuptools && \
+    apt-get remove -y make g++ python3-pip && \
     apt-get autoclean -y
 
 WORKDIR /data/
