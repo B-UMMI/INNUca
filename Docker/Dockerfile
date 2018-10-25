@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.0.1-01"
+LABEL version="4.0.1-02"
 
 WORKDIR /NGStools/
 
@@ -52,8 +52,10 @@ ENV PATH="/NGStools/INNUca:${PATH}"
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
 
 # Clean
-RUN pip3 uninstall setuptools && \
-    apt-get remove -y make g++ python3-pip && \
+RUN apt-get remove -y make g++ python3-pip && \
     apt-get autoclean -y
+#RUN pip3 uninstall setuptools && \
+#    apt-get remove -y make g++ python3-pip && \
+#    apt-get autoclean -y
 
 WORKDIR /data/
