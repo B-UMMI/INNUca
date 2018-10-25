@@ -10,8 +10,7 @@ RUN apt-get update
 RUN apt-get install -y git wget make g++
 
 # -- INNUca General Dependencies ---
-RUN apt-get install -y python-dev default-jre python3 python3-pip && \
-    pip3 install setuptools
+RUN apt-get install -y python-dev python-pip default-jre python3 python3-pip
 
 # --- kraken2 --
 # -- dependencies --
@@ -41,21 +40,21 @@ ENV PATH="/NGStools/mlst/bin:${PATH}"
 # --- ReMatCh ---
 RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
     cd ReMatCh && \
+    pip3 install setuptools && \
     python3 setup.py install && \
     cd /NGStools
 
 # --- INNUca ---
-RUN git clone https://github.com/B-UMMI/INNUca.git
+RUN git clone https://github.com/B-UMMI/INNUca.git && \
+    pip install setuptools
 ENV PATH="/NGStools/INNUca:${PATH}"
 
 # fixing permissions for MLST update
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
 
 # Clean
-RUN apt-get remove -y make g++ python3-pip && \
+RUN pip3 uninstall setuptools && \
+    apt-get remove -y make g++ python-pip python3-pip && \
     apt-get autoclean -y
-#RUN pip3 uninstall setuptools && \
-#    apt-get remove -y make g++ python3-pip && \
-#    apt-get autoclean -y
 
 WORKDIR /data/

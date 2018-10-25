@@ -50,7 +50,6 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
     trueCoverage_config = None
     if not skipTrueCoverage:
         trueCoverage_reference = None
-        trueCoverage_config = None
 
         if trueConfigFile is None:
             print 'No trueCoverage_ReMatCh config file was provided. Search for default files'
@@ -157,7 +156,7 @@ def main():
         else:
             programs_version_dictionary['kraken'] = ['--version', '>=', '0.10.6']
             programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
-    if not args.skipTrueCoverage or trueCoverage_config is not None:
+    if not args.skipTrueCoverage and trueCoverage_config is not None:
         rematch_script = include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
         programs_version_dictionary['rematch.py'] = ['--version', '>=', '4.0']
         programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']

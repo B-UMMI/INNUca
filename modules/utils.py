@@ -9,10 +9,11 @@ from threading import Timer
 import pickle
 import functools
 import traceback
-from pkg_resources import resource_filename
 
-
-# import csv
+try:
+    from pkg_resources import resource_filename
+except ImportError as e:
+    print('WARNING: {}'.format(e))
 
 
 def parseArguments(version):
@@ -552,8 +553,8 @@ def organizeSamplesFastq(directory, pairEnd_filesSeparation_list):
     files = searchFastqFiles(directory, None, True)
 
     if len(files) == 0:
-        sys.exit(
-            'No fastq files were found! Make sure fastq files ends with .fastq.gz or .fq.gz, and the pair-end information is either in _R1_001. or _1. format.')
+        sys.exit('No fastq files were found! Make sure fastq files ends with .fastq.gz or .fq.gz, and the pair-end'
+                 ' information is either in _R1_001. or _1. format.')
 
     pairEnd_filesSeparation = [['_R1_001.f', '_R2_001.f'], ['_1.f', '_2.f']]
     if pairEnd_filesSeparation_list is not None:
@@ -628,8 +629,8 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
         directories = [d for d in os.listdir(inputDirectory) if
                        not d.startswith('.') and os.path.isdir(os.path.join(inputDirectory, d, ''))]
         if os.path.basename(outdir) in directories:
-            print(
-                'Output directory is inside input directory and will be ignore in the checking and setting input directory step')
+            print('Output directory is inside input directory and will be ignore in the checking and setting input'
+                  ' directory step')
             directories.remove(os.path.basename(outdir))
         if len(directories) == 0:
             print('There is no samples folders! Search for fastq files in input directory')
@@ -646,8 +647,8 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
                 elif len(files) >= 1:
                     samples.append(directory)
     if len(samples) == 0:
-        sys.exit(
-            'There is no fastq files for the samples folders provided! Make sure fastq files ends with .fastq.gz or .fq.gz, and the pair-end information is either in _R1_001. or _1. format.')
+        sys.exit('There is no fastq files for the samples folders provided! Make sure fastq files ends with .fastq.gz'
+                 ' or .fq.gz, and the pair-end information is either in _R1_001. or _1. format.')
     return samples, removeCreatedSamplesDirectories, indir_same_outdir
 
 
