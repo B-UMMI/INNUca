@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.0.1-02"
+LABEL version="4.0.1-04"
 
 WORKDIR /NGStools/
 
@@ -46,7 +46,10 @@ RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git && \
+    cd INNUca && \
+    git checkout insert_size && \
     pip install setuptools
+# TODO: remove checkout
 ENV PATH="/NGStools/INNUca:${PATH}"
 
 # fixing permissions for MLST update

@@ -72,9 +72,6 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
 
 def include_rematch_dependencies_path(do_not_use_provided_software):
     rematch_script = utils.find_rematch()
-    print(rematch_script)  # TODO: remove this
-    print(not do_not_use_provided_software and rematch_script is not None, not do_not_use_provided_software,
-          rematch_script is not None)  # TODO: remove this
 
     if not do_not_use_provided_software and rematch_script is not None:
         path_variable = os.environ['PATH']
