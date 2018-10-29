@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.0.1-04"
+LABEL version="4.0.1-05"
 
 WORKDIR /NGStools/
 
@@ -38,11 +38,14 @@ RUN git clone https://github.com/tseemann/mlst.git
 ENV PATH="/NGStools/mlst/bin:${PATH}"
 
 # --- ReMatCh ---
-RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
-    cd ReMatCh && \
-    pip3 install setuptools && \
-    python3 setup.py install && \
-    cd /NGStools
+# TODO: to be used after converting INNUca do Python v3
+#RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
+#    cd ReMatCh && \
+#    pip3 install setuptools && \
+#    python3 setup.py install && \
+#    cd /NGStools
+RUN git clone https://github.com/B-UMMI/ReMatCh.git
+ENV PATH="/NGStools/ReMatCh/ReMatCh:${PATH}"
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git && \
