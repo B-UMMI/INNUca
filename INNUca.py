@@ -86,7 +86,7 @@ version_kraken_global = None
 
 
 def main():
-    version = '4.0.1'
+    version = '4.1.0'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()

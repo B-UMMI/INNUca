@@ -201,10 +201,10 @@ def parseArguments(version):
                                      required=False, default=55)
 
     spades_options = parser.add_argument_group(title='SPAdes options')
-    spades_options.add_argument('--spadesVersion', type=str, metavar='3.11.0',
+    spades_options.add_argument('--spadesVersion', type=str, metavar='3.13.0',
                                 help='Tells INNUca.py which SPAdes version to use (available options: %(choices)s)'
                                      ' (default: 3.11.0)',
-                                choices=['3.9.0', '3.10.1', '3.11.0'], required=False, default='3.11.0')
+                                choices=['3.10.1', '3.11.1', '3.13.0'], required=False, default='3.13.0')
     spades_options.add_argument('--spadesNotUseCareful', action='store_true',
                                 help='Tells SPAdes to only perform the assembly without the --careful option')
     spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N',

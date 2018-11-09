@@ -77,7 +77,7 @@ usage: INNUca.py [-h] [--version] -s "Streptococcus agalactiae" -g 2.1
                  [--trimKeepFiles] [--doNotTrimCrops] [--trimCrop N]
                  [--trimHeadCrop N] [--trimSlidingWindow window:meanQuality]
                  [--trimLeading N] [--trimTrailing N] [--trimMinLength N]
-                 [--spadesVersion 3.11.0] [--spadesNotUseCareful]
+                 [--spadesVersion 3.13.0] [--spadesNotUseCareful]
                  [--spadesMinContigsLength N] [--spadesMaxMemory N]
                  [--spadesMinCoverageAssembly N] [--spadesMinKmerCovContigs N]
                  [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
@@ -270,10 +270,9 @@ Trimmomatic options:
                         length (default: 55) (default: 55)
 
 SPAdes options:
-  --spadesVersion 3.11.0
+  --spadesVersion 3.13.0
                         Tells INNUca.py which SPAdes version to use (available
-                        options: 3.9.0, 3.10.1, 3.11.0) (default: 3.11.0)
-                        (default: 3.11.0)
+                        options: 3.10.1, 3.11.1, 3.13.0) (default: 3.13.0)
   --spadesNotUseCareful
                         Tells SPAdes to only perform the assembly without the
                         --careful option (default: False)
