@@ -6,9 +6,9 @@
 combine_reports.py - Combine INNUca reports
 <https://github.com/miguelpmachado/manipulateFasta/>
 
-Copyright (C) 2016 Miguel Machado <mpmachado@medicina.ulisboa.pt>
+Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: September 20, 2018
+Last modified: December 28, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -67,10 +67,11 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
               'SPAdes_number_contigs', 'SPAdes_number_bp', 'SPAdes_filtered_contigs', 'SPAdes_filtered_bp',
               'assembly_coverage_initial', 'assembly_coverage_filtered', 'mapped_reads_percentage',
               'mapping_filtered_contigs', 'mapping_filtered_bp',
-              'Pilon_changes', 'Pilon_contigs_changed',
+              'Pilon_changes', 'Pilon_contigs_changed', 'Pilon_contigs', 'Pilon_bp',
               'MLST_scheme', 'MLST_ST',
               'assembly_kraken_number_taxon_found', 'assembly_kraken_percentage_unknown_fragments',
               'assembly_kraken_most_abundant_taxon', 'assembly_kraken_percentage_most_abundant_taxon',
+              'insert_size_mean', 'insert_size_sd',
               'final_assembly']
 
     for directory in directories:
@@ -79,7 +80,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
 
         files = [f for f in os.listdir(directory) if not f.startswith('.') and os.path.isfile(os.path.join(directory, f))]
         if len(files) == 0:
-            print 'No files found! Continue to the next sample'
+            print('No files found! Continue to the next sample')
         else:
             results[sample] = {}
             for field in fields:
@@ -339,6 +340,14 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                                             contigs = False
                                 else:
                                     break
+                elif name_file_found == 'pilon_assembly_statistics.tab':
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['Pilon_contigs'] = line[0]
+                                    results[sample]['Pilon_bp'] = line[1]
                 elif name_file_found == 'mlst_report.txt':
                     species = False
                     st = False
@@ -368,6 +377,14 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                                     results[sample]['assembly_kraken_percentage_unknown_fragments'] = line[3]
                                     results[sample]['assembly_kraken_most_abundant_taxon'] = line[6]
                                     results[sample]['assembly_kraken_percentage_most_abundant_taxon'] = line[7]
+                elif name_file_found == 'insert_size_report.tab':
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['insert_size_mean'] = line[0]
+                                    results[sample]['insert_size_sd'] = line[1]
                 elif name_file_found == 'final_assembly.txt':
                     with open(file_found, 'rtU') as reader:
                         for line in reader:
@@ -378,7 +395,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
     if len(results) == 0:
         sys.exit('No results were found')
 
-    print '\n' + 'Writing results...'
+    print('\n' + 'Writing results...')
     with open(os.path.join(outdir, str('combine_samples_reports.' + time_str + '.tab')), 'wt') as report:
         report.write('\t'.join(fields) + '\n')
         for sample in results:
@@ -392,7 +409,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
 
     if number_samples is None:
         number_samples = len(results)
-    print '\n' + 'DONE: {number_samples} samples analysed.'.format(number_samples=number_samples)
+    print('\n' + 'DONE: {number_samples} samples analysed.'.format(number_samples=number_samples))
 
 
 def check_create_directory(directory):

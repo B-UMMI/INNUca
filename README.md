@@ -23,6 +23,7 @@ assessment, and possible contamination detection*
  - [*Kraken*](https://ccb.jhu.edu/software/kraken/) >= v0.10.6 with *Kraken* DB (whenever *Kraken* module should run)
  - [*mlst*](https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* module should run) (it is recommended to use a mlst version with updated databases)
  - [*ReMatCh*](https://github.com/B-UMMI/ReMatCh) >= v3.2 (whenever *true coverage* module should run)
+ - [*Plotly*](https://ccb.jhu.edu/software/kraken/) Python package (whenever *insert_size* module with `--insertSizeDist` should run)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
 **Optional**
@@ -151,6 +152,7 @@ Running modules options:
                         (default: False)
   --skipMLST            Tells the programme to not run MLST analysis (default:
                         False)
+  --runInsertSize       Runs the insert_size module at the end (default: False)
 
 Adapters options (one of the following):
   Control how adapters are handle by INNUca. If none of these options are provided, INNUca
@@ -226,6 +228,13 @@ trueCoverage_ReMatCh options:
                         trueCoverage_ReMatCh will run by default, unless
                         --skipTrueCoverage is specified. Do not use together
                         with --skipTrueCoverage option (default: None)
+  --trueCoverageProceed Do not stop INNUca.py if sample fails
+                        trueCoverage_ReMatCh (default: False)
+  --trueCoverageIgnoreQC
+                        Ignore trueCoverage_ReMatCh QA/QC in sample quality
+                        assessment. Useful when analysing data from when
+                        analysing data from species with unknown behaviour
+                        (default: False)
 
 FastQC options:
   --fastQCkeepFiles     Tells INNUca.py to not remove the output of FastQC
@@ -234,6 +243,9 @@ FastQC options:
                         False)
 
 Trimmomatic options:
+  --trimVersion         0.38
+                        Tells INNUca.py which Trimmomatic version to use (available
+                        options: 0.36, 0.38) (default: 0.38)
   --trimKeepFiles       Tells INNUca.py to not remove the output of
                         Trimmomatic (default: False)
   --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of
@@ -319,6 +331,9 @@ Assembly options:
                         (default: False)
 
 Pilon options:
+  --pilonVersion        1.18
+                        Tells INNUca.py which Pilon version to use (available
+                        options: 1.18, 1.23) (default: 1.23)
   --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
                         (default: False)
 
@@ -327,6 +342,13 @@ MLST options:
                         when analysing data from possible new species or
                         higher taxonomic levels (higher than species)
                         (default: False)
+
+insert_size options:
+  This module determines the sequencing insert size by mapping the reades used
+  in the assembly back to the produced assembly it self.
+
+  --insertSizeDist      Produces a distribution plot of the insert sizes (requires
+                        Plotly) (default: False)
 
 Pear options:
   --pearKeepFiles       Tells INNUca.py to not remove the output of Pear

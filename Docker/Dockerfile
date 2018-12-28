@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.1.0-01"
+LABEL version="4.2.0-01"
 
 WORKDIR /NGStools/
 
@@ -11,6 +11,7 @@ RUN apt-get install -y git wget make g++
 
 # -- INNUca General Dependencies ---
 RUN apt-get install -y python-dev python-pip default-jre python3 python3-pip
+RUN pip install plotly
 
 # --- kraken2 --
 # -- dependencies --

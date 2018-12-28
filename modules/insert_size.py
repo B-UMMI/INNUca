@@ -8,7 +8,7 @@ insert_size.py - Determines the sequencing insert size by reads mapping
 
 Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: October 10, 2018
+Last modified: December 28, 2018
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,11 +30,18 @@ from utils import runCommandPopenCommunicate as utils_run_command
 from utils import runTime as utils_run_time
 from utils import checkPrograms as utils_check_programs
 from utils import timer as utils_timer
+from utils import removeDirectory as utils_remove_directory
 from functools import partial
 import argparse
 import time
 
-version = '1.0'
+try:
+    import plotly.offline as plot_off
+    import plotly.graph_objs as graph_obj
+except ImportError as e:
+    print('WARNING: {}'.format(e))
+
+version = '1.3'
 
 
 def index_sequence_bowtie2(reference, outdir, threads=1):
@@ -95,8 +102,8 @@ def mapping_bowtie2(fastq, reference_index, outdir, threads=1):
 
     sam = os.path.join(outdir, str('alignment.sam'))
 
-    command = ['bowtie2', '-q', '--very-sensitive', '--threads', str(threads), '-x', reference_index, '-1', fastq[0],
-               '-2', fastq[1], '--no-mixed', '--no-discordant', '--no-unal', '-S', sam]
+    command = ['bowtie2', '-q', '--very-fast', '--threads', str(threads), '-x', reference_index, '-1', fastq[0],
+               '-2', fastq[1], '--fr', '-I', '0', '-X', '2000', '--no-discordant', '--no-mixed', '--no-unal', '-S', sam]
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
                                                print_comand_True=True)
@@ -191,7 +198,7 @@ def write_reports(statistics, outdir):
 
     """
 
-    with open(os.path.join(outdir, 'samtools_stats_report.tab'), 'wt') as writer:
+    with open(os.path.join(outdir, 'insert_size_report.tab'), 'wt') as writer:
         writer.write('#' + '\t'.join(sorted(statistics.keys())) + '\n')
         writer.write('\t'.join([str(statistics[k]) for k in sorted(statistics.keys())]) + '\n')
 
@@ -226,6 +233,185 @@ def clean_outdir(outdir, reference_index=None, alignment=None):
                 os.remove(os.path.join(outdir, file_found))
 
 
+def prepare_insert_size_distribution(samtools_stats):
+    """
+    Collect the data to produce a distribution plot of the insert sizes
+
+    Parameters
+    ----------
+    samtools_stats : str
+        Path to the samtools stats file
+
+    Returns
+    -------
+    x : list
+        List of x axis values
+    y : list
+        List of y axis values
+    """
+
+    x = []
+    y = []
+    with open(samtools_stats, 'rt') as reader:
+        for line in reader:
+            if line.startswith('IS'):
+                line = line.split('\t')
+                if int(line[2]) > 0:
+                    x.append(int(line[1]))
+                    y.append(int(line[2]))
+
+    return x, y
+
+
+def absolute_counts_2_frequencies(counts):
+    """
+    Converts absolute counts to frequencies
+
+    Parameters
+    ----------
+    counts : list
+        List of absolute counts that will be converted to frequencies
+
+    Returns
+    -------
+    normalized_values : list
+        List of absolute counts already converted to frequencies
+    """
+    normalized_values = list(map(lambda x: float(x) / sum(counts), counts))
+    return normalized_values
+
+
+def create_plot_trace_insert_size_distribution(trace_name, x_values, y_values, color='rgb(0, 0, 0)'):
+    """
+    Collect the data to produce a distribution plot of the insert sizes
+
+    Parameters
+    ----------
+    trace_name : str
+        Name of the trace
+    x_values : list
+        List of x axis values
+    y_values : list
+        List of y axis values
+    color : str, default 'rgb(0, 0, 0)'
+        String with the colour to be used. Something like 'rgb(205, 12, 24)'. Default is black
+
+    Returns
+    -------
+    trace : graph_obj.Scatter
+        plotly.graph_objs.Scatter
+        A plot trace for the given dataset
+    """
+
+    trace = graph_obj.Scatter(name=trace_name,
+                              x=x_values,
+                              y=y_values,
+                              mode='lines',
+                              line=dict(color=color
+                                        )
+                              )
+
+    return trace
+
+
+def plot_insert_size_distribution(traces_list, outdir):
+    """
+    Collect the data to produce a distribution plot of the insert sizes
+
+    Parameters
+    ----------
+    traces_list : list
+        List of plot traces (plotly.graph_objs.Scatter)
+    outdir : str
+        Path to the output directory
+
+    Returns
+    -------
+    """
+
+    plot_off.plot({"data": traces_list,
+                   "layout": graph_obj.Layout(title="Insert size distribution",
+                                              xaxis=dict(title='Insert size'),
+                                              yaxis=dict(title='Frequency'))
+                   },
+                  show_link=False,
+                  output_type='file',
+                  filename=os.path.join(outdir, 'insert_size_distribution.html'),
+                  include_plotlyjs=True,
+                  auto_open=False,
+                  )
+
+
+insert_timer = partial(utils_timer, name='Insert size determination')
+
+
+@insert_timer
+def run_for_innuca(sample_name, reference, fastq, outdir, threads=1, dist=False):
+    """
+    Runs insert_size for INNUca
+
+    Parameters
+    ----------
+    sample_name : str
+        Sample's name
+    reference : str
+        Path to the sample assembly fasta file
+    fastq : list
+        List with the paths to the paired-end fastq files
+    outdir : str
+        Path to the output directory
+    threads : int, default 1
+        Number of threads to be used
+    dist : bool, default False
+        True if want to produce a distribution plot of the insert sizes (requires Plotly), else False
+
+    Returns
+    -------
+    run_successfully : bool
+        Boolean stating if INNUca Kraken module ran successfully or not
+    pass_qc : None
+        QA/QC not performed
+    time_taken : float
+        Seconds that run_for_innuca took to run
+    failing : dict
+        Dictionary with the failing reasons. If sample did not fail, it is only {'sample': False}. If it failed, keys
+        will be the level of failing, and values list of strings
+    """
+
+    failing = {'sample': False}
+
+    module_folder = os.path.join(outdir, 'insert_size', '')
+    utils_remove_directory(module_folder)
+    os.mkdir(module_folder)
+
+    run_successfully, reference_index = index_sequence_bowtie2(reference=reference, outdir=module_folder,
+                                                               threads=threads)
+
+    alignment_file = None
+    if run_successfully:
+        run_successfully, alignment_file = mapping_bowtie2(fastq=fastq, reference_index=reference_index,
+                                                           outdir=module_folder, threads=threads)
+        if run_successfully:
+            run_successfully, samtools_stats = get_statistics_samtools(alignment=alignment_file, outdir=module_folder)
+            if run_successfully:
+                statistics = parse_statistics_samtools(samtools_stats=samtools_stats)
+                write_reports(statistics=statistics, outdir=outdir)
+                if dist:
+                    x_values, y_values = prepare_insert_size_distribution(samtools_stats=samtools_stats)
+                    y_values = absolute_counts_2_frequencies(y_values)
+                    plot_trace = create_plot_trace_insert_size_distribution(trace_name=sample_name, x_values=x_values,
+                                                                            y_values=y_values, color='rgb(0, 0, 0)')
+                    plot_insert_size_distribution(traces_list=[plot_trace], outdir=outdir)
+
+    clean_outdir(outdir=module_folder, reference_index=reference_index, alignment=alignment_file)
+
+    if not run_successfully:
+        failing['sample'] = ['Did not run']
+        print(failing['sample'])
+
+    return run_successfully, None, failing
+
+
 def main():
     if sys.version_info[0] < 3:
         sys.exit('Must be using Python 3. Try calling "python3 insert_size.py"')
@@ -250,7 +436,21 @@ def main():
     parser_optional_general.add_argument('-j', '--threads', type=int, metavar='N',
                                          help='Number of threads to use (default: 1)', required=False, default=1)
 
+    parser_output_options = parser.add_argument_group('Output options')
+    parser_output_options.add_argument('--dist', action='store_true',
+                                       help='Produces a distribution plot of the insert sizes (requires Plotly)')
+
     args = parser.parse_args()
+
+    msg = []
+    if args.insertSizeDist:
+        try:
+            import plotly
+        except ImportError as import_error:
+            msg.append('Used --insertSizeDist but Python Plotly package was not found: {}'.format(import_error))
+
+    if len(msg) > 0:
+        argparse.ArgumentParser.error('\n'.join(msg))
 
     start_time = time.time()
 
@@ -285,6 +485,12 @@ def main():
             if run_successfully:
                 statistics = parse_statistics_samtools(samtools_stats=samtools_stats)
                 write_reports(statistics=statistics, outdir=args.outdir)
+                if args.dist:
+                    x_values, y_values = prepare_insert_size_distribution(samtools_stats=samtools_stats)
+                    y_values = absolute_counts_2_frequencies(y_values)
+                    plot_trace = create_plot_trace_insert_size_distribution(trace_name='', x_values=x_values,
+                                                                            y_values=y_values, color='rgb(0, 0, 0)')
+                    plot_insert_size_distribution(traces_list=[plot_trace], outdir=args.outdir)
 
     clean_outdir(outdir=args.outdir, reference_index=reference_index, alignment=sam)
 
