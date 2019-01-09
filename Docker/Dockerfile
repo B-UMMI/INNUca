@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.2.0-01"
+LABEL version="4.2.0-02"
 
 WORKDIR /NGStools/
 
@@ -27,10 +27,10 @@ ENV PATH="/NGStools/kraken2-2.0.7-beta:${PATH}"
 
 # -- mlst Dependencies --
 # Blast
-RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz && \
-    tar -xf ncbi-blast-2.6.0+-x64-linux.tar.gz && \
-    rm ncbi-blast-2.6.0+-x64-linux.tar.gz
-ENV PATH="/NGStools/ncbi-blast-2.6.0+/bin:${PATH}"
+RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.8.1/ncbi-blast-2.8.1+-x64-linux.tar.gz && \
+    tar -xf ncbi-blast-2.8.1+-x64-linux.tar.gz && \
+    rm ncbi-blast-2.8.1+-x64-linux.tar.gz
+ENV PATH="/NGStools/ncbi-blast-2.8.1+/bin:${PATH}"
 # Perl libs
 RUN apt-get install -y libmoo-perl liblist-moreutils-perl libjson-perl libfile-slurp-perl
 

@@ -1,7 +1,7 @@
 import utils
 import os
 from functools import partial
-import itertools.groupby as itertools_groupby
+from itertools import groupby as itertools_groupby
 
 
 # Indexing reference file using Bowtie2
@@ -133,11 +133,13 @@ def write_assembly_statistics(assembly, outdir):
     """
     assembly_lengths = []
 
-    assembly = open(assembly, mode='rt', newline=None)
+    assembly = open(assembly, mode='rt')  # TODO: newline=None in Python3
     fasta_iter = (g for k, g in itertools_groupby(assembly, lambda x: x.startswith('>')))
     for header in fasta_iter:
-        _ = header.__next__()[1:].rstrip('\r\n')
-        seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())
+        # _ = header.__next__()[1:].rstrip('\r\n')  # TODO: Python3
+        _ = header.next()[1:].rstrip('\r\n')
+        # seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())  # TODO: Python3
+        seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.next())
         assembly_lengths.append(len(seq))
 
     with open(os.path.join(outdir, 'pilon_assembly_statistics.tab'), 'wt') as writer:

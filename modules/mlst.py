@@ -2,7 +2,7 @@ import utils
 import os
 from functools import partial
 import sys
-import itertools.groupby as itertools_groupby
+from itertools import groupby as itertools_groupby
 
 
 mlst_timer = partial(utils.timer, name='MLST')
@@ -107,22 +107,24 @@ def clean_novel_alleles(novel_alleles, scheme_mlst, profile):
 
     novel_alleles_keep = {}
     if len(unknown_genes) > 0:
-        novel_alleles = open(novel_alleles, mode='rt', newline=None)
-        fasta_iter = (g for k, g in itertools_groupby(novel_alleles, lambda x: x.startswith('>')))
+        reader = open(novel_alleles, mode='rt')  # TODO: newline=None in Python3
+        fasta_iter = (g for k, g in itertools_groupby(reader, lambda x: x.startswith('>')))
         for header in fasta_iter:
-            header = header.__next__()[1:].rstrip('\r\n')
-            seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())
+            # header = header.__next__()[1:].rstrip('\r\n')  # TODO: Python3
+            header = header.next()[1:].rstrip('\r\n')
+            # seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())  # TODO: Python3
+            seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.next())
             if header.startswith(scheme_mlst):
                 gene = header.split('.')[1].split('~')[0]
                 if gene in unknown_genes:
                     novel_alleles_keep[header] = seq
-        novel_alleles.close()
+        reader.close()
 
     os.remove(novel_alleles)
 
     if len(novel_alleles_keep) > 0:
         with open(novel_alleles, 'wt') as writer:
-            for header, seq in novel_alleles_keep:
+            for header, seq in novel_alleles_keep.items():
                 writer.write('>{}\n'.format(header))
                 writer.write('\n'.join(utils.chunkstring(seq, 80)) + '\n')
 

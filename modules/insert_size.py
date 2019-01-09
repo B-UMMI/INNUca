@@ -6,9 +6,9 @@
 insert_size.py - Determines the sequencing insert size by reads mapping
 <https://github.com/B-UMMI/INNUca/modules/>
 
-Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
+Copyright (C) 2019 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: December 28, 2018
+Last modified: January 02, 2019
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ def index_sequence_bowtie2(reference, outdir, threads=1):
     command = ['bowtie2-build', '--threads', str(threads), reference, os.path.join(outdir, os.path.basename(reference))]
     run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
                                                print_comand_True=True)
-    print()
+    print('')
 
     reference_index = None
     if run_successfully:
@@ -107,7 +107,7 @@ def mapping_bowtie2(fastq, reference_index, outdir, threads=1):
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=False, timeout_sec_None=None,
                                                print_comand_True=True)
-    print()
+    print('')
 
     if not run_successfully:
         sam = None
@@ -140,7 +140,7 @@ def get_statistics_samtools(alignment, outdir):
 
     run_successfully, _, _ = utils_run_command(command=command, shell_True=True, timeout_sec_None=None,
                                                print_comand_True=True)
-    print()
+    print('')
 
     if not run_successfully:
         samtools_stats = None
@@ -462,7 +462,7 @@ def main():
     if len(missing_programs) > 0:
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missing_programs))
 
-    print()
+    print('')
 
     args.outdir = os.path.abspath(args.outdir)
     if not os.path.isdir(args.outdir):
@@ -494,7 +494,7 @@ def main():
 
     clean_outdir(outdir=args.outdir, reference_index=reference_index, alignment=sam)
 
-    print()
+    print('')
 
     _ = utils_run_time(start_time)
 

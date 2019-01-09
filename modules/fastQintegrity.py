@@ -20,7 +20,8 @@ def fastQintegrity(fastq, outdir):
         run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None, False)
 
         if run_successfully:
-            encoding, min_reads_length, max_reads_length = run_guess_encoding_single_thread(temporary_output_file, None, outdir)
+            encoding, min_reads_length, max_reads_length = run_guess_encoding_single_thread(temporary_output_file, None,
+                                                                                            outdir)
 
     if os.path.isfile(temporary_output_file):
         os.remove(temporary_output_file)
@@ -37,10 +38,34 @@ def run_guess_encoding_single_thread(fastq_file, number_reads_access_None_all, o
     encoding_data = guess_encoding.gather_data_together(outdir_guess_encoding)
     final_enconding = guess_encoding.get_final_encoding(encoding_data)
 
-    min_reads_length, max_reads_length = guess_encoding.determine_min_max_reads_length(encoding_data)
+    min_reads_length, max_reads_length, _, _ = guess_encoding.determine_min_max_reads_length(encoding_data)
 
     utils.removeDirectory(outdir_guess_encoding)
     return final_enconding, min_reads_length, max_reads_length
+
+
+def report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq, outdir):
+    """
+    Writes reads length report
+
+    Parameters
+    ----------
+    min_reads_length_each_fastq : list
+        Minimum reads length found for each fastq file
+    max_reads_length_each_fastq : list
+        Maximum reads length found for each fastq file
+    outdir : str
+        Path to the output directory
+
+    Returns
+    -------
+
+    """
+
+    with open(os.path.join(outdir, 'reads_length_report.tab'), 'wt') as writer:
+        writer.write('#' + '\t'.join(['min', 'max']) + '\n')
+        writer.write('\t'.join([';'.join(map(str, set(min_reads_length_each_fastq))),
+                                ';'.join(map(str, set(max_reads_length_each_fastq)))]) + '\n')
 
 
 fastq_timer = partial(utils.timer, name='FastQ integrity check')
@@ -72,7 +97,7 @@ def runFastQintegrity(fastq_files, threads, outdir):
                 encoding[file_found] = {'file_encoding': file_encoding, 'min_reads_length': min_reads_length, 'max_reads_length': max_reads_length}
             else:
                 failing[os.path.splitext(file_found)[0]] = ['The file is possibly corrupt']
-                print os.path.splitext(file_found)[0] + ': the file is possibly corrupt'
+                print(os.path.splitext(file_found)[0] + ': the file is possibly corrupt')
         os.remove(os.path.join(fastQintegrity_folder, file_found))
 
     if len(failing) > 1:
@@ -80,22 +105,24 @@ def runFastQintegrity(fastq_files, threads, outdir):
         not_corruption_found = False
         pass_qc = False
 
-    min_reads_length, max_reads_length = None, None
+        min_reads_length_found, max_reads_length_found = None, None
 
     if len(encoding) == 0:
         encoding = None
-        print 'It was no possible to determine the FASTQ encodings'
+        print('It was no possible to determine the FASTQ encodings')
     else:
-        min_reads_length, max_reads_length = guess_encoding.determine_min_max_reads_length(encoding)
+        min_reads_length_found, max_reads_length_found, min_reads_length_each_fastq, max_reads_length_each_fastq = \
+            guess_encoding.determine_min_max_reads_length(encoding)
+        report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq, outdir)
 
         if len(set([x['file_encoding'][0] for x in encoding.values() if x['file_encoding'] is not None])) == 1:
             encoding = [x['file_encoding'][0] for x in encoding.values() if x['file_encoding'] is not None][0]
-            print 'Fastq quality encoding: ' + str(encoding)
+            print('Fastq quality encoding: {0}'.format(str(encoding)))
         else:
-            print 'It was no possible to determine the FASTQ encodings'
-            print 'This was what has been found: ' + str(encoding)
+            print('It was no possible to determine the FASTQ encodings')
+            print('This was what has been found: {0}'.format(str(encoding)))
             encoding = None
 
     utils.removeDirectory(fastQintegrity_folder)
 
-    return not_corruption_found, pass_qc, failing, encoding, min_reads_length, max_reads_length
+    return not_corruption_found, pass_qc, failing, encoding, min_reads_length_found, max_reads_length_found

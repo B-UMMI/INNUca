@@ -6,9 +6,9 @@
 combine_reports.py - Combine INNUca reports
 <https://github.com/miguelpmachado/manipulateFasta/>
 
-Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
+Copyright (C) 2019 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: December 28, 2018
+Last modified: January 02, 2019
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ import os
 import sys
 import time
 
-version = '0.4'
+version = '0.5'
 
 
 def combine_reports(innucaOut, outdir, json, time_str, number_samples):
@@ -50,7 +50,8 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
     else:
         samples_report = sorted(samples_report, reverse=True)[0]
 
-    directories = [d for d in os.listdir(innucaOut) if not d.startswith('.') and os.path.isdir(os.path.join(innucaOut, d, ''))]
+    directories = [d for d in os.listdir(innucaOut) if
+                   not d.startswith('.') and os.path.isdir(os.path.join(innucaOut, d, ''))]
 
     results = {}
 
@@ -58,6 +59,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
         sys.exit('No samples found')
 
     fields = ['#samples',
+              'min_reads_length', 'max_reads_length',
               'reads_kraken_number_taxon_found', 'reads_kraken_percentage_unknown_fragments',
               'reads_kraken_most_abundant_taxon', 'reads_kraken_percentage_most_abundant_taxon',
               'first_coverage',
@@ -92,7 +94,15 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                 name_file_found = file_found
                 file_found = os.path.join(directory, file_found)
 
-                if name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fastq.tab'):
+                if name_file_found == 'reads_length_report.tab':
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['min_reads_length'] = line[0]
+                                    results[sample]['max_reads_length'] = line[1]
+                elif name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fastq.tab'):
                     with open(file_found, 'rt') as reader:
                         for line in reader:
                             if len(line) > 0:

@@ -45,13 +45,13 @@ def calculate_genome_coverage(genome_coverage_data_file):
                         sequence = line[0]
                     else:
                         if sequence != line[0]:
-                            print 'WARNING: different sequences found in the same file'
+                            print('WARNING: different sequences found in the same file')
                             problems_found = True
                             break
                     if int(line[1]) == position + 1:
                         coverage += int(line[2])
                     else:
-                        print 'WARNING: missing some positions!'
+                        print('WARNING: missing some positions!')
                         problems_found = True
                         break
                     position += 1
@@ -61,7 +61,6 @@ def calculate_genome_coverage(genome_coverage_data_file):
 
 @utils.trace_unhandled_exceptions
 def get_sequence_coverage(alignment_file, sequence_to_analyse, outdir, counter):
-    problems_found = False
     position = 0
     coverage = 0
 
@@ -78,7 +77,7 @@ def get_sequence_coverage(alignment_file, sequence_to_analyse, outdir, counter):
     try:
         os.remove(genome_coverage_data_file)
     except Exception as e:
-        print e
+        print(e)
 
     utils.saveVariableToPickle([sequence_to_analyse, run_successfully, problems_found, position, coverage], outdir,
                                str('coverage.sequence_' + str(counter)))
@@ -108,14 +107,15 @@ def sample_coverage(referenceFile, alignment_file, outdir, threads):
             file_path = os.path.join(coverage_outdir, file_found)
 
             if sample_coverage_no_problems:
-                sequence_to_analyse, run_successfully, problems_found, position, coverage = utils.extractVariableFromPickle(
-                    file_path)
+                sequence_to_analyse, run_successfully, problems_found, position, coverage = \
+                    utils.extractVariableFromPickle(file_path)
                 if run_successfully and not problems_found:
                     mean_coverage_data[sequence_to_analyse] = {'position': position, 'coverage': coverage,
                                                                'mean_coverage': round(
                                                                    (float(coverage) / float(position)), 2)}
                 else:
-                    print 'WARNING: it was not possible to compute coverage information for sequence ' + sequence_to_analyse
+                    print('WARNING: it was not possible to compute coverage information for'
+                          ' sequence ' + sequence_to_analyse)
                     sample_coverage_no_problems = False
 
             os.remove(file_path)
@@ -141,13 +141,15 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
     if minCoverageAssembly is None:
         if float(coverage_initial) / float(position_initial) / float(3) >= 10:
             minCoverageAssembly = float(coverage_initial) / float(position_initial) / float(3)
-            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to one third of the assembly mean coverage (' + str(
-                round((float(coverage_initial) / float(position_initial)), 2)) + 'x): ' + str(
-                round(minCoverageAssembly, 2)) + 'x'
+            print('The --assemblyMinCoverageContigs used to filtered low covered contigs was set to one third of the'
+                  ' assembly mean coverage ({mean_cov}x):'
+                  ' {min_cov}x'.format(mean_cov=round((float(coverage_initial) / float(position_initial)), 2),
+                                       min_cov=round(minCoverageAssembly, 2)))
         else:
             minCoverageAssembly = 10
-            print 'The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because one third of the assembly mean coverage (' + str(
-                round((float(coverage_initial) / float(position_initial)), 2)) + 'x) was lower than 10x'
+            print('The --assemblyMinCoverageContigs used to filtered low covered contigs was set to 10 because one'
+                  ' third of the assembly mean coverage ({mean_cov}x) was lower than'
+                  ' 10x'.format(mean_cov=round((float(coverage_initial) / float(position_initial)), 2)))
 
     sequences_2_keep = []
     position_filtered = 0
@@ -168,7 +170,7 @@ def save_assembly_coverage_report(mean_coverage_data, outdir, minCoverageAssembl
 
     if round((float(coverage_filtered) / float(position_filtered)), 2) >= 30:
         pass_qc = True
-        print 'Assembly coverage: ' + str(round((float(coverage_filtered) / float(position_filtered)), 2)) + 'x'
+        print('Assembly coverage: ' + str(round((float(coverage_filtered) / float(position_filtered)), 2)) + 'x')
     else:
         failing_reason = 'Assembly coverage: ' + str(
             round((float(coverage_filtered) / float(position_filtered)), 2)) + 'x (lower than 30x)'
@@ -300,7 +302,7 @@ def save_mapping_statistics(dict_mapping_statistics, outdir):
     if total_mapped_reads > 0 and total_reads > 0:
         if round((float(total_mapped_reads) / float(total_reads)), 2) >= min_mapping:
             pass_qc = True
-            print 'Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '%'
+            print('Mapped reads: ' + str(round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '%')
         else:
             failing_reason = 'Mapped reads: ' + str(
                 round((float(total_mapped_reads) / float(total_reads)), 2) * 100) + '% (lower than ' + str(
@@ -510,7 +512,7 @@ def run_assembly_mapping(fastq_files, reference_file, outdir, estimated_genome_s
                     if assembly_filtered is not None and \
                             assembly_filtered != reference_file and \
                             len(sequences_2_keep) > 0:
-                        print 'Producing bam subset for sequences to keep'
+                        print('Producing bam subset for sequences to keep')
                         run_successfully, bam_subset = get_bam_subset(bam_file, sequences_2_keep, threads)
                         if run_successfully:
                             if not keep_bam:
@@ -536,7 +538,7 @@ def run_assembly_mapping(fastq_files, reference_file, outdir, estimated_genome_s
     if len(failing) == 0:
         failing = {'sample': False}
     else:
-        print 'Failing:', failing
+        print('Failing:', failing)
         pass_qc = False
 
     return run_successfully, pass_qc, failing, assembly_filtered, bam_file, assembly_mapping_folder, warnings, \
