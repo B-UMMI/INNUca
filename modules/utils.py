@@ -159,6 +159,17 @@ def parseArguments(version):
                                             ' unless --skipTrueCoverage is specified. Do not use together with'
                                             ' --skipTrueCoverage option',
                                        required=False)
+    true_coverage_options.add_argument('--trueCoverageBowtieAlgo', type=str, metavar='"--very-sensitive-local"',
+                                       help='Bowtie2 alignment mode to be used via ReMatCh to map the reads and'
+                                            ' determine the true coverage. It can be an end-to-end alignment'
+                                            ' (unclipped alignment) or local alignment (soft clipped'
+                                            ' alignment). Also, the user can choose between fast or sensitive'
+                                            ' alignments. Please check Bowtie2 manual for extra information:'
+                                            ' http://bowtie-bio.sourceforge.net/bowtie2/index.shtml .'
+                                            ' This option should be provided between quotes and starting with'
+                                            ' an empty space (like --bowtieAlgo " --very-fast") or using equal'
+                                            ' sign (like --bowtieAlgo="--very-fast")',
+                                       required=False, default='--very-sensitive-local')
     true_coverage_options.add_argument('--trueCoverageProceed', action='store_true',
                                        help='Do not stop INNUca.py if sample fails trueCoverage_ReMatCh')
     true_coverage_options.add_argument('--trueCoverageIgnoreQC', action='store_true',

@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.2.0-02"
+LABEL version="4.2.0-03"
 
 WORKDIR /NGStools/
 
@@ -45,7 +45,9 @@ ENV PATH="/NGStools/mlst/bin:${PATH}"
 #    pip3 install setuptools && \
 #    python3 setup.py install && \
 #    cd /NGStools
-RUN git clone https://github.com/B-UMMI/ReMatCh.git
+RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
+    cd ReMatCh && \
+    git checkout bowtie_algo
 ENV PATH="/NGStools/ReMatCh/ReMatCh:${PATH}"
 
 # --- INNUca ---

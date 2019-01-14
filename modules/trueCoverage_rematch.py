@@ -98,11 +98,11 @@ def parse_config(config_file):
 
 def clean_headers_reference_file(reference_file, outdir, extra_seq, rematch_module):
     problematic_characters = ["|", " ", ",", ".", "(", ")", "'", "/", ":"]
-    print 'Checking if reference sequences contain ' + str(problematic_characters) + '\n'
+    print('Checking if reference sequences contain ' + str(problematic_characters) + '\n')
     new_reference_file = str(reference_file)
     sequences, genes, headers_changed = rematch_module.get_sequence_information(reference_file, extra_seq)
     if headers_changed:
-        print 'At least one of the those characters was found. Replacing those with _' + '\n'
+        print('At least one of the those characters was found. Replacing those with _' + '\n')
         new_reference_file = os.path.join(outdir,
                                           os.path.splitext(os.path.basename(reference_file))[0] +
                                           '.headers_renamed.fasta')
@@ -138,7 +138,7 @@ def rematch_report_assess_failing(outdir, time_str, rematch_folder, sample_data_
         Dictionary containing the reasons for failing true_coverage
     """
 
-    print 'Writing report file'
+    print('Writing report file')
     os.rename(os.path.join(rematch_folder, 'rematchModule_report.txt'),
               os.path.join(outdir, 'trueCoverage_report.{time_str}.txt'.format(time_str=time_str)
               if time_str is not None else 'trueCoverage_report.txt'))
@@ -168,7 +168,8 @@ trueCoverage_timer = functools.partial(utils.timer, name='True coverage check')
 @trueCoverage_timer
 def run_true_coverage(sample, fastq, reference, threads, outdir, extra_seq, min_cov_presence, min_cov_call,
                       min_frequency_dominant_allele, min_gene_coverage, debug, min_gene_identity,
-                      true_coverage_config, rematch_script, conserved_true=True, num_map_loc=1):
+                      true_coverage_config, rematch_script, num_map_loc=1, bowtie_algorithm='--very-sensitive-local',
+                      clean_run_rematch=True):
     pass_qc = False
     failing = {}
 
@@ -185,8 +186,9 @@ def run_true_coverage(sample, fastq, reference, threads, outdir, extra_seq, min_
     time_taken, run_successfully, data_by_gene, sample_data_general, consensus_files, consensus_sequences = \
         rematch_module.run_rematch_module(sample, fastq, reference_file, threads, true_coverage_folder, extra_seq,
                                           min_cov_presence, min_cov_call, min_frequency_dominant_allele,
-                                          min_gene_coverage, conserved_true, debug, num_map_loc, min_gene_identity,
-                                          'first', 7, 'none', reference_dict, 'X', None, gene_list_reference, True)
+                                          min_gene_coverage, debug, num_map_loc, min_gene_identity, 'first', 7, 'none',
+                                          reference_dict, 'X', bowtie_algorithm, None, gene_list_reference, True,
+                                          clean_run=clean_run_rematch)
 
     if run_successfully:
         failing = rematch_report_assess_failing(outdir, None, true_coverage_folder, sample_data_general,
@@ -198,7 +200,7 @@ def run_true_coverage(sample, fastq, reference, threads, outdir, extra_seq, min_
         pass_qc = True
         failing['sample'] = False
     else:
-        print failing
+        print(failing)
 
     if not debug:
         utils.removeDirectory(true_coverage_folder)
@@ -215,6 +217,7 @@ def arguments_required_length(tuple_length_options, argument_name):
                                                        tuple_length_options=tuple_length_options)
                 parser.error(msg)
             setattr(args, self.dest, values)
+
     return RequiredLength
 
 
@@ -232,6 +235,7 @@ def arguments_check_directory(argument_name):
     ArgumentsCheckDirectory : str
         Full path of the directory
     """
+
     class ArgumentsCheckDirectory(argparse.Action):
         def __call__(self, parser, args, values, option_string=None):
             directory = os.path.abspath(values)
@@ -240,6 +244,7 @@ def arguments_check_directory(argument_name):
                                                                                         directory=directory)
                 parser.error(msg)
             setattr(args, self.dest, directory)
+
     return ArgumentsCheckDirectory
 
 
@@ -286,7 +291,7 @@ def include_rematch_dependencies_path(do_not_use_provided_software=False):
     rematch_script = utils.find_rematch()
 
     if rematch_script is not None:
-        programs_version_dictionary = {'rematch.py': ['--version', '>=', '4.0']}
+        programs_version_dictionary = {'rematch.py': ['--version', '>=', '4.0.1']}
         missing_programs, _ = utils.checkPrograms(programs_version_dictionary)
         if len(missing_programs) > 0:
             sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missing_programs))
@@ -355,7 +360,7 @@ def main():
     parser_true_coverage_files.add_argument('-i', '--indir', type=str, action=arguments_check_directory('--indir'),
                                             metavar='/path/to/fasta/config/indir/directory/',
                                             help='Path to the directory where species reference fasta files and config'
-                                                  ' files can be found',
+                                                 ' files can be found',
                                             required=False)
 
     parser_external_files = parser.add_argument_group('Options for external fasta and config files')
@@ -377,6 +382,17 @@ def main():
                                  required=False, default='.')
     parser_optional.add_argument('-j', '--threads', type=int, metavar='N', help='Number of threads to use',
                                  required=False, default=1)
+    parser_optional.add_argument('--bowtieAlgo', type=str, metavar='"--very-sensitive-local"',
+                                 help='Bowtie2 alignment mode to be used via ReMatCh to map the reads and'
+                                      ' determine the true coverage. It can be an end-to-end alignment'
+                                      ' (unclipped alignment) or local alignment (soft clipped'
+                                      ' alignment). Also, the user can choose between fast or sensitive'
+                                      ' alignments. Please check Bowtie2 manual for extra information:'
+                                      ' http://bowtie-bio.sourceforge.net/bowtie2/index.shtml .'
+                                      ' This option should be provided between quotes and starting with'
+                                      ' an empty space (like --bowtieAlgo " --very-fast") or using equal'
+                                      ' sign (like --bowtieAlgo="--very-fast")',
+                                 required=False, default='--very-sensitive-local')
     parser_optional.add_argument('--json', action='store_true', help='Stores the results also in JSON format')
 
     args = parser.parse_args()
@@ -421,7 +437,11 @@ def main():
                           config['minimum_gene_coverage'],
                           False,
                           config['minimum_gene_identity'],
-                          config, rematch_script)
+                          config,
+                          rematch_script,
+                          num_map_loc=1,
+                          bowtie_algorithm=args.bowtieAlgo,
+                          clean_run_rematch=True)
 
     import shutil
     if run_successfully:

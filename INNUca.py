@@ -56,7 +56,7 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
         trueCoverage_reference = None
 
         if trueConfigFile is None:
-            print 'No trueCoverage_ReMatCh config file was provided. Search for default files'
+            print('No trueCoverage_ReMatCh config file was provided. Search for default files')
             trueCoverage_config_file, trueCoverage_reference = trueCoverage.check_existing_default_config(speciesExpected, script_path)
         else:
             trueCoverage_config_file = trueConfigFile
@@ -67,10 +67,11 @@ def get_trueCoverage_config(skipTrueCoverage, trueConfigFile, speciesExpected, s
             trueCoverage_config['reference_file'] = trueCoverage_reference
 
         if trueCoverage_config is not None:
-            print 'The following trueCoverage_ReMatCh config file will be used: ' + trueCoverage_config_file
-            print 'The following trueCoverage_ReMatCh reference file will be used: ' + trueCoverage_config['reference_file'] + '\n'
+            print('The following trueCoverage_ReMatCh config file will be used: ' + trueCoverage_config_file)
+            print('The following trueCoverage_ReMatCh reference file will be'
+                  ' used: {reference}\n'.format(reference=trueCoverage_config['reference_file']))
         else:
-            print 'No trueCoverage_ReMatCh config file was found'
+            print('No trueCoverage_ReMatCh config file was found')
     return trueCoverage_config
 
 
@@ -105,25 +106,25 @@ def main():
     if not args.noLog:
         sys.stdout = utils.Logger(outdir, time_str)
 
-    print '\n' + '==========> INNUca.py <=========='
-    print '\n' + 'Program start: ' + time.ctime()
+    print('\n' + '==========> INNUca.py <==========')
+    print('\n' + 'Program start: ' + time.ctime())
 
     # Tells where the logfile will be stored
     if not args.noLog:
-        print '\n' + 'LOGFILE:'
-        print sys.stdout.getLogFile()
+        print('\n' + 'LOGFILE:')
+        print(sys.stdout.getLogFile())
 
     # Print command
-    print '\n' + 'COMMAND:'
+    print('\n' + 'COMMAND:')
     script_path = os.path.abspath(sys.argv[0])
-    print sys.executable + ' ' + script_path + ' ' + ' '.join(sys.argv[1:])
+    print(sys.executable + ' ' + script_path + ' ' + ' '.join(sys.argv[1:]))
 
     # Print directory where programme was lunch
-    print '\n' + 'PRESENT DIRECTORY:'
-    print os.getcwd()
+    print('\n' + 'PRESENT DIRECTORY:')
+    print(os.getcwd())
 
     # Print program version
-    print '\n' + 'VERSION INNUca.py:'
+    print('\n' + 'VERSION INNUca.py:')
     utils.script_version_git(version=version, current_directory=os.getcwd(), script_path=script_path,
                              no_git_info=args.noGitInfo)
 
@@ -159,7 +160,7 @@ def main():
             programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
     if not args.skipTrueCoverage and trueCoverage_config is not None:
         rematch_script = include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
-        programs_version_dictionary['rematch.py'] = ['--version', '>=', '4.0']
+        programs_version_dictionary['rematch.py'] = ['--version', '>=', '4.0.1']
         programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
     if not (args.skipTrueCoverage and ((args.skipAssemblyMapping and args.skipPilon) or args.skipSPAdes)):
         programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
@@ -449,7 +450,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                                   args.estimatedMinimumCoverage)
                 runs['first_Coverage'] = [run_successfully_estimated_coverage, pass_qc, time_taken, failing, {}, 'NA']
             else:
-                print '--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis'
+                print('--skipEstimatedCoverage set. Skipping First Estimated Coverage analysis')
                 runs['first_Coverage'] = skipped
 
             # # Correct first estimation coverage with Kraken percentage
@@ -479,11 +480,13 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                                        true_coverage_config['minimum_depth_frequency_dominant_allele'],
                                                        true_coverage_config['minimum_gene_coverage'], False,
                                                        true_coverage_config['minimum_gene_identity'],
-                                                       true_coverage_config, rematch_script)
+                                                       true_coverage_config, rematch_script, num_map_loc=1,
+                                                       bowtie_algorithm=args.trueCoverageBowtieAlgo,
+                                                       clean_run_rematch=True)
                     runs['trueCoverage_ReMatCh'] = [run_successfully_true_coverage, pass_qc_true_coverage, time_taken,
                                                     failing, {}, 'NA']
                 else:
-                    print '\n' + '--skipTrueCoverage set. Skipping True coverage analysis'
+                    print('\n' + '--skipTrueCoverage set. Skipping True coverage analysis')
                     runs['trueCoverage_ReMatCh'] = skipped
 
                 if args.skipTrueCoverage or true_coverage_config is None or args.trueCoverageProceed or \
@@ -497,7 +500,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                                                                   'first_run')
                         runs['first_FastQC'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
                     else:
-                        print '--skipFastQC set. Skipping First FastQC analysis'
+                        print('--skipFastQC set. Skipping First FastQC analysis')
                         runs['first_FastQC'] = skipped
 
                     # Run Trimmomatic
@@ -528,7 +531,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                 runs['second_Coverage'] = [run_successfully_estimated_coverage, pass_qc, time_run,
                                                            failing, {}, 'NA']
                             else:
-                                print '--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis'
+                                print('--skipEstimatedCoverage set. Skipping Second Estimated Coverage analysis')
                                 runs['second_Coverage'] = skipped
 
                             if args.skipEstimatedCoverage or (run_successfully_estimated_coverage and
@@ -546,7 +549,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                     if run_successfully:
                                         max_reads_length = maximum_reads_length
                                 else:
-                                    print '--skipFastQC set. Skipping Second FastQC analysis'
+                                    print('--skipFastQC set. Skipping Second FastQC analysis')
                                     runs['second_FastQC'] = skipped
                             else:
                                 print('\n'
