@@ -22,7 +22,7 @@ assessment, and possible contamination detection*
  - *Java JDK*
  - [*Kraken*](https://ccb.jhu.edu/software/kraken/) >= v0.10.6 with *Kraken* DB (whenever *Kraken* module should run)
  - [*mlst*](https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* module should run) (it is recommended to use a mlst version with updated databases)
- - [*ReMatCh*](https://github.com/B-UMMI/ReMatCh) >= v3.2 (whenever *true coverage* module should run)
+ - [*ReMatCh*](https://github.com/B-UMMI/ReMatCh) >= v4.0.1 (whenever *true coverage* module should run)
  - [*Plotly*](https://ccb.jhu.edu/software/kraken/) Python package (whenever *insert_size* module with `--insertSizeDist` should run)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
@@ -32,11 +32,11 @@ assessment, and possible contamination detection*
  - *Bowtie2* >= v2.2.9
  - *Samtools* = v1.3.1
  - *FastQC* = v0.11.5
- - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
+ - *Trimmomatic* >= v0.36 (make sure the .jar file is executable and it is
    in your PATH)
  - *Pear* = v0.9.10
  - *SPAdes* >= v3.9.0
- - *Pilon* = v1.18
+ - *Pilon* >= v1.18
 
 ## Installation
 
@@ -73,7 +73,8 @@ usage: INNUca.py [-h] [--version] -s "Streptococcus agalactiae" -g 2.1
                  [--krakenMinCov 1.5] [--krakenMaxUnclass 1.5]
                  [--krakenMinQual N]
                  [--estimatedMinimumCoverage N]
-                 [--trueConfigFile species.config]
+                 [--trueConfigFile species.config] [--trueCoverageBowtieAlgo="--very-sensitive-local"]
+                 [--trueCoverageProceed] [--trueCoverageIgnoreQC]
                  [--fastQCkeepFiles] [--fastQCproceed]
                  [--trimKeepFiles] [--doNotTrimCrops] [--trimCrop N]
                  [--trimHeadCrop N] [--trimSlidingWindow window:meanQuality]
@@ -228,6 +229,17 @@ trueCoverage_ReMatCh options:
                         trueCoverage_ReMatCh will run by default, unless
                         --skipTrueCoverage is specified. Do not use together
                         with --skipTrueCoverage option (default: None)
+  --trueCoverageBowtieAlgo="--very-sensitive-local"
+                        Bowtie2 alignment mode to be used via ReMatCh to map the reads and
+                        determine the true coverage. It can be an end-to-end alignment
+                        (unclipped alignment) or local alignment (soft clipped
+                        alignment). Also, can choose between fast or sensitive
+                        alignments. Please check Bowtie2 manual for extra information:
+                        http://bowtie-bio.sourceforge.net/bowtie2/index.shtml .
+                        This option should be provided between quotes and starting
+                        with an empty space (like --bowtieAlgo " --very-fast") or
+                        using equal sign (like --bowtieAlgo="--very-fast")
+                        (default: "--very-sensitive-local")
   --trueCoverageProceed Do not stop INNUca.py if sample fails
                         trueCoverage_ReMatCh (default: False)
   --trueCoverageIgnoreQC
