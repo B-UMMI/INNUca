@@ -1,6 +1,7 @@
 import utils
 import os
 from functools import partial
+from itertools import groupby as itertools_groupby
 
 
 # Indexing reference file using Bowtie2
@@ -46,7 +47,7 @@ def mapping_bowtie2(fastq_files, reference_file, outdir, keep_bam=False, threads
 
     if run_successfully:
         command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', reference_file, '',
-                   '', '-S', sam_file]
+                   '', '--fr', '-I', '0', '-X', '2000', '-S', sam_file]
         if len(fastq_files) == 1:
             command[7] = '-U ' + fastq_files[0]
         else:
@@ -112,7 +113,38 @@ def parsePilonResult(assembly_polished, outdir):
         writer.write('#by_contigs' + '\n')
         for contig in corrections:
             writer.write(str('>' + contig) + '\n' + str(corrections[contig]) + '\n')
-    print str(sum(corrections.values())) + ' changes made by Pilon in ' + str(len(corrections)) + ' contigs'
+    print(str(sum(corrections.values())) + ' changes made by Pilon in ' + str(len(corrections)) + ' contigs')
+
+
+def write_assembly_statistics(assembly, outdir):
+    """
+    Write assembly statistics
+
+    Parameters
+    ----------
+    assembly : str
+        Path to assembly fasta file
+    outdir : str
+        Path to the output directory
+
+    Returns
+    -------
+
+    """
+    assembly_lengths = []
+
+    assembly = open(assembly, mode='rt')  # TODO: newline=None in Python3
+    fasta_iter = (g for k, g in itertools_groupby(assembly, lambda x: x.startswith('>')))
+    for header in fasta_iter:
+        # _ = header.__next__()[1:].rstrip('\r\n')  # TODO: Python3
+        _ = header.next()[1:].rstrip('\r\n')
+        # seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())  # TODO: Python3
+        seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.next())
+        assembly_lengths.append(len(seq))
+
+    with open(os.path.join(outdir, 'pilon_assembly_statistics.tab'), 'wt') as writer:
+        writer.write('#' + '\t'.join(['contigs', 'bp']) + '\n')
+        writer.write('\t'.join(map(str, [len(assembly_lengths), sum(assembly_lengths)])) + '\n')
 
 
 pilon_timer = partial(utils.timer, name='Pilon')
@@ -125,7 +157,8 @@ def run_pilon(jar_path_pilon, assembly, fastq_files, outdir, jar_max_memory, ali
 
     Parameters
     ----------
-    jar_path_pilon
+    jar_path_pilon : str
+        Path to the Pilon jar file that will be executed
     assembly : str
         Path to the assembly to correct
     fastq_files : list
@@ -205,6 +238,7 @@ def run_pilon(jar_path_pilon, assembly, fastq_files, outdir, jar_max_memory, ali
             parsePilonResult(assembly_polished, outdir)
             os.rename(assembly_polished, os.path.join(outdir, os.path.basename(assembly_polished)))
             assembly_polished = os.path.join(outdir, os.path.basename(assembly_polished))
+            write_assembly_statistics(assembly=assembly_polished, outdir=outdir)
             if keep_bam and new_bam:
                 os.rename(alignment_file, os.path.join(outdir, '{}.bam'.format(os.path.basename(assembly))))
                 alignment_file = os.path.join(outdir, '{}.bam'.format(os.path.basename(assembly)))
@@ -214,6 +248,6 @@ def run_pilon(jar_path_pilon, assembly, fastq_files, outdir, jar_max_memory, ali
 
     if not run_successfully:
         failing['sample'] = 'Did not run'
-        print failing['sample']
+        print(failing['sample'])
 
     return run_successfully, None, failing, assembly_polished, pilon_folder, new_bam, alignment_file

@@ -22,7 +22,8 @@ assessment, and possible contamination detection*
  - *Java JDK*
  - [*Kraken*](https://ccb.jhu.edu/software/kraken/) >= v0.10.6 with *Kraken* DB (whenever *Kraken* module should run)
  - [*mlst*](https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* module should run) (it is recommended to use a mlst version with updated databases)
- - [*ReMatCh*](https://github.com/B-UMMI/ReMatCh) >= v3.2 (whenever *true coverage* module should run)
+ - [*ReMatCh*](https://github.com/B-UMMI/ReMatCh) >= v4.0.1 (whenever *true coverage* module should run)
+ - [*Plotly*](https://ccb.jhu.edu/software/kraken/) Python package (whenever *insert_size* module with `--insertSizeDist` should run)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
 **Optional**
@@ -31,15 +32,27 @@ assessment, and possible contamination detection*
  - *Bowtie2* >= v2.2.9
  - *Samtools* = v1.3.1
  - *FastQC* = v0.11.5
- - *Trimmomatic* = v0.36 (make sure the .jar file is executable and it is
+ - *Trimmomatic* >= v0.36 (make sure the .jar file is executable and it is
    in your PATH)
  - *Pear* = v0.9.10
  - *SPAdes* >= v3.9.0
- - *Pilon* = v1.18
+ - *Pilon* >= v1.18
 
 ## Installation
 
-    git clone https://github.com/B-UMMI/INNUca.git
+### Standalone usage
+````bash
+git clone https://github.com/B-UMMI/INNUca.git
+cd INNUca
+
+# Temporarily add ReMatCh to the PATH
+export PATH="$(pwd -P):$PATH"
+
+# Permanently add ReMatCh to the PATH
+echo export PATH="$(pwd -P):$PATH" >> ~/.profile
+````
+### Docker usage
+Check [here](./Docker)
 
 ---
 
@@ -60,17 +73,19 @@ usage: INNUca.py [-h] [--version] -s "Streptococcus agalactiae" -g 2.1
                  [--krakenMinCov 1.5] [--krakenMaxUnclass 1.5]
                  [--krakenMinQual N]
                  [--estimatedMinimumCoverage N]
-                 [--trueConfigFile species.config]
+                 [--trueConfigFile species.config] [--trueCoverageBowtieAlgo="--very-sensitive-local"]
+                 [--trueCoverageProceed] [--trueCoverageIgnoreQC]
                  [--fastQCkeepFiles] [--fastQCproceed]
                  [--trimKeepFiles] [--doNotTrimCrops] [--trimCrop N]
                  [--trimHeadCrop N] [--trimSlidingWindow window:meanQuality]
                  [--trimLeading N] [--trimTrailing N] [--trimMinLength N]
-                 [--spadesVersion 3.11.0] [--spadesNotUseCareful]
+                 [--spadesVersion 3.13.0] [--spadesNotUseCareful]
                  [--spadesMinContigsLength N] [--spadesMaxMemory N]
                  [--spadesMinCoverageAssembly N] [--spadesMinKmerCovContigs N]
                  [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
                  [--assemblyMinCoverageContigs N] [--maxNumberContigs N]
                  [--saveExcludedContigs] [--keepIntermediateAssemblies]
+                 [--keepSPAdesScaffolds]
                  [--pilonKeepFiles]
                  [--mlstIgnoreQC]
                  [--pearKeepFiles] [--pearMinOverlap N]
@@ -139,6 +154,7 @@ Running modules options:
                         (default: False)
   --skipMLST            Tells the programme to not run MLST analysis (default:
                         False)
+  --runInsertSize       Runs the insert_size module at the end (default: False)
 
 Adapters options (one of the following):
   Control how adapters are handle by INNUca. If none of these options are provided, INNUca
@@ -214,6 +230,24 @@ trueCoverage_ReMatCh options:
                         trueCoverage_ReMatCh will run by default, unless
                         --skipTrueCoverage is specified. Do not use together
                         with --skipTrueCoverage option (default: None)
+  --trueCoverageBowtieAlgo="--very-sensitive-local"
+                        Bowtie2 alignment mode to be used via ReMatCh to map the reads and
+                        determine the true coverage. It can be an end-to-end alignment
+                        (unclipped alignment) or local alignment (soft clipped
+                        alignment). Also, can choose between fast or sensitive
+                        alignments. Please check Bowtie2 manual for extra information:
+                        http://bowtie-bio.sourceforge.net/bowtie2/index.shtml .
+                        This option should be provided between quotes and starting
+                        with an empty space (like --bowtieAlgo " --very-fast") or
+                        using equal sign (like --bowtieAlgo="--very-fast")
+                        (default: "--very-sensitive-local")
+  --trueCoverageProceed Do not stop INNUca.py if sample fails
+                        trueCoverage_ReMatCh (default: False)
+  --trueCoverageIgnoreQC
+                        Ignore trueCoverage_ReMatCh QA/QC in sample quality
+                        assessment. Useful when analysing data from when
+                        analysing data from species with unknown behaviour
+                        (default: False)
 
 FastQC options:
   --fastQCkeepFiles     Tells INNUca.py to not remove the output of FastQC
@@ -222,6 +256,9 @@ FastQC options:
                         False)
 
 Trimmomatic options:
+  --trimVersion         0.38
+                        Tells INNUca.py which Trimmomatic version to use (available
+                        options: 0.36, 0.38) (default: 0.38)
   --trimKeepFiles       Tells INNUca.py to not remove the output of
                         Trimmomatic (default: False)
   --doNotTrimCrops      Tells INNUca.py to not cut the beginning and end of
@@ -258,10 +295,9 @@ Trimmomatic options:
                         length (default: 55) (default: 55)
 
 SPAdes options:
-  --spadesVersion 3.11.0
+  --spadesVersion 3.13.0
                         Tells INNUca.py which SPAdes version to use (available
-                        options: 3.9.0, 3.10.1, 3.11.0) (default: 3.11.0)
-                        (default: 3.11.0)
+                        options: 3.10.1, 3.11.1, 3.13.0) (default: 3.13.0)
   --spadesNotUseCareful
                         Tells SPAdes to only perform the assembly without the
                         --careful option (default: False)
@@ -306,8 +342,13 @@ Assembly options:
   --keepIntermediateAssemblies
                         Tells INNUca to keep all the intermediate assemblies
                         (default: False)
+  --keepSPAdesScaffolds 
+                        Tells INNUca to keep SPAdes scaffolds (default: False)
 
 Pilon options:
+  --pilonVersion        1.18
+                        Tells INNUca.py which Pilon version to use (available
+                        options: 1.18, 1.23) (default: 1.23)
   --pilonKeepFiles      Tells INNUca.py to not remove the output of Pilon
                         (default: False)
 
@@ -316,6 +357,13 @@ MLST options:
                         when analysing data from possible new species or
                         higher taxonomic levels (higher than species)
                         (default: False)
+
+insert_size options:
+  This module determines the sequencing insert size by mapping the reades used
+  in the assembly back to the produced assembly it self.
+
+  --insertSizeDist      Produces a distribution plot of the insert sizes (requires
+                        Plotly) (default: False)
 
 Pear options:
   --pearKeepFiles       Tells INNUca.py to not remove the output of Pear

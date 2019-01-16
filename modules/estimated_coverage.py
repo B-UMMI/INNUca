@@ -13,7 +13,8 @@ def countSequencedBases(fastq_file, outdir):
     # Determine compression type
     compression_type = utils.compressionType(fastq_file)
     if compression_type is not None:
-        command = [compression_type[1], '--keep', '--stdout', fastq_file, '|', 'grep', '--after-context=1', '"@"', '|', 'grep', '--invert-match', '"^--$"', '|', 'grep', '--invert-match', '"@"', '|', 'wc', '']
+        command = [compression_type[1], '--keep', '--stdout', fastq_file, '|', 'grep', '--after-context=1', '"@"', '|',
+                   'grep', '--invert-match', '"^--$"', '|', 'grep', '--invert-match', '"@"', '|', 'wc', '']
 
         # Number of characters
         command[18] = '--chars'

@@ -2,6 +2,7 @@ import utils
 import os
 from functools import partial
 import sys
+from itertools import groupby as itertools_groupby
 
 
 mlst_timer = partial(utils.timer, name='MLST')
@@ -14,7 +15,8 @@ def get_species_scheme_map_version(mlst_folder):
     if not os.path.isfile(mlst_db_path):
         mlst_db_path = os.path.join(os.path.dirname(os.path.dirname(mlst_folder)), 'db', 'scheme_species_map.tab')
         if not os.path.isfile(mlst_db_path):
-            sys.exit('ERROR: species_scheme_map not found. Contact the developers. In the meantime try running INNUca with --skipMLST option')
+            sys.exit('ERROR: species_scheme_map not found. Contact the developers. In the meantime try running INNUca'
+                     ' with --skipMLST option')
         else:
             species_scheme_map_version = 2
     return mlst_db_path, species_scheme_map_version
@@ -43,7 +45,8 @@ def parse_species_scheme_map(species_splited, mlst_db_path, species_scheme_map_v
                 if not line.startswith('#'):
                     line = line.lower().split('\t')
                     line = [line[i].split(' ')[0] for i in range(0, len(line))]
-                    val_genus, val_species, val_scheme = set_species_scheme_map_variables(line, species_scheme_map_version)
+                    val_genus, val_species, val_scheme = set_species_scheme_map_variables(line,
+                                                                                          species_scheme_map_version)
                     if val_genus == species_splited[0]:
                         if val_species == '':
                             genus_mlst_scheme = val_scheme
@@ -61,18 +64,73 @@ def getScheme(species):
 
     mlst_db_path, species_scheme_map_new = get_species_scheme_map_version(mlst_folder)
 
-    scheme, genus_mlst_scheme = parse_species_scheme_map(species.lower().split(' '), mlst_db_path, species_scheme_map_new)
+    scheme, genus_mlst_scheme = parse_species_scheme_map(species.lower().split(' '), mlst_db_path,
+                                                         species_scheme_map_new)
 
-    print '\n' + 'MLST scheme found for {species}: {scheme}'.format(species=species, scheme=scheme)
+    print('\n' + 'MLST scheme found for {species}: {scheme}'.format(species=species, scheme=scheme))
 
     return scheme, species.lower().split(' ')[0], genus_mlst_scheme
 
 
 def getBlastPath():
-    print '\n' + 'The following blastn will be used'
+    print('\n' + 'The following blastn will be used')
     command = ['which', 'blastn']
     run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
-    print stdout
+    print(stdout)
+
+
+def clean_novel_alleles(novel_alleles, scheme_mlst, profile):
+    """
+    Clean the fasta file with the novel alleles produced by mlst
+
+    Parameters
+    ----------
+    novel_alleles : str
+        Path for fasta file containing the novel alleles
+    scheme_mlst : str
+        MLST schema found by mlst
+    profile : list
+        List of strings with the profile found
+    Returns
+    -------
+
+    """
+    unknown_genes = []
+    for gene_allele in profile:
+        gene = gene_allele.split('(')[0]
+        try:
+            allele = gene_allele.split('(')[1].rstrip(')')
+            if allele.startswith('~'):
+                unknown_genes.append(gene)
+        except IndexError as e:
+            print('WARNING: {}'.format(e))
+
+    try:
+        novel_alleles_keep = {}
+        if len(unknown_genes) > 0:
+            reader = open(novel_alleles, mode='rt')  # TODO: newline=None in Python3
+            fasta_iter = (g for k, g in itertools_groupby(reader, lambda x: x.startswith('>')))
+            for header in fasta_iter:
+                # header = header.__next__()[1:].rstrip('\r\n')  # TODO: Python3
+                header = header.next()[1:].rstrip('\r\n')
+                # seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())  # TODO: Python3
+                seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.next())
+                if header.startswith(scheme_mlst):
+                    gene = header.split('.')[1].split('~')[0]
+                    if gene in unknown_genes:
+                        novel_alleles_keep[header] = seq
+            reader.close()
+
+        os.remove(novel_alleles)
+
+        if len(novel_alleles_keep) > 0:
+            with open(novel_alleles, 'wt') as writer:
+                for header, seq in novel_alleles_keep.items():
+                    writer.write('>{}\n'.format(header))
+                    writer.write('\n'.join(utils.chunkstring(seq, 80)) + '\n')
+    except FileNotFoundError as e:
+        print('An unknown ST was found but no novel alleles fasta file was produced by mlst software:\n'
+              '{}'.format(e))
 
 
 @mlst_timer
@@ -82,16 +140,24 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
     failing['sample'] = False
     warnings = {}
 
-    command = ['mlst', contigs]
-    run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
+    novel_alleles = os.path.join(outdir, 'mlst_novel_alleles.fasta')
+
+    command = ['mlst', '--novel', novel_alleles, contigs]
+    run_successfully, stdout, _ = utils.runCommandPopenCommunicate(command, False, None, True)
 
     if run_successfully:
         scheme_mlst = stdout.splitlines()[0].split('\t')[1].split('_')[0]
         st = stdout.splitlines()[0].split('\t')[2]
         profile = stdout.splitlines()[0].split('\t')[3:]
 
+        if st == '-':
+            clean_novel_alleles(novel_alleles=novel_alleles, scheme_mlst=scheme_mlst, profile=profile)
+        else:
+            if os.path.isfile(novel_alleles):
+                os.remove(novel_alleles)
+
         report = 'MLST found ST ' + str(st) + ' from scheme ' + scheme_mlst
-        print report
+        print(report)
         with open(os.path.join(outdir, 'mlst_report.txt'), 'wt') as writer:
             writer.write('#scheme' + '\n' + scheme_mlst + '\n' + '#ST' + '\n' + st + '\n')
             writer.write('#profile' + '\n' + ' '.join(profile) + '\n')
@@ -102,20 +168,25 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
         else:
             if scheme == 'unknown' and scheme_mlst != '-':
                 pass_qc = True
-                warnings['sample'] = 'Found {scheme_mlst} scheme for a species with unknown scheme'.format(scheme_mlst=scheme_mlst)
+                warnings['sample'] = 'Found {scheme_mlst} scheme for a species with unknown' \
+                                     ' scheme'.format(scheme_mlst=scheme_mlst)
             elif scheme == 'unknown' and scheme_mlst == '-':
                 pass_qc = True
             elif species_genus == 'yersinia' and mlst_scheme_genus == 'yersinia':
                 pass_qc = True
-                warnings['sample'] = 'Found a Yersinia scheme ({scheme_mlst}), but it is different from what it was expected ({scheme})'.format(scheme_mlst=scheme_mlst, scheme=scheme)
+                warnings['sample'] = 'Found a Yersinia scheme ({scheme_mlst}), but it is different from what it was' \
+                                     ' expected ({scheme})'.format(scheme_mlst=scheme_mlst, scheme=scheme)
             else:
-                failing['sample'] = 'MLST scheme found (' + scheme_mlst + ') and provided (' + scheme + ') are not the same'
-                print failing['sample']
+                if mlst_scheme_genus is not None and scheme_mlst == scheme == mlst_scheme_genus:
+                    pass_qc = True
+                else:
+                    failing['sample'] = 'MLST scheme found ({scheme_mlst}) and provided ({scheme}) are not the' \
+                                        ' same'.format(scheme_mlst=scheme_mlst, scheme=scheme)
+                    print(failing['sample'])
     else:
-        warnings['sample'] = 'Did not run;'
-        pass_qc = True
+        failing['sample'] = 'Did not run'
 
     if len(warnings) > 0:
-        print warnings['sample']
+        print(warnings['sample'])
 
     return run_successfully, pass_qc, failing, warnings

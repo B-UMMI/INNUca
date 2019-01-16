@@ -66,7 +66,10 @@ def guess_encoding(fastq, number_reads_access_None_all, outdir):
                             gmin, gmax = min(lmin, gmin), max(lmax, gmax)
                             valid_encodings = get_encodings_in_range(gmin, gmax)
 
-    utils.saveVariableToPickle([fastq, valid_encodings, min(reads_length) if len(reads_length) > 0 else None, max(reads_length) if len(reads_length) > 0 else None], outdir, 'encoding' + '.' + os.path.splitext(os.path.basename(fastq))[0])
+    utils.saveVariableToPickle([fastq, valid_encodings,
+                                min(reads_length) if len(reads_length) > 0 else None,
+                                max(reads_length) if len(reads_length) > 0 else None],
+                               outdir, 'encoding' + '.' + os.path.splitext(os.path.basename(fastq))[0])
 
 
 def gather_data_together(data_directory):
@@ -109,13 +112,38 @@ def get_final_encoding(encoding_data):
 
 
 def determine_min_max_reads_length(encoding_data):
-    x = [encoding_data[fastq]['min_reads_length'] for fastq in encoding_data if encoding_data[fastq]['min_reads_length'] is not None]
-    min_reads_length = min(x) if len(x) > 0 else None
+    """
+    Returns the minimum and maximum reads length found for all fastq and for each fastq
 
-    x = [encoding_data[fastq]['max_reads_length'] for fastq in encoding_data if encoding_data[fastq]['max_reads_length'] is not None]
-    max_reads_length = max(x) if len(x) > 0 else None
+    Parameters
+    ----------
+    encoding_data : dict
+        Dictionary with encondig data, and reads length for each fastq. Something like
+        data[fastq] = {'valid_encodings': valid_encodings,
+                       'min_reads_length': min_reads_length,
+                       'max_reads_length': max_reads_length}
 
-    return min_reads_length, max_reads_length
+    Returns
+    -------
+    min_reads_length_found : int
+        Minimum reads length found in fastq file
+    max_reads_length_found : int
+        Maximum reads length found in fastq file
+    min_reads_length_each_fastq : list
+        Minimum reads length found for each fastq file
+    max_reads_length_each_fastq : list
+        Maximum reads length found for each fastq file
+    """
+    min_length_each_fastq = [encoding_data[fastq]['min_reads_length'] for fastq in encoding_data if
+                             encoding_data[fastq]['min_reads_length'] is not None]
+
+    max_length_each_fastq = [encoding_data[fastq]['max_reads_length'] for fastq in encoding_data if
+                             encoding_data[fastq]['max_reads_length'] is not None]
+
+    return min(min_length_each_fastq) if len(min_length_each_fastq) > 0 else None, \
+           max(max_length_each_fastq) if len(max_length_each_fastq) > 0 else None, \
+           min_length_each_fastq, \
+           max_length_each_fastq
 
 
 def fastq_files_enconding(fastq_files_list, number_reads_access_None_all, outdir, threads):
@@ -129,6 +157,6 @@ def fastq_files_enconding(fastq_files_list, number_reads_access_None_all, outdir
 
     final_encoding = get_final_encoding(encoding_data)
 
-    min_reads_length, max_reads_length = determine_min_max_reads_length(encoding_data)
+    min_reads_length, max_reads_length, _, _ = determine_min_max_reads_length(encoding_data)
 
     return final_encoding, min_reads_length, max_reads_length
