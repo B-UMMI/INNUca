@@ -85,6 +85,7 @@ usage: INNUca.py [-h] [--version] -s "Streptococcus agalactiae" -g 2.1
                  [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
                  [--assemblyMinCoverageContigs N] [--maxNumberContigs N]
                  [--saveExcludedContigs] [--keepIntermediateAssemblies]
+                 [--keepSPAdesScaffolds]
                  [--pilonKeepFiles]
                  [--mlstIgnoreQC]
                  [--pearKeepFiles] [--pearMinOverlap N]
@@ -341,6 +342,8 @@ Assembly options:
   --keepIntermediateAssemblies
                         Tells INNUca to keep all the intermediate assemblies
                         (default: False)
+  --keepSPAdesScaffolds 
+                        Tells INNUca to keep SPAdes scaffolds (default: False)
 
 Pilon options:
   --pilonVersion        1.18

@@ -47,7 +47,7 @@ def mapping_bowtie2(fastq_files, reference_file, outdir, keep_bam=False, threads
 
     if run_successfully:
         command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', reference_file, '',
-                   '', '-S', sam_file]
+                   '', '--fr', '-I', '0', '-X', '2000', '-S', sam_file]
         if len(fastq_files) == 1:
             command[7] = '-U ' + fastq_files[0]
         else:

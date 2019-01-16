@@ -617,13 +617,13 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
             # Run SPAdes
             if not args.skipSPAdes:
                 run_successfully, pass_qc, time_taken, failing, contigs_spades, warning = \
-                    spades.runSpades(sample_name, outdir, threads,
-                                     unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files,
-                                     args.spadesNotUseCareful, spades_max_memory,
-                                     args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genome_size,
-                                     args.spadesKmers, max_reads_length, args.spadesDefaultKmers,
-                                     args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs,
-                                     args.maxNumberContigs)
+                    spades.run_spades(sample_name, outdir, threads,
+                                      unassembled_pe_reads if unassembled_pe_reads is not None else fastq_files,
+                                      args.spadesNotUseCareful, spades_max_memory,
+                                      args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genome_size,
+                                      args.spadesKmers, max_reads_length, args.spadesDefaultKmers,
+                                      args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs,
+                                      args.maxNumberContigs, args.keepSPAdesScaffolds)
                 runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
 
                 if run_successfully:
@@ -785,7 +785,7 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                           ' MLST and Kraken (assembly) analysis and insert size determination')
             else:
                 print('--skipSPAdes set. Skipping SPAdes, Pilon correction, Assembly Mapping check and MLST and Kraken'
-                      ' (assembly) analysis')
+                      ' (assembly) analysis and insert size determination')
                 runs['SPAdes'] = skipped
                 runs['Assembly_Mapping'] = skipped
                 runs['Pilon'] = skipped

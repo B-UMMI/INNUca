@@ -331,8 +331,8 @@ def mappingBowtie2(fastq_files, referenceFile, threads, outdir):
     run_successfully = indexSequenceBowtie2(referenceFile, threads)
 
     if run_successfully:
-        command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '', '-S',
-                   sam_file]
+        command = ['bowtie2', '-q', '--very-sensitive-local', '--threads', str(threads), '-x', referenceFile, '',
+                   '--fr', '-I', '0', '-X', '2000', '-S', sam_file]
         if len(fastq_files) == 1:
             command[8] = '-U ' + fastq_files
         else:

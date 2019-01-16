@@ -266,6 +266,8 @@ def parseArguments(version):
                                   help='Tells INNUca.py to save excluded contigs')
     assembly_options.add_argument('--keepIntermediateAssemblies', action='store_true',
                                   help='Tells INNUca to keep all the intermediate assemblies')
+    assembly_options.add_argument('--keepSPAdesScaffolds', action='store_true',
+                                  help='Tells INNUca to keep SPAdes scaffolds')
 
     pilon_options = parser.add_argument_group(title='Pilon options')
     pilon_options.add_argument('--pilonVersion', type=str, metavar='1.23',

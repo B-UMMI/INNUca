@@ -252,7 +252,10 @@ spades_timer = partial(utils.timer, name='SPAdes')
 
 # Run SPAdes procedure
 @spades_timer
-def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, minContigsLength, estimatedGenomeSizeMb, kmers, maximumReadsLength, defaultKmers, minCoverageContigs, assembled_se_reads, saveExcludedContigs, maxNumberContigs):
+def run_spades(sample_name, outdir, threads, fastq_files, not_use_careful, max_memory, min_coverage_assembly,
+               min_contigs_length, estimated_genome_size_mb, kmers, maximum_reads_length, default_kmers,
+               min_coverage_contigs, assembled_se_reads, save_excluded_contigs, max_number_contigs,
+               keep_scaffolds=False):
     pass_qc = True
     failing = {'sample': False}
     warnings = {}
@@ -263,44 +266,51 @@ def runSpades(sampleName, outdir, threads, fastq_files, notUseCareful, maxMemory
     os.mkdir(spades_folder)
 
     # Determine k-mers to run
-    if defaultKmers:
+    if default_kmers:
         kmers = []
     else:
-        kmers = define_kmers(kmers, maximumReadsLength)
+        kmers = define_kmers(kmers, maximum_reads_length)
         if len(kmers) == 0:
             print('SPAdes will use its default k-mers')
         else:
             print('SPAdes will use the following k-mers: ' + str(kmers))
 
-    run_successfully, contigs = spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory,
-                                       minCoverageAssembly, kmers, assembled_se_reads)
+    run_successfully, contigs = spades(spades_folder, threads, fastq_files, not_use_careful, max_memory,
+                                       min_coverage_assembly, kmers, assembled_se_reads)
 
     if run_successfully:
+        scaffolds = os.path.join(spades_folder, 'scaffolds.fasta')
+        if keep_scaffolds:
+            if os.path.isfile(scaffolds):
+                shutil.copyfile(scaffolds, os.path.join(outdir, str('SPAdes_original_assembly.scaffolds.fasta')))
+            else:
+                print('The scaffolds file was not found!')
+
         if os.path.isfile(contigs):
             shutil.copyfile(contigs, os.path.join(outdir, str('SPAdes_original_assembly.contigs.fasta')))
 
-            contigs_link = os.path.join(outdir, str(sampleName + '.contigs.fasta'))
+            contigs_link = os.path.join(outdir, str(sample_name + '.contigs.fasta'))
             os.symlink(contigs, contigs_link)
 
             contigs = contigs_link
 
-            minContigsLength = define_minContigsLength(maximumReadsLength, minContigsLength)
+            min_contigs_length = define_minContigsLength(maximum_reads_length, min_contigs_length)
 
             sequence_dict = get_SPAdes_sequence_information(contigs)
 
             warnings, sequence_dict, filtered_sequences_sufix, spades_report_general = \
-                decide_filter_parameters(sequence_dict, minContigsLength, minCoverageContigs, estimatedGenomeSizeMb,
-                                         maxNumberContigs)
+                decide_filter_parameters(sequence_dict, min_contigs_length, min_coverage_contigs,
+                                         estimated_genome_size_mb, max_number_contigs)
 
             if filtered_sequences_sufix is not None:
                 filtered_sequence_file = os.path.splitext(contigs)[0] + '.' + filtered_sequences_sufix + '.fasta'
                 write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs,
-                                                   filtered_sequence_file, sampleName, False, saveExcludedContigs)
+                                                   filtered_sequence_file, sample_name, False, save_excluded_contigs)
                 contigs = filtered_sequence_file
             else:
                 filtered_sequence_file = os.path.splitext(contigs)[0] + '.original.fasta'
                 write_filtered_sequences_and_stats(sequence_dict, spades_report_general, contigs,
-                                                   filtered_sequence_file, sampleName, True, False)
+                                                   filtered_sequence_file, sample_name, True, False)
                 contigs = filtered_sequence_file
 
             os.remove(contigs_link)

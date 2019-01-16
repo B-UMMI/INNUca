@@ -105,28 +105,32 @@ def clean_novel_alleles(novel_alleles, scheme_mlst, profile):
         except IndexError as e:
             print('WARNING: {}'.format(e))
 
-    novel_alleles_keep = {}
-    if len(unknown_genes) > 0:
-        reader = open(novel_alleles, mode='rt')  # TODO: newline=None in Python3
-        fasta_iter = (g for k, g in itertools_groupby(reader, lambda x: x.startswith('>')))
-        for header in fasta_iter:
-            # header = header.__next__()[1:].rstrip('\r\n')  # TODO: Python3
-            header = header.next()[1:].rstrip('\r\n')
-            # seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())  # TODO: Python3
-            seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.next())
-            if header.startswith(scheme_mlst):
-                gene = header.split('.')[1].split('~')[0]
-                if gene in unknown_genes:
-                    novel_alleles_keep[header] = seq
-        reader.close()
+    try:
+        novel_alleles_keep = {}
+        if len(unknown_genes) > 0:
+            reader = open(novel_alleles, mode='rt')  # TODO: newline=None in Python3
+            fasta_iter = (g for k, g in itertools_groupby(reader, lambda x: x.startswith('>')))
+            for header in fasta_iter:
+                # header = header.__next__()[1:].rstrip('\r\n')  # TODO: Python3
+                header = header.next()[1:].rstrip('\r\n')
+                # seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.__next__())  # TODO: Python3
+                seq = ''.join(s.rstrip('\r\n') for s in fasta_iter.next())
+                if header.startswith(scheme_mlst):
+                    gene = header.split('.')[1].split('~')[0]
+                    if gene in unknown_genes:
+                        novel_alleles_keep[header] = seq
+            reader.close()
 
-    os.remove(novel_alleles)
+        os.remove(novel_alleles)
 
-    if len(novel_alleles_keep) > 0:
-        with open(novel_alleles, 'wt') as writer:
-            for header, seq in novel_alleles_keep.items():
-                writer.write('>{}\n'.format(header))
-                writer.write('\n'.join(utils.chunkstring(seq, 80)) + '\n')
+        if len(novel_alleles_keep) > 0:
+            with open(novel_alleles, 'wt') as writer:
+                for header, seq in novel_alleles_keep.items():
+                    writer.write('>{}\n'.format(header))
+                    writer.write('\n'.join(utils.chunkstring(seq, 80)) + '\n')
+    except FileNotFoundError as e:
+        print('An unknown ST was found but no novel alleles fasta file was produced by mlst software:\n'
+              '{}'.format(e))
 
 
 @mlst_timer
@@ -149,7 +153,8 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
         if st == '-':
             clean_novel_alleles(novel_alleles=novel_alleles, scheme_mlst=scheme_mlst, profile=profile)
         else:
-            os.remove(novel_alleles)
+            if os.path.isfile(novel_alleles):
+                os.remove(novel_alleles)
 
         report = 'MLST found ST ' + str(st) + ' from scheme ' + scheme_mlst
         print(report)
