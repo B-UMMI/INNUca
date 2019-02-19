@@ -128,7 +128,7 @@ def clean_novel_alleles(novel_alleles, scheme_mlst, profile):
                 for header, seq in novel_alleles_keep.items():
                     writer.write('>{}\n'.format(header))
                     writer.write('\n'.join(utils.chunkstring(seq, 80)) + '\n')
-    except IOError as e:  # TODO: FileNotFoundError in Python3
+    except OSError as e:  # TODO: FileNotFoundError in Python3
         print('An unknown ST was found but no novel alleles fasta file was produced by mlst software:\n'
               '{}'.format(e))
 
