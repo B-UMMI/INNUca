@@ -52,14 +52,16 @@ def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, a
             adaptersFasta = concatenateFastaFiles(adapters_files, trimmomatic_folder, 'concatenated_adaptersFile.fasta')
             command[12] = 'ILLUMINACLIP:' + adaptersFasta + ':3:30:10:6:true'
 
+    run_successfully = False
     if fastq_encoding is not None:
         if fastq_encoding == 33:
             command[7] = '-phred33'
         elif fastq_encoding == 64:
             command[7] = '-phred64'
         run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
-    else:
-        print 'Trimmomatic fail! Trying run with Phred+33 enconding defined...'
+
+    if not run_successfully:
+        print 'Trying run Trimmomatic with Phred+33 enconding defined...'
         command[7] = '-phred33'
         run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
         if not run_successfully:
