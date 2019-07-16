@@ -61,11 +61,11 @@ def trimmomatic(jar_path_trimmomatic, sampleName, trimmomatic_folder, threads, a
         run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
     if not run_successfully:
-        print 'Trying run Trimmomatic with Phred+33 enconding defined...'
+        print 'Trying to run Trimmomatic with Phred+33 enconding defined...'
         command[7] = '-phred33'
         run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
         if not run_successfully:
-            print 'Trimmomatic fail again! Trying run with Phred+64 enconding defined...'
+            print 'Trimmomatic fail again! Trying to run with Phred+64 enconding defined...'
             command[7] = '-phred64'
             run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, False, None, True)
 
