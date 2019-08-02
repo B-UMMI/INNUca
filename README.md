@@ -23,7 +23,7 @@ assessment, and possible contamination detection*
  - [*Kraken*](https://ccb.jhu.edu/software/kraken/) >= v0.10.6 with *Kraken* DB (whenever *Kraken* module should run)
  - [*mlst*](https://github.com/tseemann/mlst) >= v2.4 (whenever *mlst* module should run) (it is recommended to use a mlst version with updated databases)
  - [*ReMatCh*](https://github.com/B-UMMI/ReMatCh) >= v4.0.1 (whenever *true coverage* module should run)
- - [*Plotly*](https://ccb.jhu.edu/software/kraken/) Python package (whenever *insert_size* module with `--insertSizeDist` should run)
+ - [*Plotly*](https://plot.ly/python/) Python package (whenever *insert_size* module with `--insertSizeDist` should run)
  - *gzip* >= v1.6 (normally found in Linux OS)
 
 **Optional**
