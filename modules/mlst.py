@@ -172,6 +172,9 @@ def runMlst(contigs, scheme, outdir, species_genus, mlst_scheme_genus):
                                      ' scheme'.format(scheme_mlst=scheme_mlst)
             elif scheme == 'unknown' and scheme_mlst == '-':
                 pass_qc = True
+            elif scheme != 'unknown' and scheme_mlst == '-':
+                pass_qc = True
+                warnings['sample'] = 'Could not find a scheme for a species with known scheme ({})'.format(scheme)
             elif species_genus == 'yersinia' and mlst_scheme_genus == 'yersinia':
                 pass_qc = True
                 warnings['sample'] = 'Found a Yersinia scheme ({scheme_mlst}), but it is different from what it was' \
