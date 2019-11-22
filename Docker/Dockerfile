@@ -1,16 +1,22 @@
-FROM ubuntu:16.04
+FROM perl:5.30-slim-stretch
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.2.0-03"
+LABEL version="4.2.0-06"
 
 WORKDIR /NGStools/
 
 RUN apt-get update
 
 # -- General Dependencies ---
-RUN apt-get install -y git wget make g++
+RUN apt-get install -y git wget g++
 
 # -- INNUca General Dependencies ---
-RUN apt-get install -y python-dev python-pip default-jre python3 python3-pip
+RUN apt-get install -y python-dev python-pip python3 python3-pip
+# - Java -
+RUN wget https://download.java.net/openjdk/jdk8u40/ri/openjdk-8u40-b25-linux-x64-10_feb_2015.tar.gz && \
+    tar xf openjdk-8u40-b25-linux-x64-10_feb_2015.tar.gz && \
+    rm openjdk-8u40-b25-linux-x64-10_feb_2015.tar.gz
+ENV PATH="/NGStools/java-se-8u40-ri/bin:${PATH}"
+
 RUN pip install plotly
 
 # --- kraken2 --
@@ -27,12 +33,12 @@ ENV PATH="/NGStools/kraken2-2.0.7-beta:${PATH}"
 
 # -- mlst Dependencies --
 # Blast
-RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.8.1/ncbi-blast-2.8.1+-x64-linux.tar.gz && \
-    tar -xf ncbi-blast-2.8.1+-x64-linux.tar.gz && \
-    rm ncbi-blast-2.8.1+-x64-linux.tar.gz
-ENV PATH="/NGStools/ncbi-blast-2.8.1+/bin:${PATH}"
+RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz && \
+    tar -xf ncbi-blast-2.9.0+-x64-linux.tar.gz && \
+    rm ncbi-blast-2.9.0+-x64-linux.tar.gz
+ENV PATH="/NGStools/ncbi-blast-2.9.0+/bin:${PATH}"
 # Perl libs
-RUN apt-get install -y libmoo-perl liblist-moreutils-perl libjson-perl libfile-slurp-perl
+RUN cpan Moo List::MoreUtils JSON
 
 # --- mlst ----
 RUN git clone https://github.com/tseemann/mlst.git
@@ -45,14 +51,12 @@ ENV PATH="/NGStools/mlst/bin:${PATH}"
 #    pip3 install setuptools && \
 #    python3 setup.py install && \
 #    cd /NGStools
-RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
-    cd ReMatCh
+RUN git clone https://github.com/B-UMMI/ReMatCh.git
 ENV PATH="/NGStools/ReMatCh/ReMatCh/src/samtools-1.3.1/bin:/NGStools/ReMatCh/ReMatCh/src/bcftools-1.3.1/bin:/NGStools/ReMatCh/ReMatCh/src/bowtie2-2.2.9:/NGStools/ReMatCh/ReMatCh:${PATH}"
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git && \
     pip install setuptools
-# TODO: remove checkout
 ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.23:/NGStools/INNUca/src/SPAdes-3.13.0-Linux/bin:/NGStools/INNUca/src/Trimmomatic-0.38:/NGStools/INNUca:${PATH}"
 
 # fixing permissions for MLST update
@@ -60,7 +64,7 @@ RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/m
 
 # Clean
 RUN pip3 uninstall setuptools && \
-    apt-get remove -y make g++ python-pip python3-pip && \
+    apt-get remove -y g++ python-pip python3-pip && \
     apt-get autoclean -y
 
 WORKDIR /data/
