@@ -1,6 +1,6 @@
 FROM perl:5.30-slim-stretch
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.2.0-06"
+LABEL version="4.2.1-01"
 
 WORKDIR /NGStools/
 
@@ -10,7 +10,7 @@ RUN apt-get update
 RUN apt-get install -y git wget g++
 
 # -- INNUca General Dependencies ---
-RUN apt-get install -y python-dev python-pip python3 python3-pip
+RUN apt-get install -y python-dev python-pip python3 python3-pip procps libfontconfig1
 # - Java -
 RUN wget https://download.java.net/openjdk/jdk8u40/ri/openjdk-8u40-b25-linux-x64-10_feb_2015.tar.gz && \
     tar xf openjdk-8u40-b25-linux-x64-10_feb_2015.tar.gz && \
@@ -36,9 +36,12 @@ ENV PATH="/NGStools/kraken2-2.0.7-beta:${PATH}"
 RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz && \
     tar -xf ncbi-blast-2.9.0+-x64-linux.tar.gz && \
     rm ncbi-blast-2.9.0+-x64-linux.tar.gz
-ENV PATH="/NGStools/ncbi-blast-2.9.0+/bin:${PATH}"
+# any2fasta
+RUN git clone https://github.com/tseemann/any2fasta.git
 # Perl libs
 RUN cpan Moo List::MoreUtils JSON
+
+ENV PATH="/NGStools/ncbi-blast-2.9.0+/bin:/NGStools/any2fasta:${PATH}"
 
 # --- mlst ----
 RUN git clone https://github.com/tseemann/mlst.git
@@ -63,13 +66,6 @@ ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.23:/
 
 # fixing permissions for MLST update
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
-
-RUN apt-get install -y fontconfig
-# procps
-# LABEL version="4.2.1-01"
-# fonts-dejavu-core
-# fonts-dejavu
-# libfontconfig1
 
 # Clean
 RUN pip3 uninstall setuptools && \
