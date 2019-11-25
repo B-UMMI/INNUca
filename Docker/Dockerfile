@@ -64,7 +64,7 @@ ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.23:/
 # fixing permissions for MLST update
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
 
-RUN apt-get install -y fonts-dejavu-core
+RUN apt-get install -y fonts-dejavu
 # procps
 
 # Clean

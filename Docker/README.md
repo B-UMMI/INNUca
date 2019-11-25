@@ -10,7 +10,7 @@ INNUca - Reads Control and Assembly
 This is a dockerfile for using INNUca, with all dependencies already installed.
 
 Within this container you can find:
-- ubuntu:16.04
+- Debian 9
 - git v2.7.4
 - Python v2.7
 - Java-JRE v1.8.0_171
