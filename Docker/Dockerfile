@@ -59,8 +59,6 @@ ENV PATH="/NGStools/ReMatCh/ReMatCh/src/samtools-1.3.1/bin:/NGStools/ReMatCh/ReM
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git && \
-    cd INNUca && \
-    git checkout miguelpmachado-patch-1 && \
     pip install setuptools
 ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.23:/NGStools/INNUca/src/SPAdes-3.13.0-Linux/bin:/NGStools/INNUca/src/Trimmomatic-0.38:/NGStools/INNUca:${PATH}"
 
