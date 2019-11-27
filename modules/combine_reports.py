@@ -95,7 +95,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                 name_file_found = file_found
                 file_found = os.path.join(directory, file_found)
 
-                if name_file_found == 'num_reads_bp_report.tab':
+                if name_file_found == 'reads_num_length_num_bp_report.tab':
                     with open(file_found, 'rt') as reader:
                         for line in reader:
                             if len(line) > 0:
@@ -103,14 +103,8 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                                     line = line.splitlines()[0].split('\t')
                                     results[sample]['number_reads_sequenced'] = line[0]
                                     results[sample]['number_bp_sequenced'] = line[1]
-                elif name_file_found == 'reads_length_report.tab':
-                    with open(file_found, 'rt') as reader:
-                        for line in reader:
-                            if len(line) > 0:
-                                if not line.startswith('#'):
-                                    line = line.splitlines()[0].split('\t')
-                                    results[sample]['min_reads_length'] = line[0]
-                                    results[sample]['max_reads_length'] = line[1]
+                                    results[sample]['min_reads_length'] = line[2]
+                                    results[sample]['max_reads_length'] = line[3]
                 elif name_file_found.startswith('kraken_results.evaluation.') and name_file_found.endswith('fastq.tab'):
                     with open(file_found, 'rt') as reader:
                         for line in reader:

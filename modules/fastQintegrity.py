@@ -46,12 +46,16 @@ def run_guess_encoding_single_thread(fastq_file, number_reads_access_None_all, o
     return final_enconding, min_reads_length, max_reads_length, num_reads, num_bp
 
 
-def report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq, outdir):
+def report_reads_num_length_num_bp(num_reads, num_bp, min_reads_length_each_fastq, max_reads_length_each_fastq, outdir):
     """
-    Writes reads length report
+    Writes the total number of reads and bp sequenced and min and max reads length
 
     Parameters
     ----------
+    num_reads : int
+        Total number of reads sequenced
+    num_bp : int
+        Total number of bp sequenced
     min_reads_length_each_fastq : list
         Minimum reads length found for each fastq file
     max_reads_length_each_fastq : list
@@ -64,33 +68,11 @@ def report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq
 
     """
 
-    with open(os.path.join(outdir, 'reads_length_report.tab'), 'wt') as writer:
-        writer.write('#' + '\t'.join(['min', 'max']) + '\n')
-        writer.write('\t'.join([';'.join(map(str, set(min_reads_length_each_fastq))),
+    with open(os.path.join(outdir, 'reads_num_length_num_bp_report.tab'), 'wt') as writer:
+        writer.write('#' + '\t'.join(['num_reads', 'num_bp', 'min_reads_length', 'max_reads_length']) + '\n')
+        writer.write('\t'.join(list(map(str, [num_reads, num_bp])) +
+                               [';'.join(map(str, set(min_reads_length_each_fastq))),
                                 ';'.join(map(str, set(max_reads_length_each_fastq)))]) + '\n')
-
-
-def report_num_reads_bp(num_reads, num_bp, outdir):
-    """
-    Writes the total number of reads and bp sequenced
-
-    Parameters
-    ----------
-    num_reads : int
-        Total number of reads sequenced
-    num_bp : int
-        Total number of bp sequenced
-    outdir : str
-        Path to the output directory
-
-    Returns
-    -------
-
-    """
-
-    with open(os.path.join(outdir, 'num_reads_bp_report.tab'), 'wt') as writer:
-        writer.write('#' + '\t'.join(['num_reads', 'num_bp']) + '\n')
-        writer.write('\t'.join(map(str, [num_reads, num_bp])) + '\n')
 
 
 fastq_timer = partial(utils.timer, name='FastQ integrity check')
@@ -144,8 +126,8 @@ def runFastQintegrity(fastq_files, threads, outdir):
     else:
         min_reads_length_found, max_reads_length_found, min_reads_length_each_fastq, max_reads_length_each_fastq = \
             guess_encoding.determine_min_max_reads_length(encoding)
-        report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq, outdir)
-        report_num_reads_bp(num_reads, num_bp, outdir)
+        report_reads_num_length_num_bp(num_reads, num_bp, min_reads_length_each_fastq, max_reads_length_each_fastq,
+                                       outdir)
 
         if len(set([x['file_encoding'][0] for x in encoding.values() if x['file_encoding'] is not None])) == 1:
             encoding = [x['file_encoding'][0] for x in encoding.values() if x['file_encoding'] is not None][0]
