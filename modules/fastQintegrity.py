@@ -13,20 +13,21 @@ def fastQintegrity(fastq, outdir):
 
     compression_type = utils.compressionType(fastq)
 
-    encoding, min_reads_length, max_reads_length = None, None, None
+    encoding, min_reads_length, max_reads_length, num_reads, num_bp = None, None, None, None, None
 
     if compression_type is not None:
         command = [compression_type[1], '--stdout', '--keep', fastq, '>', temporary_output_file]
         run_successfully, stdout, stderr = utils.runCommandPopenCommunicate(command, True, None, False)
 
         if run_successfully:
-            encoding, min_reads_length, max_reads_length = run_guess_encoding_single_thread(temporary_output_file, None,
-                                                                                            outdir)
+            encoding, min_reads_length, max_reads_length, num_reads, num_bp = \
+                run_guess_encoding_single_thread(temporary_output_file, None, outdir)
 
     if os.path.isfile(temporary_output_file):
         os.remove(temporary_output_file)
 
-    utils.saveVariableToPickle([run_successfully, encoding, min_reads_length, max_reads_length], outdir, os.path.basename(fastq))
+    utils.saveVariableToPickle([run_successfully, encoding, min_reads_length, max_reads_length, num_reads, num_bp],
+                               outdir, os.path.basename(fastq))
 
 
 def run_guess_encoding_single_thread(fastq_file, number_reads_access_None_all, outdir):
@@ -39,9 +40,10 @@ def run_guess_encoding_single_thread(fastq_file, number_reads_access_None_all, o
     final_enconding = guess_encoding.get_final_encoding(encoding_data)
 
     min_reads_length, max_reads_length, _, _ = guess_encoding.determine_min_max_reads_length(encoding_data)
+    num_reads, num_bp = guess_encoding.get_num_reads_bp(encoding_data)
 
     utils.removeDirectory(outdir_guess_encoding)
-    return final_enconding, min_reads_length, max_reads_length
+    return final_enconding, min_reads_length, max_reads_length, num_reads, num_bp
 
 
 def report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq, outdir):
@@ -68,6 +70,29 @@ def report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq
                                 ';'.join(map(str, set(max_reads_length_each_fastq)))]) + '\n')
 
 
+def report_num_reads_bp(num_reads, num_bp, outdir):
+    """
+    Writes the total number of reads and bp sequenced
+
+    Parameters
+    ----------
+    num_reads : int
+        Total number of reads sequenced
+    num_bp : int
+        Total number of bp sequenced
+    outdir : str
+        Path to the output directory
+
+    Returns
+    -------
+
+    """
+
+    with open(os.path.join(outdir, 'num_reads_bp_report.tab'), 'wt') as writer:
+        writer.write('#' + '\t'.join(['num_reads', 'num_bp']) + '\n')
+        writer.write('\t'.join(map(str, [num_reads, num_bp])) + '\n')
+
+
 fastq_timer = partial(utils.timer, name='FastQ integrity check')
 
 
@@ -89,12 +114,18 @@ def runFastQintegrity(fastq_files, threads, outdir):
     pool.join()
 
     encoding = {}
+    num_reads, num_bp = 0, 0
     files = [f for f in os.listdir(fastQintegrity_folder) if not f.startswith('.') and os.path.isfile(os.path.join(fastQintegrity_folder, f))]
     for file_found in files:
         if file_found.endswith('.pkl'):
-            file_run_successfully, file_encoding, min_reads_length, max_reads_length = utils.extractVariableFromPickle(os.path.join(fastQintegrity_folder, file_found))
+            file_run_successfully, file_encoding, min_reads_length, max_reads_length, num_reads_fastq, num_bp_fastq = \
+                utils.extractVariableFromPickle(os.path.join(fastQintegrity_folder, file_found))
             if file_run_successfully:
-                encoding[file_found] = {'file_encoding': file_encoding, 'min_reads_length': min_reads_length, 'max_reads_length': max_reads_length}
+                encoding[file_found] = {'file_encoding': file_encoding,
+                                        'min_reads_length': min_reads_length,
+                                        'max_reads_length': max_reads_length}
+                num_reads += num_reads_fastq if num_reads_fastq is not None else 0
+                num_bp += num_bp_fastq if num_bp_fastq is not None else 0
             else:
                 failing[os.path.splitext(file_found)[0]] = ['The file is possibly corrupt']
                 print(os.path.splitext(file_found)[0] + ': the file is possibly corrupt')
@@ -105,7 +136,7 @@ def runFastQintegrity(fastq_files, threads, outdir):
         not_corruption_found = False
         pass_qc = False
 
-        min_reads_length_found, max_reads_length_found = None, None
+        min_reads_length_found, max_reads_length_found, num_reads, num_bp = None, None, None, None
 
     if len(encoding) == 0:
         encoding = None

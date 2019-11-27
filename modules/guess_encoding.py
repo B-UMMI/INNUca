@@ -68,7 +68,8 @@ def guess_encoding(fastq, number_reads_access_None_all, outdir):
 
     utils.saveVariableToPickle([fastq, valid_encodings,
                                 min(reads_length) if len(reads_length) > 0 else None,
-                                max(reads_length) if len(reads_length) > 0 else None],
+                                max(reads_length) if len(reads_length) > 0 else None,
+                                len(reads_length), sum(reads_length)],
                                outdir, 'encoding' + '.' + os.path.splitext(os.path.basename(fastq))[0])
 
 
@@ -80,8 +81,13 @@ def gather_data_together(data_directory):
         if file_found.startswith('encoding.') and file_found.endswith('.pkl'):
             file_path = os.path.join(data_directory, file_found)
 
-            fastq, valid_encodings, min_reads_length, max_reads_length = utils.extractVariableFromPickle(file_path)
-            data[fastq] = {'valid_encodings': valid_encodings, 'min_reads_length': min_reads_length, 'max_reads_length': max_reads_length}
+            fastq, valid_encodings, min_reads_length, max_reads_length, num_reads, num_bp = \
+                utils.extractVariableFromPickle(file_path)
+            data[fastq] = {'valid_encodings': valid_encodings,
+                           'min_reads_length': min_reads_length,
+                           'max_reads_length': max_reads_length,
+                           'num_reads': num_reads,
+                           'num_bp': num_bp}
 
             os.remove(file_path)
 
@@ -121,7 +127,9 @@ def determine_min_max_reads_length(encoding_data):
         Dictionary with encondig data, and reads length for each fastq. Something like
         data[fastq] = {'valid_encodings': valid_encodings,
                        'min_reads_length': min_reads_length,
-                       'max_reads_length': max_reads_length}
+                       'max_reads_length': max_reads_length,
+                       'num_reads': num_reads,
+                       'num_bp': num_bp}
 
     Returns
     -------
@@ -146,6 +154,36 @@ def determine_min_max_reads_length(encoding_data):
            max_length_each_fastq
 
 
+def get_num_reads_bp(encoding_data):
+    """
+    Returns the total number of reads and bp sequenced
+
+    Parameters
+    ----------
+    encoding_data : dict
+        Dictionary with encondig data, and reads length for each fastq. Something like
+        data[fastq] = {'valid_encodings': valid_encodings,
+                       'min_reads_length': min_reads_length,
+                       'max_reads_length': max_reads_length,
+                       'num_reads': num_reads,
+                       'num_bp': num_bp}
+
+    Returns
+    -------
+    num_reads : int
+        Total number of reads sequenced
+    num_bp : int
+        Total number of bp sequenced
+    """
+    num_reads = [encoding_data[fastq]['num_reads'] for fastq in encoding_data if
+                 encoding_data[fastq]['num_reads'] is not None]
+
+    num_bp = [encoding_data[fastq]['num_bp'] for fastq in encoding_data if
+              encoding_data[fastq]['num_bp'] is not None]
+
+    return sum(num_reads) if len(num_reads) > 0 else None, sum(num_bp) if len(num_bp) > 0 else None
+
+
 def fastq_files_enconding(fastq_files_list, number_reads_access_None_all, outdir, threads):
     pool = multiprocessing.Pool(processes=threads)
     for fastq in fastq_files_list:
@@ -159,4 +197,6 @@ def fastq_files_enconding(fastq_files_list, number_reads_access_None_all, outdir
 
     min_reads_length, max_reads_length, _, _ = determine_min_max_reads_length(encoding_data)
 
-    return final_encoding, min_reads_length, max_reads_length
+    num_reads, num_bp = get_num_reads_bp(encoding_data)
+
+    return final_encoding, min_reads_length, max_reads_length, num_reads, num_bp

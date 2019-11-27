@@ -59,6 +59,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
         sys.exit('No samples found')
 
     fields = ['#samples',
+              'number_reads_sequenced', 'number_bp_sequenced',
               'min_reads_length', 'max_reads_length',
               'reads_kraken_number_taxon_found', 'reads_kraken_percentage_unknown_fragments',
               'reads_kraken_most_abundant_taxon', 'reads_kraken_percentage_most_abundant_taxon',
@@ -95,6 +96,14 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                 file_found = os.path.join(directory, file_found)
 
                 if name_file_found == 'reads_length_report.tab':
+                    with open(file_found, 'rt') as reader:
+                        for line in reader:
+                            if len(line) > 0:
+                                if not line.startswith('#'):
+                                    line = line.splitlines()[0].split('\t')
+                                    results[sample]['number_reads_sequenced'] = line[0]
+                                    results[sample]['number_bp_sequenced'] = line[1]
+                elif name_file_found == 'reads_length_report.tab':
                     with open(file_found, 'rt') as reader:
                         for line in reader:
                             if len(line) > 0:
