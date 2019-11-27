@@ -145,6 +145,7 @@ def runFastQintegrity(fastq_files, threads, outdir):
         min_reads_length_found, max_reads_length_found, min_reads_length_each_fastq, max_reads_length_each_fastq = \
             guess_encoding.determine_min_max_reads_length(encoding)
         report_reads_length(min_reads_length_each_fastq, max_reads_length_each_fastq, outdir)
+        report_num_reads_bp(num_reads, num_bp, outdir)
 
         if len(set([x['file_encoding'][0] for x in encoding.values() if x['file_encoding'] is not None])) == 1:
             encoding = [x['file_encoding'][0] for x in encoding.values() if x['file_encoding'] is not None][0]

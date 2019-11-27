@@ -95,7 +95,7 @@ def combine_reports(innucaOut, outdir, json, time_str, number_samples):
                 name_file_found = file_found
                 file_found = os.path.join(directory, file_found)
 
-                if name_file_found == 'reads_length_report.tab':
+                if name_file_found == 'num_reads_bp_report.tab':
                     with open(file_found, 'rt') as reader:
                         for line in reader:
                             if len(line) > 0:
