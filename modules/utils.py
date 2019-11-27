@@ -410,33 +410,40 @@ def runCommandPopenCommunicate(command, shell_True, timeout_sec_None, print_coma
     if print_comand_True:
         print('Running: ' + ' '.join(command))
 
-    if shell_True:
-        command = ' '.join(command)
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    else:
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        if shell_True:
+            command = ' '.join(command)
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        else:
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    not_killed_by_timer = True
-    if timeout_sec_None is None:
-        stdout, stderr = proc.communicate()
-    else:
-        time_counter = Timer(timeout_sec_None, kill_subprocess_Popen, args=(proc, command,))
-        time_counter.start()
-        stdout, stderr = proc.communicate()
-        time_counter.cancel()
-        not_killed_by_timer = time_counter.isAlive()
+        not_killed_by_timer = True
+        if timeout_sec_None is None:
+            stdout, stderr = proc.communicate()
+        else:
+            time_counter = Timer(timeout_sec_None, kill_subprocess_Popen, args=(proc, command,))
+            time_counter.start()
+            stdout, stderr = proc.communicate()
+            time_counter.cancel()
+            not_killed_by_timer = time_counter.isAlive()
 
-    if proc.returncode == 0:
-        run_successfully = True
-    else:
-        if not print_comand_True and not_killed_by_timer:
-            print('Running: ' + str(command))
-        if len(stdout) > 0:
-            print('STDOUT')
-            print(stdout.decode("utf-8"))
-        if len(stderr) > 0:
-            print('STDERR')
-            print(stderr.decode("utf-8"))
+        if proc.returncode == 0:
+            run_successfully = True
+        else:
+            if not print_comand_True and not_killed_by_timer:
+                print('Running: ' + str(command))
+            if len(stdout) > 0:
+                print('STDOUT')
+                print(stdout.decode("utf-8"))
+            if len(stderr) > 0:
+                print('STDERR')
+                print(stderr.decode("utf-8"))
+    except OSError as error_found:
+        error_found = 'ERROR: {c} - {e}'.format(c=command, e=error_found)
+        print(error_found)
+        stdout = ''
+        stderr = error_found
+
     return run_successfully, stdout.decode("utf-8"), stderr.decode("utf-8")
 
 
