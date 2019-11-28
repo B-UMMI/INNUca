@@ -1,10 +1,14 @@
-INNUca.py - Docker
-===============
+[![dockeri.co](https://dockeri.co/image/ummidock/innuca)](https://hub.docker.com/r/ummidock/innuca)
+
+# INNUca.py - Docker
+
 INNUca - Reads Control and Assembly
 
 *INNUENDO quality control of reads, de novo assembly and contigs quality assessment, and possible contamination search*
 
 <https://github.com/B-UMMI/INNUca>
+
+<https://hub.docker.com/r/ummidock/innuca>
 
 
 This is a dockerfile for using INNUca, with all dependencies already installed.
