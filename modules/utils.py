@@ -222,11 +222,25 @@ def parseArguments(version):
                                      required=False, default=55)
 
     spades_options = parser.add_argument_group(title='SPAdes options')
+    # TODO: remove 3.10.1 version allowed
     spades_options.add_argument('--spadesVersion', type=str, metavar='3.13.0',
                                 help='Tells INNUca.py which SPAdes version to use (available options: %(choices)s)',
-                                choices=['3.10.1', '3.11.1', '3.13.0'], required=False, default='3.13.0')
+                                choices=['3.10.1', '3.11.1', '3.13.0', '3.14.0'], required=False, default='3.14.0')
     spades_options.add_argument('--spadesNotUseCareful', action='store_true',
-                                help='Tells SPAdes to only perform the assembly without the --careful option')
+                                help='Tells SPAdes to only perform the assembly without the --careful option.'
+                                     ' When the SPAdes --isolate option is allowed to be used (for SPAdes >= v4.14.0'
+                                     ' and in the cases that INNUca --spadesNotUseIsolate option is not used) and the'
+                                     ' estimated depth of coverage is >= 100x, the SPAdes --careful option is not used'
+                                     ' anyway.')
+    spades_options.add_argument('--spadesNotUseIsolate', action='store_true',
+                                help='Tells SPAdes to not use --isolate option (only possible for SPAdes >= v3.14.0).'
+                                     ' The SPAdes --isolate option is used when the estimated depth of coverage'
+                                     ' is >= 100x (unless the INNUca --spadesNotUseIsolate is used) and automatically'
+                                     ' turns on the INNUca --spadesNotUseCareful option and consequently do not use'
+                                     ' the SPAdes --careful option.'
+                                     ' Accordingally to SPAdes, the --isolate option is highly recommended for'
+                                     ' high-coverage isolate and multi-cell data (improves the assembly quality and'
+                                     ' running time).')
     spades_options.add_argument('--spadesMinContigsLength', type=int, metavar='N',
                                 help='Filter SPAdes contigs for length greater or equal than this value (default:'
                                      ' maximum reads size or 200 bp)',
@@ -481,20 +495,23 @@ def checkPrograms(programs_version_dictionary):
     which_program = ['which', '']
     listMissings = []
     for program in programs:
+        programs[program]['found'] = {'path': None, 'version': None}
         which_program[1] = program
         run_successfully, stdout, stderr = runCommandPopenCommunicate(which_program, False, None, False)
         if not run_successfully:
             listMissings.append(program + ' not found in PATH.')
         else:
-            print(stdout.splitlines()[0])
-            programs[program].append(stdout.splitlines()[0])
-            if programs[program][0] is None:
-                print(program + ' (impossible to determine programme version) found at: ' + stdout.splitlines()[0])
+            programs[program]['found']['path'] = stdout.splitlines()[0]
+            print(programs[program]['found']['path'])
+            if programs[program]['required'][0] is None:
+                print('{program} (impossible to determine program version) found at: {path}'.format(
+                    program=program, path=programs[program]['found']['path']))
             else:
                 if program.endswith('.jar'):
-                    check_version = ['java', '-jar', stdout.splitlines()[0], programs[program][0]]
+                    check_version = ['java', '-jar', programs[program]['found']['path'],
+                                     programs[program]['required'][0]]
                 else:
-                    check_version = [stdout.splitlines()[0], programs[program][0]]
+                    check_version = [programs[program]['found']['path'], programs[program]['required'][0]]
                 run_successfully, stdout, stderr = runCommandPopenCommunicate(check_version, False, None, False)
                 if stdout == '':
                     stdout = stderr
@@ -509,10 +526,11 @@ def checkPrograms(programs_version_dictionary):
                 replace_characters = ['"', 'v', 'V', '+']
                 for i in replace_characters:
                     version_line = version_line.replace(i, '')
+                programs[program]['found']['version'] = version_line
                 print(program + ' (' + version_line + ') found')
-                if programs[program][1] == '>=':
+                if programs[program]['required'][1] == '>=':
                     program_found_version = version_line.split('.')
-                    program_version_required = programs[program][2].split('.')
+                    program_version_required = programs[program]['required'][2].split('.')
                     if len(program_version_required) == 3:
                         if len(program_found_version) == 2:
                             program_found_version.append(0)
@@ -525,13 +543,13 @@ def checkPrograms(programs_version_dictionary):
                             continue
                         else:
                             listMissings.append(
-                                'It is required ' + program + ' with version ' + programs[program][1] + ' ' +
-                                programs[program][2])
+                                'It is required ' + program + ' with version ' +
+                                programs[program]['required'][1] + ' ' + programs[program]['required'][2])
                 else:
-                    if version_line != programs[program][2]:
+                    if version_line != programs[program]['required'][2]:
                         listMissings.append(
-                            'It is required ' + program + ' with version ' + programs[program][1] + ' ' +
-                            programs[program][2])
+                            'It is required ' + program + ' with version ' +
+                            programs[program]['required'][1] + ' ' + programs[program]['required'][2])
     return listMissings, programs
 
 

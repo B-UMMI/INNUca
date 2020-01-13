@@ -8,7 +8,7 @@ import re
 
 # Run Spades
 def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers,
-           assembled_se_reads):
+           assembled_se_reads, spades_version=None, estimated_coverage=None, spades_not_use_isolate=False):
     contigs = os.path.join(spades_folder, 'contigs.fasta')
 
     command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory),
@@ -17,6 +17,11 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 
     if not notUseCareful:
         command[1] = '--careful'
+
+    if not spades_not_use_isolate and \
+            float('.'.join(spades_version.split('.')[:2])) >= 3.14 and \
+            estimated_coverage is not None and estimated_coverage >= 100:
+        command[1] = '--isolate'
 
     if len(kmers) > 0:
         kmers = ','.join(map(str, kmers))
@@ -255,7 +260,7 @@ spades_timer = partial(utils.timer, name='SPAdes')
 def run_spades(sample_name, outdir, threads, fastq_files, not_use_careful, max_memory, min_coverage_assembly,
                min_contigs_length, estimated_genome_size_mb, kmers, maximum_reads_length, default_kmers,
                min_coverage_contigs, assembled_se_reads, save_excluded_contigs, max_number_contigs,
-               keep_scaffolds=False):
+               keep_scaffolds=False, spades_version=None, estimated_coverage=None, spades_not_use_isolate=False):
     pass_qc = True
     failing = {'sample': False}
     warnings = {}
@@ -276,7 +281,9 @@ def run_spades(sample_name, outdir, threads, fastq_files, not_use_careful, max_m
             print('SPAdes will use the following k-mers: ' + str(kmers))
 
     run_successfully, contigs = spades(spades_folder, threads, fastq_files, not_use_careful, max_memory,
-                                       min_coverage_assembly, kmers, assembled_se_reads)
+                                       min_coverage_assembly, kmers, assembled_se_reads, spades_version=spades_version,
+                                       estimated_coverage=estimated_coverage,
+                                       spades_not_use_isolate=spades_not_use_isolate)
 
     if run_successfully:
         scaffolds = os.path.join(spades_folder, 'scaffolds.fasta')
