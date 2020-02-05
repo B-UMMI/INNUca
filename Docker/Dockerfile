@@ -1,6 +1,6 @@
 FROM perl:5.30-slim-stretch
 MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.2.1-01"
+LABEL version="4.2.2-01"
 
 WORKDIR /NGStools/
 
@@ -46,6 +46,8 @@ ENV PATH="/NGStools/ncbi-blast-2.9.0+/bin:/NGStools/any2fasta:${PATH}"
 # --- mlst ----
 RUN git clone https://github.com/tseemann/mlst.git
 ENV PATH="/NGStools/mlst/bin:${PATH}"
+# Update Clostridium to Clostridioides
+RUN echo -e 'cdifficile\tClostridioides\tdifficile' >> /NGStools/mlst/db/scheme_species_map.tab
 
 # --- ReMatCh ---
 # TODO: to be used after converting INNUca do Python v3

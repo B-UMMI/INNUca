@@ -23,7 +23,7 @@ Within this container you can find:
 - [mlst](https://github.com/tseemann/mlst) v2.18.0
 - [ReMatCh](https://github.com/B-UMMI/ReMatCh) v4.1.0
 - [Kraken](https://ccb.jhu.edu/software/kraken/) v2.0.7
-- [INNUca](https://github.com/B-UMMI/INNUca) v4.2.1
+- [INNUca](https://github.com/B-UMMI/INNUca) v4.2.2
 
 
 
@@ -34,7 +34,7 @@ Within [play-with-docker](http://labs.play-with-docker.com/) webpage click on **
 will open with a big counter on the upper left corner. Click on **+ add new instance** and a terminal like instance should be generated on the right. On
 this terminal you can load this docker image as follows:
 
-`docker pull ummidock/innuca:4.2.1-01`
+`docker pull ummidock/innuca:4.2.2-01`
 
 #### Build this docker on your local machine
 
@@ -42,15 +42,15 @@ For this, docker needs to be installed on your machine. Instructions for this ca
 
 ##### Using DockerHub (automated build image)
 
-`docker pull ummidock/innuca:4.2.1-01`
+`docker pull ummidock/innuca:4.2.2-01`
 
 ##### Using GitHub (build docker image)
 
 1) `git clone https://github.com/B-UMMI/INNUca.git`  
-2) `docker build -t ummidock/innuca:4.2.1-01 ./INNUca/Docker/`
+2) `docker build -t ummidock/innuca:4.2.2-01 ./INNUca/Docker/`
 
 ### Run (using automated build image)
-    docker run --rm -u $(id -u):$(id -g) -it -v /local/folder/fastq_data:/data/ ummidock/innuca:4.2.1-01 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
+    docker run --rm -u $(id -u):$(id -g) -it -v /local/folder/fastq_data:/data/ ummidock/innuca:4.2.2-01 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
 
 ### udocker
 
@@ -58,13 +58,13 @@ For this, docker needs to be installed on your machine. Instructions for this ca
 
 ```bash
 # Get Docker image
-udocker pull ummidock/innuca:4.2.1-01
+udocker pull ummidock/innuca:4.2.2-01
 
 # Create container (only needed to be done once)
-udocker create --name=innuca_4-2-1_01 ummidock/innuca:4.2.1-01
+udocker create --name=innuca_4-2-2_01 ummidock/innuca:4.2.2-01
 
 # Run INNUca
-udocker run --user $(id -u):$(id -g) -v /local/folder/fastq_data:/data/ innuca_4-2-1_01 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
+udocker run --user $(id -u):$(id -g) -v /local/folder/fastq_data:/data/ innuca_4-2-2_01 INNUca.py --speciesExpected "Streptococcus agalactiae" --genomeSizeExpectedMb 2.1 --inputDirectory /data/ --outdir /data/innuca_output/ --threads 8 --maxNumberContigs 100
 ```
 More examples on how to use **udocker** can be found in **udocker** [GitHub page](https://github.com/indigo-dc/udocker)  
   

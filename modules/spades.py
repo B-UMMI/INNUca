@@ -19,9 +19,9 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
         command[1] = '--careful'
 
     if not spades_not_use_isolate and \
-            float('.'.join(spades_version.split('.')[:2])) >= 3.14 and \
+            spades_version is not None and float('.'.join(spades_version.split('.')[:2])) >= 3.14 and \
             estimated_coverage is not None and estimated_coverage >= 100:
-        command[1] = '--isolate'
+        command[1] = '--isolate'  # Isolate mode already implies --only-assembler, so this option has no effect.
 
     if len(kmers) > 0:
         kmers = ','.join(map(str, kmers))
@@ -60,12 +60,18 @@ def define_minContigsLength(maximumReadsLength, minContigsLength):
     return minimum_length
 
 
-def define_memory(maxMemory, threads, available_memory_GB):
+def define_memory(maxMemory, threads, available_memory_GB, spades_version=None):
     GB_per_thread = 2048 / 1024.0
+    if spades_version is not None and float('.'.join(spades_version.split('.')[:2])) >= 3.14:
+        GB_per_thread = 3072 / 1024.0
 
     minimum_required_memory_GB = GB_per_thread * threads
-    if minimum_required_memory_GB < 4:
-        minimum_required_memory_GB = 4
+    if spades_version is not None and float('.'.join(spades_version.split('.')[:2])) >= 3.14:
+        if minimum_required_memory_GB < 6:
+            minimum_required_memory_GB = 6
+    else:
+        if minimum_required_memory_GB < 4:
+            minimum_required_memory_GB = 4
 
     if available_memory_GB == 0:
         print('WARNING: it was not possible to determine the free available memory!')

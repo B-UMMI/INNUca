@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: November 25, 2019
+Last modified: February 05, 2020
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ version_kraken_global = None
 
 
 def main():
-    version = '4.2.1'
+    version = '4.2.2'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
@@ -213,7 +213,7 @@ def main():
         get_samples(args.inputDirectory, args.fastq, outdir, pairEnd_filesSeparation_list)
 
     # Start running the analysis
-    print '\n' + 'RUNNING INNUca.py'
+    print('\n' + 'RUNNING INNUca.py')
 
     # Prepare run report file
     samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
@@ -236,12 +236,12 @@ def main():
     # Determine SPAdes maximum memory
     spadesMaxMemory = None
     if not args.skipSPAdes:
-        print ''
+        print('')
         spadesMaxMemory = spades.define_memory(args.spadesMaxMemory, args.threads, available_memory_GB)
     # Determine .jar maximum memory
     jarMaxMemory = 'off'
     if not (args.skipTrimmomatic and (args.skipSPAdes or args.skipPilon)):
-        print ''
+        print('')
         jarMaxMemory = utils.define_jar_max_memory(args.jarMaxMemory, args.threads, available_memory_GB)
 
     # Run INNUca for each sample
@@ -249,7 +249,7 @@ def main():
     for sample in samples:
         sample_start_time = time.time()
 
-        print '\n' + 'Sample: ' + sample + '\n'
+        print('\n' + 'Sample: ' + sample + '\n')
 
         # Create sample outdir
         sample_outdir = os.path.abspath(os.path.join(outdir, sample, ''))
@@ -259,15 +259,15 @@ def main():
         # Get fastq files
         fastq_files = utils.searchFastqFiles(os.path.join(inputDirectory, sample, ''), pairEnd_filesSeparation_list, False)
         if len(fastq_files) == 1:
-            print 'Only one fastq file was found: ' + str(fastq_files)
-            print 'Pair-End sequencing is required. Moving to the next sample'
+            print('Only one fastq file was found: ' + str(fastq_files))
+            print('Pair-End sequencing is required. Moving to the next sample')
             continue
         elif len(fastq_files) == 0:
-            print 'No compressed fastq files were found. Continue to the next sample'
+            print('No compressed fastq files were found. Continue to the next sample')
             continue
 
-        print 'The following files will be used:'
-        print str(fastq_files) + '\n'
+        print('The following files will be used:')
+        print(str(fastq_files) + '\n')
 
         # Run INNUca.py analysis
         run_successfully, pass_qc, run_report = \
@@ -292,7 +292,7 @@ def main():
         if args.fastq is not None:
             utils.removeDirectory(os.path.join(outdir, 'reads', ''))
 
-        print 'END ' + sample + ' analysis'
+        print('END ' + sample + ' analysis')
         time_taken = utils.runTime(sample_start_time)
 
         # Save run report

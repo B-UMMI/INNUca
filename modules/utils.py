@@ -222,12 +222,11 @@ def parseArguments(version):
                                      required=False, default=55)
 
     spades_options = parser.add_argument_group(title='SPAdes options')
-    # TODO: remove 3.10.1 version allowed
-    spades_options.add_argument('--spadesVersion', type=str, metavar='3.13.0',
+    spades_options.add_argument('--spadesVersion', type=str, metavar='3.14.0',
                                 help='Tells INNUca.py which SPAdes version to use (available options: %(choices)s)',
-                                choices=['3.10.1', '3.11.1', '3.13.0', '3.14.0'], required=False, default='3.14.0')
+                                choices=['3.11.1', '3.13.0', '3.14.0'], required=False, default='3.14.0')
     spades_options.add_argument('--spadesNotUseCareful', action='store_true',
-                                help='Tells SPAdes to only perform the assembly without the --careful option.'
+                                help='Tells SPAdes to perform the assembly without the --careful option.'
                                      ' When the SPAdes --isolate option is allowed to be used (for SPAdes >= v4.14.0'
                                      ' and in the cases that INNUca --spadesNotUseIsolate option is not used) and the'
                                      ' estimated depth of coverage is >= 100x, the SPAdes --careful option is not used'
@@ -246,7 +245,7 @@ def parseArguments(version):
                                      ' maximum reads size or 200 bp)',
                                 required=False)
     spades_options.add_argument('--spadesMaxMemory', type=int, metavar='N',
-                                help='The maximum amount of RAM Gb for SPAdes to use (default: 2 Gb per thread will be'
+                                help='The maximum amount of RAM Gb for SPAdes to use (default: 3 Gb per thread will be'
                                      ' used up to the free available memory)',
                                 required=False)
     spades_options.add_argument('--spadesMinCoverageAssembly', type=spades_cov_cutoff, metavar='N',
@@ -708,6 +707,9 @@ def checkSetInputDirectory(inputDirectory, outdir, pairEnd_filesSeparation_list)
                     continue
                 elif len(files) >= 1:
                     samples.append(directory)
+                else:
+                    print('WARNING: no fastq files were found for sample {sample}!'
+                          ' This sample will be ignored. (one common problem is broken links)'.format(sample=directory))
     if len(samples) == 0:
         sys.exit('There is no fastq files for the samples folders provided! Make sure fastq files ends with .fastq.gz'
                  ' or .fq.gz, and the pair-end information is either in _R1_001. or _1. format.')
