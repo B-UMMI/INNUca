@@ -15,12 +15,12 @@ This is a dockerfile for using INNUca, with all dependencies already installed.
 
 Within this container you can find:
 - Debian Stretch (9)
-- Perl v5.30
+- Perl v5.30.1
 - git v2.11.0
 - Python v2.7
 - Java-JDK v1.8.0_40 headless
 - [Blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi) v2.9.0
-- [mlst](https://github.com/tseemann/mlst) v2.18.0
+- [mlst](https://github.com/tseemann/mlst) v2.18.1
 - [ReMatCh](https://github.com/B-UMMI/ReMatCh) v4.1.0
 - [Kraken](https://ccb.jhu.edu/software/kraken/) v2.0.7
 - [INNUca](https://github.com/B-UMMI/INNUca) v4.2.2
