@@ -79,7 +79,7 @@ usage: INNUca.py [-h] [--version] -s "Streptococcus agalactiae" -g 2.1
                  [--trimKeepFiles] [--doNotTrimCrops] [--trimCrop N]
                  [--trimHeadCrop N] [--trimSlidingWindow window:meanQuality]
                  [--trimLeading N] [--trimTrailing N] [--trimMinLength N]
-                 [--spadesVersion 3.13.0] [--spadesNotUseCareful]
+                 [--spadesVersion 3.13.0] [--spadesNotUseCareful] [--spadesNotUseIsolate]
                  [--spadesMinContigsLength N] [--spadesMaxMemory N]
                  [--spadesMinCoverageAssembly N] [--spadesMinKmerCovContigs N]
                  [--spadesKmers 55 77 [55 77 ...] | --spadesDefaultKmers]
@@ -295,12 +295,24 @@ Trimmomatic options:
                         length (default: 55) (default: 55)
 
 SPAdes options:
-  --spadesVersion 3.13.0
+  --spadesVersion 3.14.0
                         Tells INNUca.py which SPAdes version to use (available
-                        options: 3.10.1, 3.11.1, 3.13.0) (default: 3.13.0)
+                        options: 3.11.1, 3.13.0, 3.14.0) (default: 3.14.0)
   --spadesNotUseCareful
-                        Tells SPAdes to only perform the assembly without the
-                        --careful option (default: False)
+                        Tells SPAdes to perform the assembly without the --careful option.
+                        When the SPAdes --isolate option is allowed to be used (for SPAdes >= v4.14.0
+                        and in the cases that INNUca --spadesNotUseIsolate option is not used) and the
+                        estimated depth of coverage is >= 100x, the SPAdes --careful option is not used
+                        anyway. (default: False)
+  --spadesNotUseIsolate
+                        Tells SPAdes to not use --isolate option (only possible for SPAdes >= v3.14.0).
+                        The SPAdes --isolate option is used when the estimated depth of coverage
+                        is >= 100x (unless the INNUca --spadesNotUseIsolate is used) and automatically
+                        turns on the INNUca --spadesNotUseCareful option and consequently do not use
+                        the SPAdes --careful option.
+                        Accordingally to SPAdes, the --isolate option is highly recommended for
+                        high-coverage isolate and multi-cell data (improves the assembly quality and
+                        running time). (default: False)
   --spadesMinContigsLength N
                         Filter SPAdes contigs for length greater or equal than
                         this value (default: maximum reads size or 200 bp)

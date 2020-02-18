@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: November 25, 2019
+Last modified: February 05, 2020
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ version_kraken_global = None
 
 
 def main():
-    version = '4.2.1'
+    version = '4.2.2'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
@@ -138,12 +138,12 @@ def main():
 
     # Check programms
     programs_version_dictionary = {}
-    programs_version_dictionary['gunzip'] = ['--version', '>=', '1.6']
+    programs_version_dictionary['gunzip'] = {'required': ['--version', '>=', '1.6']}
 
     # Java check first for java dependents check next
     if not (args.skipFastQC and args.skipTrimmomatic and (args.skipPilon or args.skipSPAdes)):
         # programs_version_dictionary['java'] = ['-version', '>=', '1.8']
-        programs_version_dictionary['java'] = [None, '>=', '1.8']  # For OpenJDK compatibility
+        programs_version_dictionary['java'] = {'required': [None, '>=', '1.8']}  # For OpenJDK compatibility
     missingPrograms, programs_version_dictionary = utils.checkPrograms(programs_version_dictionary)
     if len(missingPrograms) > 0:
         sys.exit('\n' + 'Errors:' + '\n' + '\n'.join(missingPrograms))
@@ -154,35 +154,35 @@ def main():
         global version_kraken_global
         version_kraken_global = kraken_version()
         if version_kraken_global == 2:
-            programs_version_dictionary['kraken2'] = ['--version', '>=', '2.0.6']
+            programs_version_dictionary['kraken2'] = {'required': ['--version', '>=', '2.0.6']}
         else:
-            programs_version_dictionary['kraken'] = ['--version', '>=', '0.10.6']
-            programs_version_dictionary['kraken-repor'] = ['--version', '>=', '0.10.6']
+            programs_version_dictionary['kraken'] = {'required': ['--version', '>=', '0.10.6']}
+            programs_version_dictionary['kraken-repor'] = {'required': ['--version', '>=', '0.10.6']}
     if not args.skipTrueCoverage and trueCoverage_config is not None:
         rematch_script = include_rematch_dependencies_path(args.doNotUseProvidedSoftware)
-        programs_version_dictionary['rematch.py'] = ['--version', '>=', '4.0.1']
-        programs_version_dictionary['bcftools'] = ['--version', '==', '1.3.1']
+        programs_version_dictionary['rematch.py'] = {'required': ['--version', '>=', '4.0.1']}
+        programs_version_dictionary['bcftools'] = {'required': ['--version', '==', '1.3.1']}
     if not (args.skipTrueCoverage and ((args.skipAssemblyMapping and args.skipPilon) or args.skipSPAdes)):
-        programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
-        programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
+        programs_version_dictionary['bowtie2'] = {'required': ['--version', '>=', '2.2.9']}
+        programs_version_dictionary['samtools'] = {'required': ['--version', '==', '1.3.1']}
     if not args.skipFastQC:
-        programs_version_dictionary['fastqc'] = ['--version', '==', '0.11.5']
+        programs_version_dictionary['fastqc'] = {'required': ['--version', '==', '0.11.5']}
     if not args.skipTrimmomatic:
-        programs_version_dictionary['trimmomatic-{version}.jar'.format(version=args.trimVersion)] = ['-version', '==',
-                                                                                                     args.trimVersion]
+        programs_version_dictionary['trimmomatic-{version}.jar'.format(version=args.trimVersion)] = \
+            {'required': ['-version', '==', args.trimVersion]}
     if args.runPear:
-        programs_version_dictionary['pear'] = ['--version', '>=', '0.9.10']
+        programs_version_dictionary['pear'] = {'required': ['--version', '>=', '0.9.10']}
     if not args.skipSPAdes:
-        programs_version_dictionary['spades.py'] = ['--version', '>=', '3.9.0']
+        programs_version_dictionary['spades.py'] = {'required': ['--version', '>=', '3.9.0']}
     if not (args.skipPilon or args.skipSPAdes):
-        programs_version_dictionary['pilon-{version}.jar'.format(version=args.pilonVersion)] = ['--version', '==',
-                                                                                             args.pilonVersion]
+        programs_version_dictionary['pilon-{version}.jar'.format(version=args.pilonVersion)] = \
+            {'required': ['--version', '==', args.pilonVersion]}
     if not (args.skipMLST or args.skipSPAdes):
-        programs_version_dictionary['mlst'] = ['--version', '>=', '2.4']
+        programs_version_dictionary['mlst'] = {'required': ['--version', '>=', '2.4']}
     if args.runInsertSize and not args.skipSPAdes:
         if args.skipAssemblyMapping and args.skipPilon:
-            programs_version_dictionary['bowtie2'] = ['--version', '>=', '2.2.9']
-            programs_version_dictionary['samtools'] = ['--version', '==', '1.3.1']
+            programs_version_dictionary['bowtie2'] = {'required': ['--version', '>=', '2.2.9']}
+            programs_version_dictionary['samtools'] = {'required': ['--version', '==', '1.3.1']}
 
     # Set and print PATH variable
     utils.setPATHvariable(args, script_path)
@@ -195,11 +195,17 @@ def main():
     jar_path_trimmomatic = None
     if not args.skipTrimmomatic:
         jar_path_trimmomatic = \
-            programs_version_dictionary['trimmomatic-{version}.jar'.format(version=args.trimVersion)][3]
+            programs_version_dictionary['trimmomatic-{version}.jar'.format(version=args.trimVersion)]['found']['path']
 
     jar_path_pilon = None
     if not args.skipPilon and not args.skipSPAdes:
-        jar_path_pilon = programs_version_dictionary['pilon-{version}.jar'.format(version=args.pilonVersion)][3]
+        jar_path_pilon = \
+            programs_version_dictionary['pilon-{version}.jar'.format(version=args.pilonVersion)]['found']['path']
+
+    # Get SPAdes version
+    spades_version = None
+    if not args.skipSPAdes:
+        spades_version = programs_version_dictionary['spades.py']['found']['version']
 
     # pairEnd_filesSeparation_list = args.pairEnd_filesSeparation
     pairEnd_filesSeparation_list = None
@@ -207,7 +213,7 @@ def main():
         get_samples(args.inputDirectory, args.fastq, outdir, pairEnd_filesSeparation_list)
 
     # Start running the analysis
-    print '\n' + 'RUNNING INNUca.py'
+    print('\n' + 'RUNNING INNUca.py')
 
     # Prepare run report file
     samples_report_path = os.path.join(outdir, 'samples_report.' + time_str + '.tab')
@@ -230,12 +236,12 @@ def main():
     # Determine SPAdes maximum memory
     spadesMaxMemory = None
     if not args.skipSPAdes:
-        print ''
+        print('')
         spadesMaxMemory = spades.define_memory(args.spadesMaxMemory, args.threads, available_memory_GB)
     # Determine .jar maximum memory
     jarMaxMemory = 'off'
     if not (args.skipTrimmomatic and (args.skipSPAdes or args.skipPilon)):
-        print ''
+        print('')
         jarMaxMemory = utils.define_jar_max_memory(args.jarMaxMemory, args.threads, available_memory_GB)
 
     # Run INNUca for each sample
@@ -243,7 +249,7 @@ def main():
     for sample in samples:
         sample_start_time = time.time()
 
-        print '\n' + 'Sample: ' + sample + '\n'
+        print('\n' + 'Sample: ' + sample + '\n')
 
         # Create sample outdir
         sample_outdir = os.path.abspath(os.path.join(outdir, sample, ''))
@@ -253,21 +259,21 @@ def main():
         # Get fastq files
         fastq_files = utils.searchFastqFiles(os.path.join(inputDirectory, sample, ''), pairEnd_filesSeparation_list, False)
         if len(fastq_files) == 1:
-            print 'Only one fastq file was found: ' + str(fastq_files)
-            print 'Pair-End sequencing is required. Moving to the next sample'
+            print('Only one fastq file was found: ' + str(fastq_files))
+            print('Pair-End sequencing is required. Moving to the next sample')
             continue
         elif len(fastq_files) == 0:
-            print 'No compressed fastq files were found. Continue to the next sample'
+            print('No compressed fastq files were found. Continue to the next sample')
             continue
 
-        print 'The following files will be used:'
-        print str(fastq_files) + '\n'
+        print('The following files will be used:')
+        print(str(fastq_files) + '\n')
 
         # Run INNUca.py analysis
         run_successfully, pass_qc, run_report = \
             run_innuca(sample, sample_outdir, fastq_files, args, script_path, scheme, spadesMaxMemory,
                        jar_path_trimmomatic, jar_path_pilon, jarMaxMemory, trueCoverage_config, rematch_script,
-                       species_genus, mlst_scheme_genus)
+                       species_genus, mlst_scheme_genus, spades_version=spades_version)
 
         # Save sample fail report
         utils.write_fail_report(os.path.join(sample_outdir, 'fail_report.txt'), run_report)
@@ -286,7 +292,7 @@ def main():
         if args.fastq is not None:
             utils.removeDirectory(os.path.join(outdir, 'reads', ''))
 
-        print 'END ' + sample + ' analysis'
+        print('END ' + sample + ' analysis')
         time_taken = utils.runTime(sample_start_time)
 
         # Save run report
@@ -389,7 +395,8 @@ def get_samples(args_input_directory, args_fastq, outdir, pair_end_files_separat
 
 
 def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spades_max_memory, jar_path_trimmomatic,
-               jar_path_pilon, jar_max_memory, true_coverage_config, rematch_script, species_genus, mlst_scheme_genus):
+               jar_path_pilon, jar_max_memory, true_coverage_config, rematch_script, species_genus, mlst_scheme_genus,
+               spades_version=None):
     threads = args.threads
     adapters_fasta = args.adapters
     if adapters_fasta is not None:
@@ -624,7 +631,9 @@ def run_innuca(sample_name, outdir, fastq_files, args, script_path, scheme, spad
                                       args.spadesMinCoverageAssembly, args.spadesMinContigsLength, genome_size,
                                       args.spadesKmers, max_reads_length, args.spadesDefaultKmers,
                                       args.spadesMinKmerCovContigs, assembled_se_reads, args.saveExcludedContigs,
-                                      args.maxNumberContigs, args.keepSPAdesScaffolds)
+                                      args.maxNumberContigs, args.keepSPAdesScaffolds, spades_version=spades_version,
+                                      estimated_coverage=estimated_coverage,
+                                      spades_not_use_isolate=args.spadesNotUseIsolate)
                 runs['SPAdes'] = [run_successfully, pass_qc, time_taken, failing, warning, 'NA']
 
                 if run_successfully:

@@ -8,7 +8,7 @@ import re
 
 # Run Spades
 def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCoverageAssembly, kmers,
-           assembled_se_reads):
+           assembled_se_reads, spades_version=None, estimated_coverage=None, spades_not_use_isolate=False):
     contigs = os.path.join(spades_folder, 'contigs.fasta')
 
     command = ['spades.py', '', '--only-assembler', '--threads', str(threads), '--memory', str(maxMemory),
@@ -17,6 +17,11 @@ def spades(spades_folder, threads, fastq_files, notUseCareful, maxMemory, minCov
 
     if not notUseCareful:
         command[1] = '--careful'
+
+    if not spades_not_use_isolate and \
+            spades_version is not None and float('.'.join(spades_version.split('.')[:2])) >= 3.14 and \
+            estimated_coverage is not None and estimated_coverage >= 100:
+        command[1] = '--isolate'  # Isolate mode already implies --only-assembler, so this option has no effect.
 
     if len(kmers) > 0:
         kmers = ','.join(map(str, kmers))
@@ -55,12 +60,18 @@ def define_minContigsLength(maximumReadsLength, minContigsLength):
     return minimum_length
 
 
-def define_memory(maxMemory, threads, available_memory_GB):
+def define_memory(maxMemory, threads, available_memory_GB, spades_version=None):
     GB_per_thread = 2048 / 1024.0
+    if spades_version is not None and float('.'.join(spades_version.split('.')[:2])) >= 3.14:
+        GB_per_thread = 3072 / 1024.0
 
     minimum_required_memory_GB = GB_per_thread * threads
-    if minimum_required_memory_GB < 4:
-        minimum_required_memory_GB = 4
+    if spades_version is not None and float('.'.join(spades_version.split('.')[:2])) >= 3.14:
+        if minimum_required_memory_GB < 6:
+            minimum_required_memory_GB = 6
+    else:
+        if minimum_required_memory_GB < 4:
+            minimum_required_memory_GB = 4
 
     if available_memory_GB == 0:
         print('WARNING: it was not possible to determine the free available memory!')
@@ -255,7 +266,7 @@ spades_timer = partial(utils.timer, name='SPAdes')
 def run_spades(sample_name, outdir, threads, fastq_files, not_use_careful, max_memory, min_coverage_assembly,
                min_contigs_length, estimated_genome_size_mb, kmers, maximum_reads_length, default_kmers,
                min_coverage_contigs, assembled_se_reads, save_excluded_contigs, max_number_contigs,
-               keep_scaffolds=False):
+               keep_scaffolds=False, spades_version=None, estimated_coverage=None, spades_not_use_isolate=False):
     pass_qc = True
     failing = {'sample': False}
     warnings = {}
@@ -276,7 +287,9 @@ def run_spades(sample_name, outdir, threads, fastq_files, not_use_careful, max_m
             print('SPAdes will use the following k-mers: ' + str(kmers))
 
     run_successfully, contigs = spades(spades_folder, threads, fastq_files, not_use_careful, max_memory,
-                                       min_coverage_assembly, kmers, assembled_se_reads)
+                                       min_coverage_assembly, kmers, assembled_se_reads, spades_version=spades_version,
+                                       estimated_coverage=estimated_coverage,
+                                       spades_not_use_isolate=spades_not_use_isolate)
 
     if run_successfully:
         scaffolds = os.path.join(spades_folder, 'scaffolds.fasta')
