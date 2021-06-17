@@ -421,6 +421,8 @@ def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_
         Minimum base quality used in classification. Only used with fastq files and kraken2.
     threads : int, default 1
         Number of threads to be used
+    genus_only : bool, default False
+        Boolean to set the Kraken parser to store only the genera results
 
     Returns
     -------
@@ -665,6 +667,8 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken,
         Minimum base quality used in classification. Only used with fastq files and kraken2.
     threads : int, default 1
         Number of threads to be used
+    genus_only : bool, default False
+        Boolean to set the Kraken parser to store only the genera results
 
     Returns
     -------
