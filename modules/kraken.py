@@ -295,7 +295,7 @@ def read_kraken_report(kraken_report):
     return kraken_results
 
 
-def parse_kraken_results(kraken_results):
+def parse_kraken_results(kraken_results, genus_only=False):
     """
     Parse the Kraken report
 
@@ -303,6 +303,8 @@ def parse_kraken_results(kraken_results):
     ----------
     kraken_results : str
         String with Kraken report. If using a file to store the report, save the file into a variable
+    genus_only : bool, default False
+        Boolean to set this parser to store only the genera results
 
     Returns
     -------
@@ -342,10 +344,13 @@ def parse_kraken_results(kraken_results):
                     results_parsed.update(species)
                 genus = {}
                 species = {}
-    if len(species) == 0:
-        results_parsed.update(genus)
+    if not genus_only:
+        if len(species) == 0:
+            results_parsed.update(genus)
+        else:
+            results_parsed.update(species)
     else:
-        results_parsed.update(species)
+        results_parsed.update(genus)
 
     return results_parsed, unclassified
 
@@ -389,7 +394,7 @@ def clean_kraken_results(results_parsed, min_percent_covered=None):
 
 
 def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
-                      min_percent_covered=None, min_base_quality=10, threads=1):
+                      min_percent_covered=None, min_base_quality=10, threads=1, genus_only=False):
     """
     Run Kraken, parse and clean the results
 
@@ -449,7 +454,7 @@ def run_kraken_module(files_to_classify, kraken_db, files_type, outdir, version_
     del kraken_output
 
     if run_successfully:
-        results_parsed, unclassified = parse_kraken_results(kraken_results=kraken_results)
+        results_parsed, unclassified = parse_kraken_results(kraken_results=kraken_results, genus_only=genus_only)
 
         if len(results_parsed) > 0:
             cleaned_results = clean_kraken_results(results_parsed=results_parsed,
@@ -630,7 +635,7 @@ def print_results(multispecies, unknown_fragments, most_abundant_taxon):
 
 
 def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken, db_mem=False, quick=False,
-               min_percent_covered=None, max_unclassified_frag=None, min_base_quality=10, threads=1):
+               min_percent_covered=None, max_unclassified_frag=None, min_base_quality=10, threads=1, genus_only=False):
     """
     Runs Kraken, parse the results and evaluate the outputs
 
@@ -680,7 +685,7 @@ def run_module(files_to_classify, kraken_db, files_type, outdir, version_kraken,
                                                                         db_mem=db_mem, quick=quick,
                                                                         min_percent_covered=min_percent_covered,
                                                                         min_base_quality=min_base_quality,
-                                                                        threads=threads)
+                                                                        threads=threads, genus_only=genus_only)
 
     multispecies = False
     unknown_fragments = False
@@ -813,7 +818,8 @@ def run_for_innuca(species, files_to_classify, kraken_db, files_type, outdir, ve
     run_successfully, multispecies, unknown_fragments, most_abundant_taxon = \
         run_module(files_to_classify=files_to_classify, kraken_db=kraken_db, files_type=files_type, outdir=outdir,
                    version_kraken=version_kraken, db_mem=db_mem, quick=quick, min_percent_covered=min_percent_covered,
-                   max_unclassified_frag=max_unclassified_frag, min_base_quality=min_base_quality, threads=threads)
+                   max_unclassified_frag=max_unclassified_frag, min_base_quality=min_base_quality, threads=threads,
+                   genus_only=False)
 
     rename_output_innuca(kraken_db=kraken_db, files_type=files_type, outdir=outdir)
 
@@ -906,6 +912,8 @@ def main():
     parser_optional_kraken.add_argument('--min_quality', type=int, metavar='N',
                                         help='Using fastq files, sets the minimum base quality to be used in'
                                              ' classification (default: 10)', required=False, default=10)
+    parser_optional_kraken.add_argument('-g', '--genus_only', action='store_true',
+                                        help='Parse Kraken report to the genus level only')
 
     args = parser.parse_args()
 
@@ -927,10 +935,10 @@ def main():
 
     version_kraken = get_kraken_version()
     if version_kraken == 2:
-        missing_programs, _ = utils_check_programs({'kraken2': ['--version', '>=', '2.0.6']})
+        missing_programs, _ = utils_check_programs({'kraken2': {'required': ['--version', '>=', '2.0.6']}})
     elif version_kraken == 1:
-        missing_programs, _ = utils_check_programs({'kraken': ['--version', '>=', '0.10.6'],
-                                                    'kraken-report': ['--version', '>=', '0.10.6']})
+        missing_programs, _ = utils_check_programs({'kraken': {'required': ['--version', '>=', '0.10.6']},
+                                                    'kraken-report': {'required': ['--version', '>=', '0.10.6']}})
     else:
         print()
         sys.exit('Kraken was not found in PATH')
@@ -956,7 +964,7 @@ def main():
                                            files_type=args.type, outdir=args.outdir, version_kraken=version_kraken,
                                            db_mem=args.memory, quick=args.quick, min_percent_covered=args.min_cov,
                                            max_unclassified_frag=args.max_unclass, min_base_quality=args.min_quality,
-                                           threads=args.threads)
+                                           threads=args.threads, genus_only=args.genus_only)
 
     _ = utils_run_time(start_time)
 
