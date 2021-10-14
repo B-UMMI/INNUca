@@ -183,10 +183,10 @@ def parseArguments(version):
                                  help='Do not stop INNUca.py if sample fails FastQC')
 
     trimmomatic_options = parser.add_argument_group(title='Trimmomatic options')
-    trimmomatic_options.add_argument('--trimVersion', type=str, metavar='0.38',
+    trimmomatic_options.add_argument('--trimVersion', type=str, metavar='0.39',
                                      help='Tells INNUca.py which Trimmomatic version to use (available'
                                           ' options: %(choices)s)',
-                                     choices=['0.36', '0.38'], required=False, default='0.38')
+                                     choices=['0.36', '0.38', '0.39'], required=False, default='0.39')
     trimmomatic_options.add_argument('--trimKeepFiles', action='store_true',
                                      help='Tells INNUca.py to not remove the output of Trimmomatic')
     trimmomatic_options.add_argument('--doNotTrimCrops', action='store_true',
@@ -340,8 +340,9 @@ def parseArguments(version):
             msg.append('Used --insertSizeDist but Python Plotly package was not found: {e}'.format(e=e))
 
     if len(msg) > 0:
-        argparse.ArgumentParser.error('\n'.join(msg))
-
+        parser.error('\n' + '\n'.join(msg))
+        # raise argparse.ArgumentTypeError('\n' + '\n'.join(msg))
+        # argparse.ArgumentParser.error('\n'.join(msg))
     return args
 
 
@@ -350,7 +351,9 @@ def spades_kmers(arguments):
     kmers = sorted(map(int, arguments))
     for number in kmers:
         if number % 2 != 0 or number >= 128:
-            raise argparse.ArgumentParser.error('All k-mers values must be odd integers, lower than 128')
+            raise argparse.ArgumentTypeError(
+                '\n' + '--spadesKmers: All k-mers values must be odd integers, lower than 128')
+            # raise argparse.ArgumentParser.error('All k-mers values must be odd integers, lower than 128')
     return kmers
 
 
@@ -361,14 +364,17 @@ def spades_cov_cutoff(argument):
         if str(argument) == option:
             return str(argument)
 
+    msg = '\n' + '--spadesMinCoverageAssembly must be positive integer, auto or off'
     try:
         argument = int(argument)
         if argument > 0:
             return argument
         else:
-            argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
+            raise argparse.ArgumentTypeError(msg)
+            # argparse.ArgumentParser.error(msg)
     except:
-        argparse.ArgumentParser.error('--spadesMinCoverageAssembly must be positive integer, auto or off')
+        raise argparse.ArgumentTypeError(msg)
+        # argparse.ArgumentParser.error(msg)
 
 
 # For parseArguments
@@ -378,14 +384,17 @@ def jar_max_memory(argument):
         if str(argument) == option:
             return str(argument)
 
+    msg = '\n' + '--jarMaxMemory must be positive integer, auto or off'
     try:
         argument = int(argument)
         if argument > 0:
             return argument
         else:
-            argparse.ArgumentParser.error('--jarMaxMemory must be positive integer, auto or off')
+            raise argparse.ArgumentTypeError(msg)
+            # argparse.ArgumentParser.error(msg)
     except:
-        argparse.ArgumentParser.error('--jarMaxMemory must be positive integer, auto or off')
+        raise argparse.ArgumentTypeError(msg)
+        # argparse.ArgumentParser.error(msg)
 
 
 def define_jar_max_memory(jar_max_memory, threads, available_memory_GB):
