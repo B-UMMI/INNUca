@@ -1,5 +1,5 @@
 FROM perl:5.30-slim-stretch
-LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-01"
+LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-03"
 
 WORKDIR /NGStools/
 
@@ -55,12 +55,19 @@ RUN echo 'cdifficile\tClostridioides\tdifficile' >> /NGStools/mlst/db/scheme_spe
 #    pip3 install setuptools && \
 #    python3 setup.py install && \
 #    cd /NGStools
-RUN git clone https://github.com/B-UMMI/ReMatCh.git
+RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
+    cd ReMatCh && \
+    # git checkout dev && \
+    cd /NGStools
 ENV PATH="/NGStools/ReMatCh/ReMatCh/src/samtools-1.3.1/bin:/NGStools/ReMatCh/ReMatCh/src/bcftools-1.3.1/bin:/NGStools/ReMatCh/ReMatCh/src/bowtie2-2.2.9:/NGStools/ReMatCh/ReMatCh:${PATH}"
 
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git && \
-    pip install setuptools
+    cd INNUca && \
+    mkdir -p test_INNUca/temp && \
+    pip install setuptools && \
+    # git checkout v4.2.3 && \
+    cd /NGStools
 ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.24:/NGStools/INNUca/src/SPAdes-3.15.3-Linux/bin:/NGStools/INNUca/src/Trimmomatic-0.38:/NGStools/INNUca:${PATH}"
 
 # fixing permissions for MLST update
