@@ -222,9 +222,9 @@ def parseArguments(version):
                                      required=False, default=55)
 
     spades_options = parser.add_argument_group(title='SPAdes options')
-    spades_options.add_argument('--spadesVersion', type=str, metavar='3.14.0',
+    spades_options.add_argument('--spadesVersion', type=str, metavar='3.15.3',
                                 help='Tells INNUca.py which SPAdes version to use (available options: %(choices)s)',
-                                choices=['3.11.1', '3.13.0', '3.14.0'], required=False, default='3.14.0')
+                                choices=['3.13.0', '3.14.0', '3.15.3'], required=False, default='3.15.3')
     spades_options.add_argument('--spadesNotUseCareful', action='store_true',
                                 help='Tells SPAdes to perform the assembly without the --careful option.'
                                      ' When the SPAdes --isolate option is allowed to be used (for SPAdes >= v4.14.0'
@@ -283,9 +283,9 @@ def parseArguments(version):
                                   help='Tells INNUca to keep SPAdes scaffolds')
 
     pilon_options = parser.add_argument_group(title='Pilon options')
-    pilon_options.add_argument('--pilonVersion', type=str, metavar='1.23',
+    pilon_options.add_argument('--pilonVersion', type=str, metavar='1.24',
                                help='Tells INNUca.py which Pilon version to use (available options: %(choices)s)',
-                               choices=['1.18', '1.23'], required=False, default='1.23')
+                               choices=['1.18', '1.23', '1.24'], required=False, default='1.24')
     pilon_options.add_argument('--pilonKeepFiles', action='store_true',
                                help='Tells INNUca.py to not remove the output of Pilon')
 

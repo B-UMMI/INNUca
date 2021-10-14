@@ -1,6 +1,5 @@
 FROM perl:5.30-slim-stretch
-MAINTAINER Miguel Machado <mpmachado@medicina.ulisboa.pt>
-LABEL version="4.2.2-02"
+LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-01"
 
 WORKDIR /NGStools/
 
@@ -62,7 +61,7 @@ ENV PATH="/NGStools/ReMatCh/ReMatCh/src/samtools-1.3.1/bin:/NGStools/ReMatCh/ReM
 # --- INNUca ---
 RUN git clone https://github.com/B-UMMI/INNUca.git && \
     pip install setuptools
-ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.23:/NGStools/INNUca/src/SPAdes-3.14.0-Linux/bin:/NGStools/INNUca/src/Trimmomatic-0.38:/NGStools/INNUca:${PATH}"
+ENV PATH="/NGStools/INNUca/src/fastqc_v0.11.5:/NGStools/INNUca/src/pilon_v1.24:/NGStools/INNUca/src/SPAdes-3.15.3-Linux/bin:/NGStools/INNUca/src/Trimmomatic-0.38:/NGStools/INNUca:${PATH}"
 
 # fixing permissions for MLST update
 RUN chmod +x /NGStools/INNUca/Docker/update_mlst_db.sh && chmod o+wr /NGStools/mlst/scripts/ && chmod -R o+wr /NGStools/mlst/db/ && sed -i "s#OUTDIR=pubmlst#OUTDIR=/NGStools/mlst/scripts/pubmlst#1" /NGStools/mlst/scripts/mlst-download_pub_mlst
