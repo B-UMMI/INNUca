@@ -142,6 +142,8 @@ echo 'Test INNUca done'
 
 
 
+rm -r $DIR/temp/reads/
+rm -r $DIR/temp/out/
 rm -r $DIR/temp/
 
 
