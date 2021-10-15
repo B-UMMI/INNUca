@@ -11,7 +11,7 @@ quality assessment, and possible contamination detection
 
 Copyright (C) 2018 Miguel Machado <mpmachado@medicina.ulisboa.pt>
 
-Last modified: February 05, 2020
+Last modified: October 14, 2021
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ version_kraken_global = None
 
 
 def main():
-    version = '4.2.2'
+    version = '4.2.3'
     args = utils.parseArguments(version)
 
     general_start_time = time.time()
