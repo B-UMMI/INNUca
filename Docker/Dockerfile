@@ -1,5 +1,5 @@
 FROM perl:5.30-slim-stretch
-LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-03"
+LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-04"
 
 WORKDIR /NGStools/
 
@@ -57,7 +57,7 @@ RUN echo 'cdifficile\tClostridioides\tdifficile' >> /NGStools/mlst/db/scheme_spe
 #    cd /NGStools
 RUN git clone https://github.com/B-UMMI/ReMatCh.git && \
     cd ReMatCh && \
-    # git checkout dev && \
+    git checkout dev && \
     cd /NGStools
 ENV PATH="/NGStools/ReMatCh/ReMatCh/src/samtools-1.3.1/bin:/NGStools/ReMatCh/ReMatCh/src/bcftools-1.3.1/bin:/NGStools/ReMatCh/ReMatCh/src/bowtie2-2.2.9:/NGStools/ReMatCh/ReMatCh:${PATH}"
 
