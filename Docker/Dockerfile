@@ -1,5 +1,5 @@
 FROM perl:5.30-slim-stretch
-LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-04"
+LABEL author="Miguel Machado <mpmachado@medicina.ulisboa.pt>" version="4.2.3-05" description="Same as image version 4.2.3-04, but with updated ReMatCh v4.1.2 ."
 
 WORKDIR /NGStools/
 
